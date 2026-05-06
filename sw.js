@@ -1,4 +1,4 @@
-const CACHE = 'global-recall-v1';
+const CACHE = 'global-recall-v2';
 const PRECACHE = [
   '/',
   '/index.html',
