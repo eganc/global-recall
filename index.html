@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Global Recall — Globe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: #0a0503; }
+
+:root {
+  --bg:         #0a0503;
+  --surface:    #2f1a17;
+  --border:     #000;
+  --text:       #ffdad4;
+  --text-muted: #ebbbb4;
+  --blue:       #0038ca;
+  --blue-light: #b9c3ff;
+  --amber:      #f59e0b;
+  --red:        #ff5540;
+  --mint:       #22c55e;
+  --shadow:     4px 4px 0 #000;
+  --shadow-sm:  2px 2px 0 #000;
+  --font-head:  'Space Grotesk', system-ui, sans-serif;
+  --font-body:  'Inter', system-ui, sans-serif;
+}
+
+body { font-family: var(--font-body); color: var(--text); }
+
+/* ── LOADING SCREEN ── */
+#loading-screen {
+  position: fixed; inset: 0; z-index: 100;
+  background: #0a0503;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 24px;
+}
+.terminal-line {
+  font-family: 'Space Grotesk', monospace;
+  font-size: 18px; color: var(--amber);
+  display: flex; align-items: center; gap: 8px;
+}
+.terminal-prompt { color: var(--mint); }
+.cursor {
+  display: inline-block; width: 10px; height: 20px;
+  background: var(--amber);
+  animation: blink 0.8s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+#load-bar-wrap {
+  width: 320px; height: 16px;
+  background: var(--surface);
+  border: 2px solid #000;
+  box-shadow: var(--shadow-sm);
+}
+#load-bar {
+  height: 100%; width: 0;
+  background: var(--mint);
+  transition: width 0.4s ease;
+}
+#intel-card {
+  width: 320px;
+  background: var(--surface);
+  border: 2px solid #000;
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+}
+.intel-label { font-family: var(--font-head); font-size: 10px; color: var(--amber); letter-spacing: 2px; margin-bottom: 8px; }
+#intel-text { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+#load-footer {
+  font-family: var(--font-head); font-size: 10px;
+  color: #4a2e2a; letter-spacing: 2px;
+}
+
+/* ── MAIN APP ── */
+#app {
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh;
+}
+
+/* ── HEADER ── */
+#header {
+  flex-shrink: 0;
+  background: var(--blue); border-bottom: 3px solid #000;
+  box-shadow: 0 4px 0 #000;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; height: 52px; z-index: 10;
+}
+#logo {
+  font-family: var(--font-head); font-weight: 900; font-size: 18px;
+  letter-spacing: 2px; color: #fff;
+}
+#menu-btn {
+  font-size: 22px; line-height: 1;
+  background: rgba(0,0,0,0.4); color: #fff;
+  border: 2px solid rgba(255,255,255,0.3);
+  width: 36px; height: 36px;
+  cursor: pointer; padding: 0;
+  font-family: var(--font-head);
+}
+#menu-btn:hover { background: rgba(0,0,0,0.7); }
+#menu-panel {
+  position: fixed; top: 56px; left: 12px; z-index: 30;
+  background: var(--surface);
+  border: 3px solid #000; box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+  min-width: 180px;
+}
+.menu-item {
+  font-family: var(--font-head); font-weight: 700; font-size: 13px;
+  letter-spacing: 1px; text-align: left;
+  background: transparent; color: var(--text);
+  border: none; border-bottom: 1px solid #000;
+  padding: 10px 14px; cursor: pointer;
+}
+.menu-item:hover { background: var(--blue); color: #fff; }
+.menu-item:last-child { border-bottom: none; }
+#hud { display: flex; align-items: center; gap: 12px; }
+.hud-chip {
+  font-family: var(--font-head); font-weight: 700; font-size: 14px;
+  background: rgba(0,0,0,0.4); color: #fff;
+  padding: 4px 10px; border: 2px solid rgba(255,255,255,0.2);
+  letter-spacing: 1px;
+}
+#score-chip { min-width: 70px; text-align: center; }
+
+/* ── GLOBE CONTAINER ── */
+#globe-wrap {
+  flex: 1; position: relative; overflow: hidden;
+  background: radial-gradient(ellipse at center, #000510 0%, #000 100%);
+}
+#globe-el { width: 100%; height: 100%; }
+#globe-el canvas { display: block; }
+
+/* ── GLOBE STYLE SWITCHER ── */
+#style-switcher {
+  position: absolute; bottom: 12px; right: 12px; z-index: 20;
+  display: flex; gap: 6px;
+}
+.style-btn {
+  font-family: var(--font-head); font-weight: 700; font-size: 10px;
+  letter-spacing: 1px; cursor: pointer;
+  background: rgba(0,0,0,0.7); color: var(--text-muted);
+  border: 2px solid rgba(255,255,255,0.2);
+  padding: 5px 9px; transition: all 0.1s;
+}
+.style-btn:hover, .style-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* ── NEXT / AUTO-NEXT CONTROLS ── */
+#next-controls {
+  position: absolute; top: 12px; right: 12px; z-index: 20;
+  display: flex; gap: 6px; align-items: center;
+}
+#next-btn {
+  font-family: var(--font-head); font-weight: 700; font-size: 11px;
+  letter-spacing: 1px; cursor: pointer;
+  background: rgba(0,0,0,0.75); color: var(--amber);
+  border: 2px solid var(--amber); box-shadow: var(--shadow-sm);
+  padding: 7px 12px;
+}
+#next-btn:hover { background: var(--amber); color: #000; }
+#autonext-btn {
+  font-family: var(--font-head); font-weight: 700; font-size: 11px;
+  letter-spacing: 1px; cursor: pointer;
+  background: rgba(0,0,0,0.75); color: var(--text-muted);
+  border: 2px solid rgba(255,255,255,0.2); box-shadow: var(--shadow-sm);
+  padding: 7px 12px;
+}
+#autonext-btn.on { background: var(--amber); color: #000; border-color: var(--amber); }
+
+/* ── BOTTOM INPUT BAR ── */
+#bottom {
+  flex-shrink: 0;
+  background: #1b0c09; border-top: 3px solid #000;
+  padding: 10px 16px 10px;
+  z-index: 10;
+}
+#input-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+#cinput {
+  flex: 1;
+  background: #fff;
+  border: 3px solid #000; box-shadow: var(--shadow);
+  color: #1b0c09;
+  font-family: var(--font-head); font-weight: 700; font-size: 16px;
+  letter-spacing: 1px; text-transform: uppercase;
+  padding: 10px 14px; outline: none;
+}
+#cinput::placeholder { color: #8a6e69; font-weight: 400; text-transform: none; letter-spacing: 0; }
+#cinput:focus { border-color: var(--blue); box-shadow: 4px 4px 0 var(--blue-light); }
+#remaining-badge {
+  font-family: var(--font-head); font-weight: 700; font-size: 13px;
+  color: var(--text-muted); white-space: nowrap;
+  min-width: 60px; text-align: right;
+}
+#chip-strip {
+  display: flex; gap: 6px; flex-wrap: nowrap;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
+  min-height: 26px;
+  padding-bottom: 2px;
+}
+#chip-strip::-webkit-scrollbar { display: none; }
+.chip {
+  font-family: var(--font-head); font-weight: 700; font-size: 10px;
+  letter-spacing: 1px;
+  background: #0038ca; color: #fff;
+  border: 2px solid #000; box-shadow: 2px 2px 0 #000;
+  padding: 3px 8px; white-space: nowrap;
+  flex-shrink: 0;
+}
+.chip.fresh { background: var(--mint); color: #000; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 110px; left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  font-family: var(--font-head); font-weight: 700; font-size: 14px;
+  letter-spacing: 1px;
+  background: var(--mint); color: #000;
+  border: 3px solid #000; box-shadow: var(--shadow);
+  padding: 8px 18px;
+  opacity: 0; transition: opacity 0.15s, transform 0.15s;
+  pointer-events: none; z-index: 50; white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── END SCREEN ── */
+#end-screen {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgba(10,5,3,0.97);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+  text-align: center; padding: 24px;
+}
+#end-headline {
+  font-family: var(--font-head); font-weight: 900; font-size: 36px;
+  letter-spacing: 4px; color: var(--mint);
+  text-shadow: 4px 4px 0 #000;
+}
+.stat-grid { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.stat-tile {
+  background: var(--surface); border: 3px solid #000;
+  box-shadow: var(--shadow); padding: 14px 20px;
+  font-family: var(--font-head);
+}
+.stat-value { font-size: 32px; font-weight: 900; color: var(--text); }
+.stat-label { font-size: 10px; color: var(--text-muted); letter-spacing: 2px; margin-top: 4px; }
+#pb-banner {
+  background: var(--red); color: #fff;
+  font-family: var(--font-head); font-weight: 900; font-size: 14px;
+  letter-spacing: 2px;
+  border: 3px solid #000; box-shadow: var(--shadow);
+  padding: 10px 20px;
+}
+.end-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.end-btn {
+  font-family: var(--font-head); font-weight: 900; font-size: 14px;
+  letter-spacing: 2px; cursor: pointer;
+  border: 3px solid #000; box-shadow: var(--shadow);
+  padding: 12px 24px; transition: transform 0.1s, box-shadow 0.1s;
+}
+.end-btn:active { transform: translate(2px,2px); box-shadow: 2px 2px 0 #000; }
+.end-btn.primary { background: var(--mint); color: #000; }
+.end-btn.secondary { background: var(--surface); color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div id="loading-screen">
+  <div style="font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:28px;letter-spacing:4px;color:#fff;text-shadow:4px 4px 0 #000">
+    GLOBAL RECALL
+  </div>
+  <div class="terminal-line">
+    <span class="terminal-prompt">&gt;</span>
+    <span id="load-msg">INITIALIZING GLOBE...</span>
+    <span class="cursor"></span>
+  </div>
+  <div id="load-bar-wrap"><div id="load-bar"></div></div>
+  <div id="intel-card">
+    <div class="intel-label">// INTEL</div>
+    <div id="intel-text"></div>
+  </div>
+  <div id="load-footer">GLOBAL RECALL v1.0.0 [GLOBE EDITION]</div>
+</div>
+
+<!-- Main Game -->
+<div id="app" style="display:none">
+  <div id="header">
+    <button id="menu-btn" title="Menu" onclick="toggleMenu()">☰</button>
+    <div id="logo">GLOBAL RECALL</div>
+    <div id="hud">
+      <div id="timer-display" class="hud-chip">00:00</div>
+      <div id="score-display" class="hud-chip score-chip">0 / 0</div>
+    </div>
+  </div>
+  <div id="menu-panel" style="display:none">
+    <button class="menu-item" onclick="menuRestart()">↻ RESTART</button>
+    <button class="menu-item" onclick="menuEndNow()">■ END GAME</button>
+    <button class="menu-item" onclick="menuJumpNext()">⊕ JUMP TO NEXT</button>
+    <button class="menu-item" onclick="toggleAutoRotate()">⟳ TOGGLE SPIN</button>
+    <button class="menu-item" onclick="toggleMenu()">CLOSE</button>
+  </div>
+  <div id="globe-wrap">
+    <div id="globe-el"></div>
+    <div id="style-switcher">
+      <button class="style-btn active" onclick="setStyle('blue')" title="Blue Marble">🌍 CLASSIC</button>
+      <button class="style-btn" onclick="setStyle('night')" title="Night Lights">🌃 NIGHT</button>
+      <button class="style-btn" onclick="setStyle('dark')" title="Dark Topo">🗺 TOPO</button>
+    </div>
+    <div id="next-controls">
+      <button id="next-btn" onclick="jumpToNext()" title="Jump to nearest unnamed country">⊕ NEXT</button>
+      <button id="autonext-btn" onclick="toggleAutoNext()" title="Auto-jump to next country after each correct answer">AUTO</button>
+    </div>
+  </div>
+  <div id="bottom">
+    <div id="input-row">
+      <input id="cinput" type="text" placeholder="Type a country name..."
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <div id="remaining-badge">— left</div>
+    </div>
+    <div id="chip-strip"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- End Screen -->
+<div id="end-screen" style="display:none">
+  <div id="end-headline">WORLD CONQUERED!</div>
+  <div class="stat-grid">
+    <div class="stat-tile">
+      <div id="end-count" class="stat-value">0/195</div>
+      <div class="stat-label">COUNTRIES NAMED</div>
+    </div>
+    <div class="stat-tile">
+      <div id="end-time" class="stat-value">00:00</div>
+      <div class="stat-label">TIME</div>
+    </div>
+  </div>
+  <div id="pb-banner" style="display:none">NEW PERSONAL BEST!</div>
+  <div class="end-btns">
+    <button class="end-btn primary" onclick="resetGame()">PLAY AGAIN</button>
+    <button class="end-btn secondary" onclick="shareGhost()">SHARE GHOST</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/globe.gl@2"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// COUNTRY DATA  [canonical, [aliases]]
+// Aliases include alternate spellings AND GeoJSON ADMIN name
+// variants to ensure feature matching works.
+// ═══════════════════════════════════════════════════════════════
+const RAW = [
+  ["Afghanistan",["Afghan"]],
+  ["Albania",[]],["Algeria",[]],["Andorra",[]],["Angola",[]],
+  ["Antigua and Barbuda",["Antigua","Barbuda"]],
+  ["Argentina",[]],["Armenia",["Hayastan"]],
+  ["Australia",["Oz"]],["Austria",["Österreich"]],
+  ["Azerbaijan",[]],["Bahamas",["The Bahamas"]],
+  ["Bahrain",[]],["Bangladesh",[]],["Barbados",[]],
+  ["Belarus",["Byelorussia","Belorussia"]],
+  ["Belgium",["Belgique","België"]],["Belize",[]],
+  ["Benin",[]],["Bhutan",["Druk Yul"]],["Bolivia",[]],
+  ["Bosnia and Herzegovina",["Bosnia","Herzegovina","Bosnia-Herzegovina"]],
+  ["Botswana",[]],["Brazil",["Brasil"]],
+  ["Brunei",["Brunei Darussalam"]],["Bulgaria",[]],
+  ["Burkina Faso",[]],["Burundi",[]],
+  ["Cabo Verde",["Cape Verde"]],["Cambodia",["Kampuchea"]],
+  ["Cameroon",[]],["Canada",[]],
+  ["Central African Republic",["CAR"]],["Chad",[]],
+  ["Chile",[]],["China",["PRC"]],["Colombia",[]],["Comoros",[]],
+  ["Republic of the Congo",["Congo","Congo-Brazzaville","Republic of Congo"]],
+  ["DR Congo",["Democratic Republic of the Congo","DRC","Congo-Kinshasa","Zaire"]],
+  ["Costa Rica",[]],["Croatia",["Hrvatska"]],["Cuba",[]],
+  ["Cyprus",[]],["Czech Republic",["Czechia","Česká republika"]],
+  ["Denmark",["Danmark"]],["Djibouti",[]],["Dominica",[]],
+  ["Dominican Republic",[]],["Ecuador",[]],
+  ["Egypt",[]],["El Salvador",["Salvador"]],
+  ["Equatorial Guinea",[]],["Eritrea",[]],["Estonia",["Eesti"]],
+  ["Eswatini",["Swaziland","eSwatini"]],["Ethiopia",["Abyssinia"]],
+  ["Fiji",[]],["Finland",["Suomi"]],
+  ["France",[]],["Gabon",[]],["Gambia",["The Gambia"]],
+  ["Georgia",[]],["Germany",["Deutschland"]],
+  ["Ghana",[]],["Greece",["Hellas","Ellada"]],["Grenada",[]],
+  ["Guatemala",[]],["Guinea",[]],["Guinea-Bissau",[]],
+  ["Guyana",[]],["Haiti",[]],["Honduras",[]],
+  ["Hungary",["Magyarország"]],["Iceland",["Ísland"]],
+  ["India",["Bharat"]],["Indonesia",[]],
+  ["Iran",["Persia"]],["Iraq",[]],
+  ["Ireland",["Éire"]],["Israel",[]],["Italy",["Italia"]],
+  ["Jamaica",[]],["Japan",["Nippon","Nihon"]],
+  ["Jordan",[]],["Kazakhstan",["Qazaqstan"]],["Kenya",[]],
+  ["Kiribati",[]],
+  ["North Korea",["DPRK"]],
+  ["South Korea",["Korea","ROK"]],
+  ["Kuwait",[]],["Kyrgyzstan",["Kyrgyz Republic"]],
+  ["Laos",["Lao PDR"]],["Latvia",["Latvija"]],["Lebanon",[]],
+  ["Lesotho",[]],["Liberia",[]],["Libya",[]],
+  ["Liechtenstein",[]],["Lithuania",["Lietuva"]],
+  ["Luxembourg",[]],["Madagascar",[]],["Malawi",[]],
+  ["Malaysia",[]],["Maldives",[]],["Mali",[]],
+  ["Malta",[]],["Marshall Islands",[]],["Mauritania",[]],
+  ["Mauritius",[]],["Mexico",["México"]],
+  ["Micronesia",["FSM","Federated States of Micronesia"]],
+  ["Moldova",["Republic of Moldova"]],["Monaco",[]],
+  ["Mongolia",[]],["Montenegro",["Crna Gora"]],
+  ["Morocco",["Maroc"]],["Mozambique",[]],
+  ["Myanmar",["Burma"]],["Namibia",[]],["Nauru",[]],
+  ["Nepal",[]],["Netherlands",["Holland"]],
+  ["New Zealand",["NZ","Aotearoa"]],["Nicaragua",[]],
+  ["Niger",[]],["Nigeria",[]],
+  ["North Macedonia",["Macedonia","FYROM"]],
+  ["Norway",["Norge"]],["Oman",[]],["Pakistan",[]],
+  ["Palau",[]],
+  ["Palestine",["Palestinian Territories","West Bank","Gaza"]],
+  ["Panama",[]],["Papua New Guinea",["PNG"]],
+  ["Paraguay",[]],["Peru",[]],["Philippines",["Pilipinas"]],
+  ["Poland",["Polska"]],["Portugal",[]],["Qatar",[]],
+  ["Romania",["România"]],
+  ["Russia",["Russian Federation"]],["Rwanda",[]],
+  ["Saint Kitts and Nevis",["St Kitts","Saint Kitts","St Kitts and Nevis"]],
+  ["Saint Lucia",["St Lucia","St. Lucia"]],
+  ["Saint Vincent and the Grenadines",["St Vincent","Saint Vincent"]],
+  ["Samoa",["Western Samoa"]],["San Marino",[]],
+  ["São Tomé and Príncipe",["Sao Tome and Principe","Sao Tome"]],
+  ["Saudi Arabia",["KSA"]],
+  ["Senegal",[]],["Serbia",[]],["Seychelles",[]],
+  ["Sierra Leone",[]],["Singapore",[]],
+  ["Slovakia",["Slovak Republic"]],["Slovenia",["Slovenija"]],
+  ["Solomon Islands",[]],["Somalia",[]],
+  ["South Africa",["RSA"]],["South Sudan",[]],
+  ["Spain",["España","Espana"]],["Sri Lanka",["Ceylon"]],
+  ["Sudan",[]],["Suriname",["Surinam"]],["Sweden",["Sverige"]],
+  ["Switzerland",["Schweiz","Suisse"]],
+  ["Syria",[]],
+  ["Taiwan",["Republic of China","ROC"]],
+  ["Tajikistan",[]],["Tanzania",[]],
+  ["Thailand",["Siam"]],["Timor-Leste",["East Timor"]],
+  ["Togo",[]],["Tonga",[]],
+  ["Trinidad and Tobago",["Trinidad","Tobago"]],
+  ["Tunisia",[]],["Turkey",["Türkiye","Turkiye"]],
+  ["Turkmenistan",[]],["Tuvalu",[]],["Uganda",[]],
+  ["Ukraine",[]],
+  ["United Arab Emirates",["UAE","Emirates"]],
+  ["United Kingdom",["UK","Great Britain","England","Britain"]],
+  ["United States",["USA","US","America"]],
+  ["Uruguay",[]],["Uzbekistan",[]],["Vanuatu",[]],
+  ["Venezuela",[]],["Vietnam",["Viet Nam"]],
+  ["Yemen",[]],["Zambia",[]],["Zimbabwe",[]],
+  ["Ivory Coast",["Côte d'Ivoire","Cote d'Ivoire","Cote dIvoire"]],
+  ["Kosovo",[]],["Western Sahara",[]],
+];
+
+const countries = RAW.map(([canonical, aliases]) => ({
+  canonical, aliases, named: false, feat: null
+}));
+const TOTAL = countries.length;
+
+// ═══════════════════════════════════════════════════════════════
+// MATCHING
+// ═══════════════════════════════════════════════════════════════
+function norm(s) {
+  return s.toLowerCase().trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[''`]/g, "'");
+}
+
+function lev(a, b) {
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  if (Math.abs(m - n) > 3) return 99;
+  const dp = [];
+  for (let i = 0; i <= m; i++) {
+    dp[i] = [i];
+    for (let j = 1; j <= n; j++) dp[i][j] = i === 0 ? j : 0;
+  }
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function findMatch(raw) {
+  const inp = norm(raw);
+  if (inp.length < 3) return null;
+  for (const c of countries) {
+    if (c.named) continue;
+    const names = [norm(c.canonical), ...c.aliases.map(norm)];
+    for (const n of names) {
+      if (n === inp) return c;
+      if (n.length < 7) continue; // short names: exact only
+      // Fuzzy only fires at full name length — prevents "mongoli" matching "mongolia"
+      // We forgive wrong characters (typos) but not missing characters (typing short)
+      if (inp.length < n.length) continue;
+      if (inp.length > n.length + 1) continue; // also cap overshoot
+      const dist = lev(inp, n);
+      if (n.length >= 8  && dist === 1) return c; // 7-char names exact only (iceland/ireland ambiguity)
+      if (n.length >= 12 && dist === 2) return c;
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INTEL FACTS
+// ═══════════════════════════════════════════════════════════════
+const FACTS = [
+  "Russia spans 11 time zones — more than any other country.",
+  "Canada has the longest coastline in the world at over 202,000 km.",
+  "Vatican City is the smallest country in the world at just 0.44 km².",
+  "Indonesia is an archipelago of over 17,000 islands.",
+  "Brazil is the only Portuguese-speaking country in the Americas.",
+  "Mongolia has the lowest population density of any country.",
+  "Kazakhstan is the world's largest landlocked country.",
+  "The Philippines comprises over 7,000 islands.",
+  "There are 195 countries recognised by the United Nations today.",
+  "Nauru, an island nation in the Pacific, has no official capital city.",
+  "South Sudan is the world's newest country, gaining independence in 2011.",
+  "Liechtenstein is one of only two doubly-landlocked countries in the world.",
+];
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let isRunning = false;
+let sessionStart = 0;
+let animRaf = null;
+let namedList = [], namedTs = [];
+let ghostData = null;
+let autoNext = false;
+let autoNextTimer = null;
+
+// Handle ghost URL param
+(function(){
+  try {
+    const g = new URLSearchParams(location.search).get('ghost');
+    if (g) { const d = JSON.parse(atob(g)); localStorage.setItem('gr_ghost', JSON.stringify(d)); }
+  } catch {}
+})();
+
+function getRecs() { try { return JSON.parse(localStorage.getItem('gr_recs')||'{}'); } catch { return {}; } }
+function saveRec(count, timeS) {
+  const r = getRecs();
+  const key = 'name_all';
+  if (!r[key]) r[key] = { best: 0, best_time: Infinity, runs: 0 };
+  r[key].runs++;
+  const isPB = count > r[key].best || (count === r[key].best && timeS < r[key].best_time);
+  const prev = r[key].best;
+  if (count > r[key].best) r[key].best = count;
+  if (timeS < r[key].best_time) r[key].best_time = timeS;
+  localStorage.setItem('gr_recs', JSON.stringify(r));
+  return { isPB, prev };
+}
+function getGhost() { try { return JSON.parse(localStorage.getItem('gr_ghost')||'null'); } catch { return null; } }
+function saveGhost(list, ts, total) {
+  localStorage.setItem('gr_ghost', JSON.stringify({
+    countries: list.slice(0,100), timestamps: ts.slice(0,100), totalTime: total
+  }));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GLOBE
+// ═══════════════════════════════════════════════════════════════
+let myGlobe = null;
+let geoFeatures = [];
+let renderTick = 0; // bump to force re-render
+
+const NAMED_COLOR  = 'rgba(34,197,94,0.88)'; // mint green
+const BORDER_COLOR = 'rgba(255,255,255,0.18)';
+
+// Globe style presets
+const STYLES = {
+  blue:  { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg', atmo: '#6699ff', bg: '#000510' },
+  night: { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg',       atmo: '#ff6644', bg: '#000000' },
+  dark:  { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-dark.jpg',        atmo: '#ff9955', bg: '#000510' },
+};
+let currentStyle = 'blue';
+
+function setStyle(key) {
+  if (!STYLES[key]) return;
+  currentStyle = key;
+  const s = STYLES[key];
+  document.getElementById('globe-wrap').style.background =
+    `radial-gradient(ellipse at center, ${s.bg} 0%, #000 100%)`;
+  if (myGlobe) myGlobe.globeImageUrl(s.img).atmosphereColor(s.atmo);
+  document.querySelectorAll('.style-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['blue','night','dark'][i] === key);
+  });
+}
+
+function getCapColor(f) { return f._named ? NAMED_COLOR : 'rgba(0,0,0,0)'; }
+function getAltitude(f)  { return f._named ? 0.005 : 0; } // 0.005 clears z-fighting without visible parallax
+
+function refreshGlobe() {
+  if (!myGlobe) return;
+  renderTick++;
+  const t = renderTick;
+  myGlobe
+    .polygonCapColor(f => { void t; return getCapColor(f); })
+    .polygonAltitude(f => { void t; return getAltitude(f); });
+}
+
+// Compute centroid of a GeoJSON feature (weighted by largest polygon)
+function featureCentroid(feat) {
+  const geo = feat.geometry;
+  let pts = [];
+  if (geo.type === 'Polygon') pts = geo.coordinates[0];
+  else if (geo.type === 'MultiPolygon') {
+    let max = 0;
+    for (const poly of geo.coordinates)
+      if (poly[0].length > max) { max = poly[0].length; pts = poly[0]; }
+  }
+  if (!pts.length) return null;
+  let lng = 0, lat = 0;
+  for (const [x, y] of pts) { lng += x; lat += y; }
+  return { lat: lat / pts.length, lng: lng / pts.length };
+}
+
+// Estimate zoom altitude based on feature bounding box (smaller country = closer zoom)
+function featureAltitude(feat) {
+  try {
+    const geo = feat.geometry;
+    let allPts = [];
+    if (geo.type === 'Polygon') allPts = geo.coordinates[0];
+    else if (geo.type === 'MultiPolygon')
+      for (const poly of geo.coordinates) allPts = allPts.concat(poly[0]);
+    if (!allPts.length) return 1.5;
+    const lngs = allPts.map(p => p[0]), lats = allPts.map(p => p[1]);
+    const spanLng = Math.max(...lngs) - Math.min(...lngs);
+    const spanLat = Math.max(...lats) - Math.min(...lats);
+    const span = Math.max(spanLng, spanLat);
+    // Large countries (Russia ~170°) → altitude ~2.5; tiny islands (~1°) → ~0.3
+    return Math.max(0.25, Math.min(2.5, span / 55));
+  } catch { return 1.5; }
+}
+
+function flyToFeature(feat) {
+  if (!myGlobe || !feat) return;
+  const center = featureCentroid(feat);
+  if (!center) return;
+  myGlobe.controls().autoRotate = false;
+  myGlobe.pointOfView({ ...center, altitude: featureAltitude(feat) }, 750);
+}
+
+// Great-circle distance between two lat/lng points (degrees)
+function gcd(lat1, lng1, lat2, lng2) {
+  const R = 1, toR = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toR, dLng = (lng2 - lng1) * toR;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*toR)*Math.cos(lat2*toR)*Math.sin(dLng/2)**2;
+  return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function jumpToNext() {
+  if (!myGlobe) return;
+  const pov = myGlobe.pointOfView();
+  let best = null, bestDist = Infinity;
+  for (const c of countries) {
+    if (c.named || !c.feat) continue;
+    const center = featureCentroid(c.feat);
+    if (!center) continue;
+    const d = gcd(pov.lat, pov.lng, center.lat, center.lng);
+    if (d < bestDist) { bestDist = d; best = c; }
+  }
+  if (best) flyToFeature(best.feat);
+  document.getElementById('cinput').focus();
+}
+
+function initGlobe(el) {
+  myGlobe = Globe()(el);
+  const s = STYLES[currentStyle];
+  myGlobe
+    .backgroundColor('rgba(0,0,0,0)')
+    .globeImageUrl(s.img)
+    .showAtmosphere(true)
+    .atmosphereColor(s.atmo)
+    .atmosphereAltitude(0.15)
+    .polygonsData([])
+    .polygonCapColor(getCapColor)
+    .polygonSideColor(() => 'rgba(0,0,0,0.25)')
+    .polygonStrokeColor(() => BORDER_COLOR)
+    .polygonAltitude(getAltitude)
+    .polygonLabel(() => '');  // no tooltip — that's the whole game!
+
+  myGlobe.controls().autoRotate = true;
+  myGlobe.controls().autoRotateSpeed = 0.4;
+
+  const wrap = document.getElementById('globe-wrap');
+  new ResizeObserver(() => {
+    myGlobe.width(wrap.clientWidth).height(wrap.clientHeight);
+  }).observe(wrap);
+}
+
+async function loadGeoJSON() {
+  const urls = [
+    // 50m has all microstates (Andorra, Monaco, San Marino, etc.)
+    'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@v5.1.2/geojson/ne_50m_admin_0_countries.geojson',
+    'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@v5.1.2/geojson/ne_110m_admin_0_countries.geojson',
+  ];
+  let data = null, lastErr;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) { lastErr = new Error(`${res.status} from ${url}`); continue; }
+      const json = await res.json();
+      // If it's TopoJSON (world-atlas), convert via inline lightweight conversion
+      if (json.type === 'Topology') {
+        lastErr = new Error('TopoJSON fallback unsupported here'); continue;
+      }
+      data = json; break;
+    } catch (e) { lastErr = e; }
+  }
+  if (!data) throw lastErr || new Error('No GeoJSON source available');
+  geoFeatures = data.features;
+
+  // Build name → feature index (normalized)
+  const featureByKey = {};
+  for (const feat of geoFeatures) {
+    feat._named = false;
+    const p = feat.properties;
+    for (const field of ['ADMIN', 'NAME', 'NAME_LONG', 'FORMAL_EN', 'NAME_ALT']) {
+      if (p[field] && p[field] !== '-99') featureByKey[norm(p[field])] = feat;
+    }
+  }
+
+  // Link each country to its GeoJSON feature
+  for (const c of countries) {
+    const searchNames = [norm(c.canonical), ...c.aliases.map(norm)];
+    for (const name of searchNames) {
+      if (featureByKey[name]) { c.feat = featureByKey[name]; break; }
+    }
+    if (!c.feat) console.warn(`[Global Recall] No geo feature for: ${c.canonical}`);
+  }
+
+  return geoFeatures;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function fmt(s) {
+  s = Math.round(Math.abs(s));
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1100);
+}
+
+function addChip(name, fresh = true) {
+  const strip = document.getElementById('chip-strip');
+  const chip = document.createElement('div');
+  chip.className = 'chip' + (fresh ? ' fresh' : '');
+  chip.textContent = name.toUpperCase();
+  strip.prepend(chip);
+  if (fresh) setTimeout(() => chip.classList.remove('fresh'), 300);
+  const chips = strip.querySelectorAll('.chip');
+  if (chips.length > 60) chips[chips.length - 1].remove();
+}
+
+function updateHUD() {
+  const count = namedList.length;
+  const elapsed = isRunning ? (Date.now() - sessionStart) / 1000 : 0;
+  document.getElementById('timer-display').textContent = fmt(elapsed);
+  document.getElementById('score-display').textContent = `${count} / ${TOTAL}`;
+  document.getElementById('remaining-badge').textContent = `${TOTAL - count} left`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GAME LOOP
+// ═══════════════════════════════════════════════════════════════
+function startGame() {
+  countries.forEach(c => { c.named = false; if (c.feat) c.feat._named = false; });
+  namedList = []; namedTs = [];
+  ghostData = getGhost();
+  isRunning = true;
+  sessionStart = Date.now();
+  if (myGlobe) { myGlobe.polygonsData(geoFeatures); myGlobe.controls().autoRotate = true; }
+  updateHUD();
+  document.getElementById('cinput').focus();
+
+  cancelAnimationFrame(animRaf);
+  function tick() { if (isRunning) { updateHUD(); animRaf = requestAnimationFrame(tick); } }
+  animRaf = requestAnimationFrame(tick);
+}
+
+function endGame() {
+  isRunning = false;
+  cancelAnimationFrame(animRaf);
+  const elapsed = (Date.now() - sessionStart) / 1000;
+  saveGhost(namedList, namedTs, elapsed);
+
+  const count = namedList.length;
+  const { isPB, prev } = saveRec(count, elapsed);
+
+  document.getElementById('end-headline').textContent =
+    count === TOTAL ? 'WORLD CONQUERED!' : `${count} / ${TOTAL}`;
+  document.getElementById('end-count').textContent = `${count}/${TOTAL}`;
+  document.getElementById('end-time').textContent = fmt(elapsed);
+
+  const pb = document.getElementById('pb-banner');
+  if (isPB && count > 0) {
+    pb.style.display = '';
+    pb.textContent = prev > 0
+      ? `NEW PERSONAL BEST! Previous: ${prev} countries`
+      : 'NEW PERSONAL BEST!';
+  } else pb.style.display = 'none';
+
+  document.getElementById('end-screen').style.display = 'flex';
+}
+
+function resetGame() {
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('chip-strip').innerHTML = '';
+  refreshGlobe();
+  startGame();
+}
+
+function toggleMenu() {
+  const m = document.getElementById('menu-panel');
+  m.style.display = m.style.display === 'none' ? 'flex' : 'none';
+}
+function menuRestart() {
+  toggleMenu();
+  clearTimeout(autoNextTimer);
+  document.getElementById('chip-strip').innerHTML = '';
+  startGame();
+}
+function menuJumpNext() { toggleMenu(); jumpToNext(); }
+function toggleAutoNext() {
+  autoNext = !autoNext;
+  document.getElementById('autonext-btn').classList.toggle('on', autoNext);
+  toast(autoNext ? 'AUTO-NEXT ON' : 'AUTO-NEXT OFF');
+}
+function menuEndNow() {
+  toggleMenu();
+  if (isRunning) endGame();
+}
+function toggleAutoRotate() {
+  toggleMenu();
+  if (myGlobe) {
+    const c = myGlobe.controls();
+    c.autoRotate = !c.autoRotate;
+    toast(c.autoRotate ? 'AUTO-SPIN ON' : 'AUTO-SPIN OFF');
+  }
+}
+
+function shareGhost() {
+  const g = getGhost();
+  if (!g) return;
+  try {
+    const enc = btoa(JSON.stringify(g));
+    if (enc.length > 2000) { toast('GHOST TOO LARGE — PLAY MORE TO SHRINK IT'); return; }
+    const url = location.origin + location.pathname + '?ghost=' + enc;
+    navigator.clipboard.writeText(url).then(() => toast('GHOST URL COPIED!')).catch(() => toast('COPY FAILED'));
+  } catch { toast('ERROR SHARING'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INPUT HANDLER
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('cinput').addEventListener('input', function() {
+  if (!isRunning) return;
+  const c = findMatch(this.value);
+  if (!c) return;
+  if (c.named) { this.value = ''; return; }
+
+  c.named = true;
+  namedList.push(c.canonical);
+  namedTs.push((Date.now() - sessionStart) / 1000);
+
+  if (c.feat) {
+    c.feat._named = true;
+    refreshGlobe();
+    flyToFeature(c.feat);
+  }
+
+  toast('✓ ' + c.canonical.toUpperCase());
+  addChip(c.canonical);
+  updateHUD();
+  this.value = '';
+  if (namedList.length === TOTAL) { endGame(); return; }
+  if (autoNext) {
+    clearTimeout(autoNextTimer);
+    autoNextTimer = setTimeout(jumpToNext, 1000);
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// BOOT SEQUENCE
+// ═══════════════════════════════════════════════════════════════
+async function boot() {
+  const fact = FACTS[Math.floor(Math.random() * FACTS.length)];
+  document.getElementById('intel-text').textContent = fact;
+
+  const bar = document.getElementById('load-bar');
+  const msg = document.getElementById('load-msg');
+
+  bar.style.width = '10%';
+  msg.textContent = 'FETCHING COUNTRY DATA...';
+
+  await loadGeoJSON();
+  bar.style.width = '70%';
+
+  msg.textContent = 'RENDERING GLOBE...';
+  await new Promise(r => setTimeout(r, 200));
+  bar.style.width = '100%';
+  await new Promise(r => setTimeout(r, 200));
+  msg.textContent = 'READY.';
+  await new Promise(r => setTimeout(r, 300));
+
+  // Show app FIRST so globe-el has real dimensions
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  // One frame for layout to settle, then init globe
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const globeEl = document.getElementById('globe-el');
+  initGlobe(globeEl);
+
+  // One more frame for globe to attach its canvas
+  await new Promise(r => requestAnimationFrame(r));
+
+  startGame();
+}
+
+boot().catch(e => {
+  console.error(e);
+  document.getElementById('load-msg').textContent = 'LOAD FAILED — CHECK CONSOLE';
+});
+</script>
+</body>
+</html>
