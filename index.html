@@ -234,6 +234,32 @@ body { font-family: var(--font-body); color: var(--text); }
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ── INSTALL BANNER ── */
+#install-banner {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
+  background: var(--blue); border-top: 3px solid #000;
+  box-shadow: 0 -4px 0 #000;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+#install-banner.show { transform: translateY(0); }
+#install-banner-text {
+  flex: 1;
+  font-family: var(--font-head); font-weight: 700; font-size: 13px;
+  letter-spacing: 0.5px; color: #fff; line-height: 1.4;
+}
+#install-banner-text span { display: block; font-size: 11px; font-weight: 400; opacity: 0.8; margin-top: 2px; }
+.install-btn {
+  font-family: var(--font-head); font-weight: 900; font-size: 12px;
+  letter-spacing: 1px; cursor: pointer; white-space: nowrap;
+  border: 2px solid #000; box-shadow: var(--shadow-sm);
+  padding: 8px 14px;
+}
+#install-yes { background: var(--mint); color: #000; }
+#install-no  { background: rgba(0,0,0,0.4); color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.2); box-shadow: none; }
+
 /* ── END SCREEN ── */
 #end-screen {
   position: fixed; inset: 0; z-index: 80;
@@ -354,6 +380,16 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="end-btn primary" onclick="resetGame()">PLAY AGAIN</button>
     <button class="end-btn secondary" onclick="shareGhost()">SHARE GHOST</button>
   </div>
+</div>
+
+<!-- Install Banner -->
+<div id="install-banner">
+  <div id="install-banner-text">
+    📲 Install Global Recall
+    <span>Play offline · No browser needed · Home screen shortcut</span>
+  </div>
+  <button class="install-btn" id="install-yes" onclick="doInstall()">INSTALL</button>
+  <button class="install-btn" id="install-no"  onclick="dismissInstall()">LATER</button>
 </div>
 
 <script src="https://unpkg.com/globe.gl@2"></script>
@@ -953,6 +989,50 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () =>
     navigator.serviceWorker.register('/sw.js').catch(() => {})
   );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PWA INSTALL PROMPT
+// ═══════════════════════════════════════════════════════════════
+let _installPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _installPrompt = e;
+  // Show after boot if not previously dismissed
+  if (!localStorage.getItem('gr_install_dismissed')) {
+    setTimeout(() => document.getElementById('install-banner').classList.add('show'), 1500);
+  }
+});
+
+// Also show on iOS (no beforeinstallprompt) if not in standalone and not dismissed
+window.addEventListener('load', () => {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone;
+  if (isIOS && !isStandalone && !localStorage.getItem('gr_install_dismissed')) {
+    // iOS can't auto-install — show a softer message with instructions
+    document.getElementById('install-banner-text').innerHTML =
+      '📲 Install Global Recall' +
+      '<span>Safari → Share → Add to Home Screen</span>';
+    document.getElementById('install-yes').style.display = 'none';
+    setTimeout(() => document.getElementById('install-banner').classList.add('show'), 1500);
+  }
+});
+
+function doInstall() {
+  dismissInstall();
+  if (!_installPrompt) return;
+  _installPrompt.prompt();
+  _installPrompt.userChoice.then(r => {
+    if (r.outcome === 'accepted') toast('INSTALLED! ✓');
+    _installPrompt = null;
+  });
+}
+
+function dismissInstall() {
+  document.getElementById('install-banner').classList.remove('show');
+  localStorage.setItem('gr_install_dismissed', '1');
 }
 </script>
 </body>
