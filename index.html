@@ -978,6 +978,7 @@ async function boot() {
   await new Promise(r => requestAnimationFrame(r));
 
   startGame();
+  setTimeout(showInstallBanner, 1500);
 }
 
 boot().catch(e => {
@@ -996,38 +997,46 @@ if ('serviceWorker' in navigator) {
 // ═══════════════════════════════════════════════════════════════
 let _installPrompt = null;
 
+// Capture the native prompt event when available (Android/Chrome/Edge)
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _installPrompt = e;
-  // Show after boot if not previously dismissed
-  if (!localStorage.getItem('gr_install_dismissed')) {
-    setTimeout(() => document.getElementById('install-banner').classList.add('show'), 1500);
-  }
 });
 
-// Also show on iOS (no beforeinstallprompt) if not in standalone and not dismissed
-window.addEventListener('load', () => {
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+function showInstallBanner() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
     || window.navigator.standalone;
-  if (isIOS && !isStandalone && !localStorage.getItem('gr_install_dismissed')) {
-    // iOS can't auto-install — show a softer message with instructions
+  if (isStandalone) return; // already installed
+  if (localStorage.getItem('gr_install_dismissed')) return;
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const banner = document.getElementById('install-banner');
+
+  if (isIOS) {
     document.getElementById('install-banner-text').innerHTML =
       '📲 Install Global Recall' +
-      '<span>Safari → Share → Add to Home Screen</span>';
+      '<span>Tap Share → Add to Home Screen for offline play</span>';
     document.getElementById('install-yes').style.display = 'none';
-    setTimeout(() => document.getElementById('install-banner').classList.add('show'), 1500);
+  } else if (!_installPrompt) {
+    // Desktop or unsupported — still show with instructions
+    document.getElementById('install-banner-text').innerHTML =
+      '📲 Install Global Recall' +
+      '<span>Browser menu → Install app — play offline, no browser needed</span>';
+    document.getElementById('install-yes').style.display = 'none';
   }
-});
+
+  banner.classList.add('show');
+}
 
 function doInstall() {
+  if (_installPrompt) {
+    _installPrompt.prompt();
+    _installPrompt.userChoice.then(r => {
+      if (r.outcome === 'accepted') toast('INSTALLED! ✓');
+      _installPrompt = null;
+    });
+  }
   dismissInstall();
-  if (!_installPrompt) return;
-  _installPrompt.prompt();
-  _installPrompt.userChoice.then(r => {
-    if (r.outcome === 'accepted') toast('INSTALLED! ✓');
-    _installPrompt = null;
-  });
 }
 
 function dismissInstall() {
