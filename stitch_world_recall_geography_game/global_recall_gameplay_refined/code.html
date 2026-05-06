@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GeoMaster - Main Gameplay</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 48;
+        }
+        .retro-halftone {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+            background-size: 8px 8px;
+        }
+        .linen-texture {
+            background-color: #210e0b;
+            background-image: repeating-linear-gradient(45deg, rgba(255,255,255, 0.02) 0px, rgba(255,255,255, 0.02) 1px, transparent 1px, transparent 2px);
+        }
+        .map-container {
+            mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ffb4ab",
+                        "surface-bright": "#4c332f",
+                        "inverse-on-surface": "#422a27",
+                        "tertiary-fixed-dim": "#acc7ff",
+                        "on-primary-fixed-variant": "#930100",
+                        "surface-container-high": "#3b2420",
+                        "on-tertiary-container": "#00285b",
+                        "primary-fixed": "#ffdad4",
+                        "secondary": "#b9c3ff",
+                        "surface-container-highest": "#472f2b",
+                        "on-error": "#690005",
+                        "secondary-fixed-dim": "#b9c3ff",
+                        "outline-variant": "#603e39",
+                        "surface-container": "#2f1a17",
+                        "primary-fixed-dim": "#ffb4a8",
+                        "secondary-container": "#0038ca",
+                        "background": "#210e0b",
+                        "on-tertiary-fixed-variant": "#004491",
+                        "surface-dim": "#210e0b",
+                        "inverse-primary": "#c00100",
+                        "tertiary-fixed": "#d7e2ff",
+                        "surface-container-lowest": "#1b0907",
+                        "surface": "#210e0b",
+                        "secondary-fixed": "#dde1ff",
+                        "on-background": "#ffdad4",
+                        "inverse-surface": "#ffdad4",
+                        "on-tertiary-fixed": "#001a40",
+                        "surface-variant": "#472f2b",
+                        "on-surface": "#ffdad4",
+                        "tertiary": "#acc7ff",
+                        "surface-container-low": "#2b1613",
+                        "on-primary": "#690100",
+                        "surface-tint": "#ffb4a8",
+                        "on-secondary-fixed": "#001356",
+                        "on-secondary": "#002389",
+                        "error-container": "#93000a",
+                        "on-primary-fixed": "#410000",
+                        "outline": "#b18780",
+                        "on-surface-variant": "#ebbbb4",
+                        "primary": "#ffb4a8",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#0034bf",
+                        "tertiary-container": "#488fff",
+                        "on-primary-container": "#5c0000",
+                        "on-tertiary": "#002f67",
+                        "on-secondary-container": "#aab8ff",
+                        "primary-container": "#ff5540"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "xs": "4px",
+                        "xl": "48px",
+                        "md": "16px",
+                        "unit": "4px",
+                        "gutter": "20px",
+                        "lg": "24px",
+                        "margin": "32px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "h2": ["Space Grotesk"],
+                        "body-lg": ["Inter"],
+                        "h3": ["Space Grotesk"],
+                        "h1": ["Space Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                        "h2": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "h3": ["24px", {"lineHeight": "1.2", "letterSpacing": "0em", "fontWeight": "700"}],
+                        "h1": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md overflow-hidden selection:bg-primary selection:text-on-primary">
+<!-- Top Navigation Shell -->
+<header class="bg-secondary-container dark:bg-secondary-container text-on-secondary-container flex justify-between items-center w-full px-sm md:px-md py-sm max-w-full docked full-width top-0 border-b-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-50">
+<div class="flex items-center gap-sm md:gap-md">
+<span class="material-symbols-outlined text-h2 md:text-h1" style="font-variation-settings: 'FILL' 1;">public</span>
+<span class="font-h2 text-h3 md:text-h2 text-on-secondary-container uppercase tracking-widest hidden sm:block">Global Recall</span>
+</div>
+<div class="flex items-center gap-md md:gap-xl">
+<!-- NES Style Timer (Amber Color) -->
+<div class="flex flex-col items-center">
+<span class="font-label-caps text-[10px] md:text-label-caps opacity-80">TIME LEFT</span>
+<span class="font-h1 text-h3 md:text-h1 text-[#FFBF00] drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]">14:52</span>
+</div>
+<!-- NES Style Score (Blue Color) -->
+<div class="flex flex-col items-center">
+<span class="font-label-caps text-[10px] md:text-label-caps opacity-80">SCORE</span>
+<span class="font-h1 text-h3 md:text-h1 text-[#38bdf8] drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]">00420</span>
+</div>
+</div>
+<div class="flex gap-sm md:gap-md">
+<button class="material-symbols-outlined text-on-secondary-container hover:scale-105 transition-transform active:translate-y-1">timer</button>
+<button class="material-symbols-outlined text-on-secondary-container hover:scale-105 transition-transform active:translate-y-1">language</button>
+<button class="material-symbols-outlined text-on-secondary-container hover:scale-105 transition-transform active:translate-y-1">analytics</button>
+</div>
+</header>
+<!-- Main Game Canvas -->
+<main class="relative h-screen w-full flex flex-col justify-center items-center retro-halftone pt-16 md:pt-20">
+<!-- World Map Visualization -->
+<div class="relative w-full max-w-6xl aspect-square md:aspect-[2/1] map-container">
+<div class="absolute inset-0 linen-texture border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+<img class="w-full h-full object-cover mix-blend-overlay opacity-40" data-alt="A stylized, minimalist world map rendered in a dark tactical aesthetic. The continents are composed of faint, deep navy blue outlines on a textured black paper background. Vivid neon mint green highlights pulse from several European countries, signifying they have been successfully identified in a high-stakes digital board game. The lighting is low-key, evoking a retro command center or a vintage tabletop gaming environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDK0ZR2RIzwnPWgxRET3dllVSMDGcY3q_mKE1-JW74JvO88cvZvIbPTfdCmYqCvSYNhiJzo7ge6ZIv5Oqr05QiInFo3CQmfo65NV-xLMjMSDSAvVA6huJHDY226e8yOvICEJG9RtBjie438FcX-V3S2kYS6pT4NUgSASx7UKAR4YWn9vaP9cfrxUjj6ghUW0bQqlPDy2ssX8rNmxmtc50nC0DOtVHh2JqUSAq9BSDxTNSbybddi6vmJGqITZVSwnxNVXZACwMm0AFI"/>
+<!-- Map Pins & Markers (Physical Token Style) -->
+<div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-primary rounded-full border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center">
+<span class="material-symbols-outlined text-black text-sm" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+<!-- Ghost Card Overlay -->
+<div class="absolute top-4 right-4 md:top-8 md:right-8 z-20 scale-75 md:scale-100 origin-top-right">
+<div class="bg-surface-container-high border-4 border-white p-sm md:p-md shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] md:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transform rotate-2">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-tertiary">mist</span>
+<span class="font-h3 text-body-lg md:text-h3 text-white uppercase">+3 ahead</span>
+</div>
+<p class="font-label-caps text-[10px] md:text-label-caps text-outline mt-xs">VS GHOST PLAYER</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Success Toast Pill -->
+<div class="absolute bottom-48 md:bottom-40 left-1/2 -translate-x-1/2 z-40">
+<div class="bg-[#2ECC71] text-black border-4 border-black px-md py-xs md:px-lg md:py-sm rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-sm">
+<span class="material-symbols-outlined font-bold text-sm md:text-base">check_circle</span>
+<span class="font-h3 text-body-lg md:text-h3 uppercase tracking-tighter">✓ France</span>
+</div>
+</div>
+</main>
+<!-- Bottom Tray / Controls -->
+<div class="fixed bottom-0 left-0 w-full z-50">
+<!-- Input Tray -->
+<div class="bg-surface-container-lowest border-t-4 border-black p-sm md:p-lg shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-sm md:gap-md">
+<div class="max-w-4xl mx-auto w-full">
+<!-- Retro Console Input -->
+<div class="relative group">
+<div class="absolute -inset-1 bg-primary blur-sm opacity-20 group-focus-within:opacity-40 transition-opacity"></div>
+<div class="relative flex items-center bg-background border-4 border-white p-xs md:p-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+<span class="material-symbols-outlined text-white mr-sm md:mr-md">terminal</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-lg md:text-h3 font-h3 text-white uppercase w-full placeholder:text-surface-container-highest placeholder:text-sm md:placeholder:text-h3" placeholder="ENTER COUNTRY NAME..." type="text"/>
+<div class="w-4 h-6 md:h-8 bg-white animate-pulse mr-sm"></div>
+</div>
+</div>
+<!-- Chips Scroll Area -->
+<div class="mt-sm md:mt-lg flex gap-sm md:gap-md overflow-x-auto pb-sm md:pb-md no-scrollbar">
+<div class="flex-none bg-[#2ECC71] text-black border-2 border-black px-sm py-xs md:px-md shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-xs">
+<span class="font-label-caps text-[10px] md:text-label-caps">FRANCE</span>
+</div>
+<div class="flex-none bg-[#2ECC71] text-black border-2 border-black px-sm py-xs md:px-md shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-xs">
+<span class="font-label-caps text-[10px] md:text-label-caps">GERMANY</span>
+</div>
+<div class="flex-none bg-[#2ECC71] text-black border-2 border-black px-sm py-xs md:px-md shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-xs">
+<span class="font-label-caps text-[10px] md:text-label-caps">ITALY</span>
+</div>
+<div class="flex-none bg-[#2ECC71] text-black border-2 border-black px-sm py-xs md:px-md shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-xs">
+<span class="font-label-caps text-[10px] md:text-label-caps">SPAIN</span>
+</div>
+<div class="flex-none bg-[#2ECC71] text-black border-2 border-black px-sm py-xs md:px-md shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-xs">
+<span class="font-label-caps text-[10px] md:text-label-caps">JAPAN</span>
+</div>
+<div class="flex-none bg-[#2ECC71] text-black border-2 border-black px-sm py-xs md:px-md shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-xs">
+<span class="font-label-caps text-[10px] md:text-label-caps">BRAZIL</span>
+</div>
+<div class="flex-none bg-[#2ECC71] text-black border-2 border-black px-sm py-xs md:px-md shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-xs">
+<span class="font-label-caps text-[10px] md:text-label-caps">CANADA</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Global Bottom Nav -->
+<nav class="bg-surface-container-highest text-on-primary-container flex justify-around items-center px-sm md:px-gutter pb-sm md:pb-lg pt-sm md:pt-md border-t-4 border-black shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] rounded-t-xl">
+<a class="flex flex-col items-center justify-center bg-primary text-on-primary rounded-lg border-2 border-black p-xs md:p-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-primary-container transition-all active:translate-y-0.5 active:shadow-none" href="#">
+<span class="material-symbols-outlined text-sm md:text-base" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<span class="font-label-caps text-[10px] md:text-label-caps">Play</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface p-xs md:p-sm grayscale opacity-70 hover:bg-primary-container hover:text-on-primary-container transition-all active:translate-y-0.5 active:shadow-none" href="#">
+<span class="material-symbols-outlined text-sm md:text-base">leaderboard</span>
+<span class="font-label-caps text-[10px] md:text-label-caps">Stats</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface p-xs md:p-sm grayscale opacity-70 hover:bg-primary-container hover:text-on-primary-container transition-all active:translate-y-0.5 active:shadow-none" href="#">
+<span class="material-symbols-outlined text-sm md:text-base">settings_suggest</span>
+<span class="font-label-caps text-[10px] md:text-label-caps text-center">Map Settings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface p-xs md:p-sm grayscale opacity-70 hover:bg-primary-container hover:text-on-primary-container transition-all active:translate-y-0.5 active:shadow-none" href="#">
+<span class="material-symbols-outlined text-sm md:text-base">flag</span>
+<span class="font-label-caps text-[10px] md:text-label-caps">Give Up</span>
+</a>
+</nav>
+</div>
+</body></html>

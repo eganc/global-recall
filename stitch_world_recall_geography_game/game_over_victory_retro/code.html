@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GeoMaster - Mission Complete</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#d7e2ff",
+                        "surface-bright": "#4c332f",
+                        "on-tertiary": "#002f67",
+                        "on-secondary-fixed": "#001356",
+                        "on-secondary": "#002389",
+                        "surface-dim": "#210e0b",
+                        "on-primary-fixed-variant": "#930100",
+                        "primary-fixed": "#ffdad4",
+                        "outline-variant": "#603e39",
+                        "on-tertiary-fixed-variant": "#004491",
+                        "surface-container-highest": "#472f2b",
+                        "background": "#210e0b",
+                        "surface-container-high": "#3b2420",
+                        "surface-container": "#2f1a17",
+                        "surface-container-lowest": "#1b0907",
+                        "on-surface-variant": "#ebbbb4",
+                        "primary-fixed-dim": "#ffb4a8",
+                        "primary-container": "#ff5540",
+                        "primary": "#ffb4a8",
+                        "surface-tint": "#ffb4a8",
+                        "on-primary": "#690100",
+                        "tertiary-fixed-dim": "#acc7ff",
+                        "tertiary-container": "#488fff",
+                        "surface-container-low": "#2b1613",
+                        "secondary-fixed-dim": "#b9c3ff",
+                        "outline": "#b18780",
+                        "on-secondary-fixed-variant": "#0034bf",
+                        "inverse-on-surface": "#422a27",
+                        "secondary-fixed": "#dde1ff",
+                        "on-secondary-container": "#aab8ff",
+                        "on-background": "#ffdad4",
+                        "on-tertiary-container": "#00285b",
+                        "on-surface": "#ffdad4",
+                        "surface": "#210e0b",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-container": "#5c0000",
+                        "on-error": "#690005",
+                        "error-container": "#93000a",
+                        "secondary-container": "#0038ca",
+                        "error": "#ffb4ab",
+                        "inverse-primary": "#c00100",
+                        "inverse-surface": "#ffdad4",
+                        "secondary": "#b9c3ff",
+                        "tertiary": "#acc7ff",
+                        "surface-variant": "#472f2b",
+                        "on-primary-fixed": "#410000",
+                        "on-tertiary-fixed": "#001a40"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "sm": "8px",
+                        "gutter": "20px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "xl": "48px",
+                        "md": "16px",
+                        "margin": "32px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Space Grotesk"],
+                        "h2": ["Space Grotesk"],
+                        "label-caps": ["Inter"],
+                        "body-md": ["Inter"],
+                        "h1": ["Space Grotesk"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h3": ["24px", {"lineHeight": "1.2", "letterSpacing": "0em", "fontWeight": "700"}],
+                        "h2": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                        "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "h1": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-image: radial-gradient(circle, var(--tw-colors-surface-container-high) 2px, transparent 2px);
+            background-size: 16px 16px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden">
+<!-- TopAppBar from JSON - Navigation suppressed due to Transactional/End-of-flow Intent -->
+<main class="flex-grow flex flex-col items-center justify-center p-lg relative z-10 w-full max-w-4xl mx-auto">
+<!-- Confetti/Celebratory Background Element (Decorative) -->
+<div class="absolute inset-0 pointer-events-none overflow-hidden opacity-30 flex justify-center items-center">
+<div class="w-full h-full bg-[url('{{DATA:IMAGE:IMAGE_3}}')] bg-repeat-x opacity-20 transform scale-150" data-alt="A retro 8-bit style celebratory background featuring neon blue pixelated confetti and fireworks bursting against a dark deep navy background. The aesthetic is chunky, low-resolution arcade game style from the 1980s. Thick black outlines and high contrast elements create a tactile, brutalist digital vibe fitting for a game over victory screen."></div>
+</div>
+<div class="relative z-20 w-full text-center space-y-xl">
+<!-- Headline -->
+<div class="space-y-sm relative inline-block">
+<!-- Stacked text for retro drop shadow effect -->
+<h1 class="font-h1 text-h1 text-black absolute top-1 left-1 md:top-2 md:left-2 tracking-widest uppercase w-full">WORLD CONQUERED!</h1>
+<h1 class="font-h1 text-h1 text-primary relative z-10 tracking-widest uppercase border-black" style="-webkit-text-stroke: 2px black;">WORLD CONQUERED!</h1>
+</div>
+<!-- Stats Container - Bento Grid / Tactile Tiles -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg w-full max-w-2xl mx-auto">
+<!-- Score Tile -->
+<div class="bg-surface-container border-4 border-black p-lg flex flex-col items-center justify-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] relative">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-sm tracking-widest">Countries Found</span>
+<div class="font-h1 text-h1 text-on-surface">195<span class="text-on-surface-variant">/195</span></div>
+</div>
+<!-- Time Tile -->
+<div class="bg-surface-container border-4 border-black p-lg flex flex-col items-center justify-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] relative">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-sm tracking-widest">Clear Time</span>
+<div class="font-h1 text-h1 text-tertiary-fixed-dim">12:45</div>
+</div>
+<!-- Personal Best Badge Tile (Spans full width on mobile) -->
+<div class="md:col-span-2 bg-primary border-4 border-black p-md flex items-center justify-center gap-md shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
+<!-- Retro stripes detail inside badge -->
+<div class="absolute -left-4 -top-4 w-16 h-32 bg-on-primary opacity-20 transform rotate-45"></div>
+<div class="absolute -right-4 -bottom-4 w-16 h-32 bg-on-primary opacity-20 transform rotate-45"></div>
+<span class="material-symbols-outlined text-[48px] text-on-primary" data-weight="fill" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+<div class="flex flex-col text-left">
+<span class="font-h3 text-h3 text-on-primary uppercase leading-none">New Personal Best!</span>
+<span class="font-label-caps text-label-caps text-on-primary opacity-80 uppercase mt-xs">Previous: 14:22</span>
+</div>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex flex-col sm:flex-row items-center justify-center gap-md mt-xl w-full max-w-md mx-auto">
+<!-- Play Again Button -->
+<button class="w-full sm:w-auto bg-tertiary-container text-on-tertiary-container border-4 border-black px-xl py-md font-h3 text-h3 uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:scale-[1.02] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">replay</span>
+                    Play Again
+                </button>
+<!-- Share Result Button -->
+<button class="w-full sm:w-auto bg-surface-container-highest text-on-surface border-4 border-black px-xl py-md font-h3 text-h3 uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-surface-variant hover:scale-[1.02] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">share</span>
+                    Share
+                </button>
+</div>
+</div>
+</main>
+<!-- BottomNavBar Suppressed - Dead End / Game Over state -->
+</body></html>

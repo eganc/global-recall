@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GeoMaster - Mid-Play</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&amp;family=Inter:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#d7e2ff",
+                        "surface-bright": "#4c332f",
+                        "on-tertiary": "#002f67",
+                        "on-secondary-fixed": "#001356",
+                        "on-secondary": "#002389",
+                        "surface-dim": "#210e0b",
+                        "on-primary-fixed-variant": "#930100",
+                        "primary-fixed": "#ffdad4",
+                        "outline-variant": "#603e39",
+                        "on-tertiary-fixed-variant": "#004491",
+                        "surface-container-highest": "#472f2b",
+                        "background": "#210e0b",
+                        "surface-container-high": "#3b2420",
+                        "surface-container": "#2f1a17",
+                        "surface-container-lowest": "#1b0907",
+                        "on-surface-variant": "#ebbbb4",
+                        "primary-fixed-dim": "#ffb4a8",
+                        "primary-container": "#ff5540",
+                        "primary": "#ffb4a8",
+                        "surface-tint": "#ffb4a8",
+                        "on-primary": "#690100",
+                        "tertiary-fixed-dim": "#acc7ff",
+                        "tertiary-container": "#488fff",
+                        "surface-container-low": "#2b1613",
+                        "secondary-fixed-dim": "#b9c3ff",
+                        "outline": "#b18780",
+                        "on-secondary-fixed-variant": "#0034bf",
+                        "inverse-on-surface": "#422a27",
+                        "secondary-fixed": "#dde1ff",
+                        "on-secondary-container": "#aab8ff",
+                        "on-background": "#ffdad4",
+                        "on-tertiary-container": "#00285b",
+                        "on-surface": "#ffdad4",
+                        "surface": "#210e0b",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-container": "#5c0000",
+                        "on-error": "#690005",
+                        "error-container": "#93000a",
+                        "secondary-container": "#0038ca",
+                        "error": "#ffb4ab",
+                        "inverse-primary": "#c00100",
+                        "inverse-surface": "#ffdad4",
+                        "secondary": "#b9c3ff",
+                        "tertiary": "#acc7ff",
+                        "surface-variant": "#472f2b",
+                        "on-primary-fixed": "#410000",
+                        "on-tertiary-fixed": "#001a40"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "sm": "8px",
+                        "gutter": "20px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "xl": "48px",
+                        "md": "16px",
+                        "margin": "32px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Space Grotesk"],
+                        "h2": ["Space Grotesk"],
+                        "label-caps": ["Inter"],
+                        "body-md": ["Inter"],
+                        "h1": ["Space Grotesk"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h3": ["24px", { "lineHeight": "1.2", "letterSpacing": "0em", "fontWeight": "700" }],
+                        "h2": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                        "h1": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .map-bg {
+            background-color: #f4e8d3; /* Fallback for paper texture */
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 19px, #e0d4c0 20px), repeating-linear-gradient(90deg, transparent, transparent 19px, #e0d4c0 20px);
+        }
+        .stamped-text {
+            color: #930100;
+            text-transform: uppercase;
+            transform: rotate(-5deg);
+            opacity: 0.8;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
+        }
+        .halftone-overlay {
+            background-image: radial-gradient(circle, #000 1px, transparent 1px);
+            background-size: 8px 8px;
+            opacity: 0.05;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="bg-secondary-container dark:bg-secondary-container text-on-secondary-container dark:text-on-secondary-container font-h1 text-h1 sticky top-0 border-b-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex justify-between items-center w-full px-md py-sm max-w-full z-40 hidden md:flex">
+<div class="font-h2 text-h2 text-on-secondary-container uppercase tracking-widest">GLOBAL RECALL</div>
+<div class="flex gap-md font-label-caps text-label-caps items-center">
+<button aria-label="Timer" class="flex items-center justify-center p-sm hover:scale-105 transition-transform active:translate-y-1 active:shadow-none bg-surface-container border-2 border-black rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-on-surface">
+<span class="material-symbols-outlined" data-icon="timer">timer</span>
+</button>
+<button aria-label="Language" class="flex items-center justify-center p-sm hover:scale-105 transition-transform active:translate-y-1 active:shadow-none bg-surface-container border-2 border-black rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-on-surface">
+<span class="material-symbols-outlined" data-icon="language">language</span>
+</button>
+<button aria-label="Analytics" class="flex items-center justify-center p-sm hover:scale-105 transition-transform active:translate-y-1 active:shadow-none bg-surface-container border-2 border-black rounded shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-on-surface">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow relative flex flex-col md:flex-row pb-24 md:pb-0">
+<!-- Game Info Panel (Left on Desktop, Top on Mobile) -->
+<aside class="w-full md:w-1/3 lg:w-1/4 p-md flex flex-col gap-md z-10 bg-surface border-b-4 md:border-b-0 md:border-r-4 border-black shadow-[4px_0px_0px_0px_rgba(0,0,0,1)] relative">
+<div class="absolute inset-0 halftone-overlay"></div>
+<!-- Progress / Score Card -->
+<div class="bg-surface-container-high border-4 border-black p-lg shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative">
+<h2 class="font-h3 text-h3 text-on-surface mb-sm">Current Run</h2>
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Score</span>
+<span class="font-h2 text-h2 text-primary">14,250</span>
+</div>
+<!-- Health/Progress Bar -->
+<div class="mt-md">
+<span class="font-label-caps text-label-caps text-on-surface-variant block mb-xs">Time Remaining</span>
+<div class="h-6 w-full bg-surface-lowest border-2 border-black relative">
+<div class="h-full bg-tertiary-container w-3/4 absolute top-0 left-0"></div>
+<img alt="Progress Indicator" class="h-full w-auto absolute right-0 top-0 hidden" data-alt="A small decorative 8-bit style progress indicator showing remaining time in a retro board game UI." src="https://lh3.googleusercontent.com/aida/ADBb0ujE4r0H2yerpCgwqn3nE2qf6XORADm3Wg86PBo03npbFrFYABoGGmz2DOjbQtovqSQTexDcJYPZ7doKh13k17gyx2P7xBP3ZpyMzk3WzVOS-l8jAmO8162IopR18tm0ZUGSOlNeHIW0HohoJIf-EO_A_ivVxV9XEB8gdmALNA_-ZAcQoTszZJYyW7RAytGf0ruzVVjInBNUyrmAyw_KhrPdMH6ANBiWuVfdZopOhpY6hqcQvwZizAlximw"/>
+</div>
+</div>
+</div>
+<!-- Input / Console Area -->
+<div class="bg-surface-container border-4 border-black p-md shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex-grow flex flex-col">
+<label class="font-label-caps text-label-caps text-on-surface-variant mb-sm block">Enter Country Name</label>
+<div class="relative flex-grow flex flex-col">
+<input autofocus="" class="w-full bg-surface-dim border-2 border-white text-on-surface p-sm font-body-lg focus:outline-none focus:border-primary focus:ring-0 mb-md" placeholder="Type here..." type="text"/>
+<div class="flex-grow overflow-y-auto bg-surface border-2 border-outline-variant p-sm mt-sm">
+<ul class="space-y-sm font-body-md text-on-surface-variant">
+<li class="flex items-center gap-xs"><span class="text-primary font-bold">&gt;</span> France</li>
+<li class="flex items-center gap-xs"><span class="text-primary font-bold">&gt;</span> Germany</li>
+<li class="flex items-center gap-xs"><span class="text-primary font-bold">&gt;</span> Spain</li>
+<li class="flex items-center gap-xs opacity-50"><span class="text-surface-variant font-bold">&gt;</span> Italy (Incorrect)</li>
+</ul>
+</div>
+</div>
+<button class="mt-md w-full bg-primary text-on-primary font-h3 text-h3 py-sm border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-primary-container transition-colors active:translate-y-1 active:shadow-none">
+                    SUBMIT
+                </button>
+</div>
+</aside>
+<!-- The Map Board -->
+<section class="w-full md:w-2/3 lg:w-3/4 flex-grow relative overflow-hidden bg-surface-bright border-4 border-black m-sm md:m-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+<!-- Paper Map Container -->
+<div class="absolute inset-0 map-bg z-0" data-alt="A highly detailed, vintage board game style world map. The map has a tactile paper texture with visible grid lines. Deep ocean areas feature decorative retro elements like a stylized compass rose and faint sketches of sea monsters. Landmasses are outlined with thick, high-contrast borders reminiscent of 8-bit sprites, combining NES-era energy with premium physical tabletop craftsmanship." data-location="World" style="">
+<!-- Decorative Elements (Simulated via CSS/HTML) -->
+<div class="absolute top-8 right-8 text-surface-dim opacity-30 font-h1 transform rotate-45 select-none">
+<span class="material-symbols-outlined text-[64px]" data-icon="explore">explore</span>
+</div>
+<!-- Map Pins & Tokens -->
+<div class="absolute top-[30%] left-[45%] flex flex-col items-center">
+<div class="w-4 h-4 bg-error rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10"></div>
+<div class="stamped-text text-xl mt-xs">FRANCE</div>
+</div>
+<div class="absolute top-[35%] left-[50%] flex flex-col items-center">
+<div class="w-4 h-4 bg-error rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10"></div>
+<div class="stamped-text text-xl mt-xs">GERMANY</div>
+</div>
+<div class="absolute top-[40%] left-[42%] flex flex-col items-center">
+<div class="w-4 h-4 bg-error rounded-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-10"></div>
+<div class="stamped-text text-xl mt-xs">SPAIN</div>
+</div>
+</div>
+<!-- Magnifying Glass Widget -->
+<div class="absolute bottom-md right-md bg-surface-container border-4 border-black p-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-20 flex flex-col gap-xs">
+<button class="bg-surface text-on-surface hover:bg-primary-container hover:text-on-primary-container p-xs border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all flex justify-center items-center">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<div class="text-center font-label-caps text-on-surface-variant my-xs">100%</div>
+<button class="bg-surface text-on-surface hover:bg-primary-container hover:text-on-primary-container p-xs border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all flex justify-center items-center">
+<span class="material-symbols-outlined" data-icon="remove">remove</span>
+</button>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter pb-lg pt-md bg-surface-container-highest shadow-[0px_-4px_0px_0px_rgba(0,0,0,1)] border-t-4 border-black md:hidden font-label-caps text-label-caps">
+<a class="flex flex-col items-center justify-center bg-primary text-on-primary rounded-lg border-2 border-black p-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none hover:bg-primary-container hover:text-on-primary-container transition-all" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="play_arrow">play_arrow</span>
+<span>Play</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface p-sm grayscale opacity-70 hover:bg-primary-container hover:text-on-primary-container transition-all active:translate-y-0.5 active:shadow-none" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="leaderboard">leaderboard</span>
+<span>Stats</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface p-sm grayscale opacity-70 hover:bg-primary-container hover:text-on-primary-container transition-all active:translate-y-0.5 active:shadow-none" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="settings_suggest">settings_suggest</span>
+<span>Map Settings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface p-sm grayscale opacity-70 hover:bg-primary-container hover:text-on-primary-container transition-all active:translate-y-0.5 active:shadow-none" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="flag">flag</span>
+<span>Give Up</span>
+</a>
+</nav>
+</body></html>

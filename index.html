@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Global Recall — Globe</title>
+<title>Global Recall</title>
+<meta name="description" content="Name all 195 countries from memory. Watch them light up on the globe.">
+<meta name="theme-color" content="#0038ca">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Global Recall">
+<link rel="apple-touch-icon" href="/icons/icon-192.svg">
+<link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -941,6 +948,12 @@ boot().catch(e => {
   console.error(e);
   document.getElementById('load-msg').textContent = 'LOAD FAILED — CHECK CONSOLE';
 });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () =>
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  );
+}
 </script>
 </body>
 </html>
