@@ -37,6 +37,20 @@ export function buildCountries(RAW) {
   }));
 }
 
+// Deterministic Fisher-Yates shuffle using an LCG seeded by `seed`.
+// The same seed always produces the same shuffle — that's how Daily Challenge
+// gives every player the same 10 countries on a given UTC day.
+export function seededShuffle(arr, seed) {
+  const a = [...arr];
+  let s = seed >>> 0;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (Math.imul(1664525, s) + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
 export function findMatch(raw, countries) {
   const inp = norm(raw);
   if (inp.length < 3) return null;

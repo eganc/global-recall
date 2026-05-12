@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { norm, lev, fmt, buildCountries, findMatch } from './core.js';
+import { norm, lev, fmt, buildCountries, findMatch, seededShuffle } from './core.js';
 
 describe('norm', () => {
   it('lowercases and trims', () => {
@@ -117,5 +117,36 @@ describe('findMatch', () => {
   it('skips already-named countries', () => {
     countries[0].named = true; // France already named
     expect(findMatch('france', countries)).toBeNull();
+  });
+});
+
+describe('seededShuffle', () => {
+  const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+  it('does not mutate the input array', () => {
+    const original = [...arr];
+    seededShuffle(arr, 42);
+    expect(arr).toEqual(original);
+  });
+
+  it('produces the same output for the same seed', () => {
+    expect(seededShuffle(arr, 12345)).toEqual(seededShuffle(arr, 12345));
+  });
+
+  it('produces different output for different seeds', () => {
+    expect(seededShuffle(arr, 1)).not.toEqual(seededShuffle(arr, 2));
+  });
+
+  it('preserves all elements (permutation)', () => {
+    const out = seededShuffle(arr, 999);
+    expect(out.sort((a, b) => a - b)).toEqual([...arr].sort((a, b) => a - b));
+  });
+
+  it('handles empty arrays', () => {
+    expect(seededShuffle([], 42)).toEqual([]);
+  });
+
+  it('handles single-element arrays', () => {
+    expect(seededShuffle([7], 42)).toEqual([7]);
   });
 });

@@ -880,7 +880,7 @@ const countries = RAW.map(([canonical, aliases]) => ({
 const TOTAL = countries.length;
 
 // ═══════════════════════════════════════════════════════════════
-// MATCHING
+// MATCHING — mirrors src/core.js (which has the tests). Keep in sync.
 // ═══════════════════════════════════════════════════════════════
 function norm(s) {
   return s.toLowerCase().trim()
@@ -996,6 +996,8 @@ function saveGhost(list, ts, total) {
 // ═══════════════════════════════════════════════════════════════
 // MODE HELPERS
 // ═══════════════════════════════════════════════════════════════
+// Mirror of src/core.js seededShuffle — kept inline so the game runs without a build step.
+// If you edit this, update src/core.js to match (tests live there).
 function seededShuffle(arr, seed) {
   const a = [...arr];
   let s = seed >>> 0;
@@ -1052,25 +1054,36 @@ function shareDaily(count, total, num, time) {
     .catch(() => toast('COPY FAILED'));
 }
 
-function setMode(mode) {
+// Shared: update all UI to reflect the chosen mode. Does NOT start the game.
+// Used by both the hamburger menu (setMode) and the start menu (launchFromMenu).
+const MODE_BADGES = {
+  sprint:    '⏱ SPRINT',
+  daily:     '📅 DAILY',
+  kids:      '🎮 KIDS',
+  'name-all': null,
+};
+function applyMode(mode) {
   currentMode = mode;
   const badge = document.getElementById('mode-badge');
-  if (mode === 'sprint')      { badge.textContent = '⏱ SPRINT'; badge.style.display = ''; }
-  else if (mode === 'daily')  { badge.textContent = '📅 DAILY'; badge.style.display = ''; }
-  else if (mode === 'kids')   { badge.textContent = '🎮 KIDS'; badge.style.display = ''; }
-  else                        { badge.style.display = 'none'; }
-  document.getElementById('mode-nameall-btn').classList.toggle('mode-active', mode === 'name-all');
-  document.getElementById('mode-sprint-btn').classList.toggle('mode-active', mode === 'sprint');
-  document.getElementById('mode-daily-btn').classList.toggle('mode-active', mode === 'daily');
-  document.getElementById('mode-kids-btn').classList.toggle('mode-active', mode === 'kids');
+  const label = MODE_BADGES[mode];
+  if (label) { badge.textContent = label; badge.style.display = ''; }
+  else       { badge.style.display = 'none'; }
+  ['name-all', 'sprint', 'daily', 'kids'].forEach(m => {
+    document.getElementById(`mode-${m === 'name-all' ? 'nameall' : m}-btn`)
+      .classList.toggle('mode-active', m === mode);
+  });
   document.getElementById('timer-display').classList.remove('danger');
   const isKids = mode === 'kids';
-  document.getElementById('kids-panel').style.display  = isKids ? 'block' : 'none';
-  document.getElementById('input-row').style.display   = isKids ? 'none'  : 'flex';
-  document.getElementById('chip-strip').style.display  = isKids ? 'none'  : 'flex';
-  toggleMenu();
+  document.getElementById('kids-panel').style.display = isKids ? 'block' : 'none';
+  document.getElementById('input-row').style.display  = isKids ? 'none'  : 'flex';
+  document.getElementById('chip-strip').style.display = isKids ? 'none'  : 'flex';
   document.getElementById('chip-strip').innerHTML = '';
   document.getElementById('end-screen').style.display = 'none';
+}
+
+function setMode(mode) {
+  applyMode(mode);
+  toggleMenu();
   startGame();
 }
 
@@ -1699,23 +1712,7 @@ function updateStartMenuStats() {
 }
 
 function launchFromMenu() {
-  // Apply selected mode (reuse setMode logic without toggleMenu)
-  const mode = selectedMenuMode;
-  currentMode = mode;
-  const badge = document.getElementById('mode-badge');
-  if (mode === 'sprint')      { badge.textContent = '⏱ SPRINT'; badge.style.display = ''; }
-  else if (mode === 'daily')  { badge.textContent = '📅 DAILY'; badge.style.display = ''; }
-  else if (mode === 'kids')   { badge.textContent = '🎮 KIDS'; badge.style.display = ''; }
-  else                        { badge.style.display = 'none'; }
-  document.getElementById('mode-nameall-btn').classList.toggle('mode-active', mode === 'name-all');
-  document.getElementById('mode-sprint-btn').classList.toggle('mode-active', mode === 'sprint');
-  document.getElementById('mode-daily-btn').classList.toggle('mode-active', mode === 'daily');
-  document.getElementById('mode-kids-btn').classList.toggle('mode-active', mode === 'kids');
-  const isKids = mode === 'kids';
-  document.getElementById('kids-panel').style.display  = isKids ? 'block' : 'none';
-  document.getElementById('input-row').style.display   = isKids ? 'none'  : 'flex';
-  document.getElementById('chip-strip').style.display  = isKids ? 'none'  : 'flex';
-  document.getElementById('chip-strip').innerHTML = '';
+  applyMode(selectedMenuMode);
   hideStartMenu();
   startGame();
 }
