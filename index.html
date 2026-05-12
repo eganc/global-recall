@@ -220,6 +220,44 @@ body { font-family: var(--font-body); color: var(--text); }
 }
 .chip.fresh { background: var(--mint); color: #000; }
 
+/* ── KIDS MODE ── */
+#kids-panel { width: 100%; }
+#kids-progress {
+  font-family: var(--font-head); font-size: 11px;
+  color: var(--text-muted); letter-spacing: 1px; margin-bottom: 6px;
+}
+#kids-hint {
+  font-family: var(--font-head); font-size: 12px;
+  color: var(--amber); letter-spacing: 1px; margin-bottom: 8px; min-height: 18px;
+}
+#kids-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kids-btn {
+  font-family: var(--font-head); font-weight: 700; font-size: 12px;
+  letter-spacing: 0.5px; cursor: pointer;
+  background: var(--surface); color: var(--text);
+  border: 2px solid #000; box-shadow: 2px 2px 0 #000;
+  padding: 10px 8px; text-align: center; line-height: 1.3;
+  transition: background 0.1s;
+}
+.kids-btn:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 #000; }
+.kids-btn.correct { background: var(--mint); color: #000; pointer-events: none; }
+.kids-btn.wrong { background: var(--red); color: #fff; pointer-events: none; }
+
+/* ── MODE BADGE + MENU ── */
+#mode-badge {
+  font-family: var(--font-head); font-weight: 700; font-size: 11px;
+  letter-spacing: 1px; color: #000;
+  background: var(--amber); border: 2px solid #000;
+  padding: 3px 8px;
+}
+.menu-divider {
+  font-family: var(--font-head); font-size: 9px; letter-spacing: 2px;
+  color: var(--text-muted); padding: 8px 14px 4px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.menu-item.mode-active { background: rgba(0,56,202,0.35); color: #fff; }
+#timer-display.danger { color: var(--red); }
+
 /* ── PORTRAIT MODE ── */
 @media (orientation: portrait) {
   #header { height: 44px; padding: 0 12px; }
@@ -384,6 +422,7 @@ body { font-family: var(--font-body); color: var(--text); }
     <button id="menu-btn" title="Menu" onclick="toggleMenu()">☰</button>
     <div id="logo">GLOBAL RECALL</div>
     <div id="hud">
+      <div id="mode-badge" style="display:none"></div>
       <div id="timer-display" class="hud-chip">00:00</div>
       <div id="score-display" class="hud-chip score-chip">0 / 0</div>
     </div>
@@ -393,6 +432,11 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="menu-item" onclick="menuEndNow()">■ END GAME</button>
     <button class="menu-item" onclick="menuJumpNext()">⊕ JUMP TO NEXT</button>
     <button class="menu-item" onclick="toggleAutoRotate()">⟳ TOGGLE SPIN</button>
+    <div class="menu-divider">MODES</div>
+    <button class="menu-item mode-active" id="mode-nameall-btn" onclick="setMode('name-all')">◎ NAME ALL</button>
+    <button class="menu-item" id="mode-sprint-btn" onclick="setMode('sprint')">⏱ SPRINT · 5 MIN</button>
+    <button class="menu-item" id="mode-daily-btn" onclick="setMode('daily')">📅 DAILY CHALLENGE</button>
+    <button class="menu-item" id="mode-kids-btn" onclick="setMode('kids')">🎮 KIDS MODE</button>
     <button class="menu-item" onclick="toggleMenu()">CLOSE</button>
   </div>
   <div id="globe-wrap">
@@ -414,6 +458,16 @@ body { font-family: var(--font-body); color: var(--text); }
       <div id="remaining-badge">— left</div>
     </div>
     <div id="chip-strip"></div>
+    <div id="kids-panel" style="display:none">
+      <div id="kids-progress">ROUND 1 / 10</div>
+      <div id="kids-hint"></div>
+      <div id="kids-choices">
+        <button class="kids-btn" onclick="kidsAnswer(0)"></button>
+        <button class="kids-btn" onclick="kidsAnswer(1)"></button>
+        <button class="kids-btn" onclick="kidsAnswer(2)"></button>
+        <button class="kids-btn" onclick="kidsAnswer(3)"></button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -436,7 +490,8 @@ body { font-family: var(--font-body); color: var(--text); }
   <div id="pb-banner" style="display:none">NEW PERSONAL BEST!</div>
   <div class="end-btns">
     <button class="end-btn primary" onclick="resetGame()">PLAY AGAIN</button>
-    <button class="end-btn secondary" onclick="shareGhost()">SHARE GHOST</button>
+    <button class="end-btn secondary" id="share-ghost-btn" onclick="shareGhost()">SHARE GHOST</button>
+    <button class="end-btn secondary" id="share-daily-btn" style="display:none">SHARE RESULT</button>
   </div>
 </div>
 
@@ -824,6 +879,15 @@ let namedList = [], namedTs = [];
 let ghostData = null;
 let autoNext = false;
 let autoNextTimer = null;
+let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
+let sprintEnd = 0;
+let dailyTarget = [];
+let modeTotal = TOTAL;
+const KIDS_ROUNDS = 10;
+let kidsTarget = null;
+let kidsCorrect = 0;
+let kidsRounds = 0;
+let kidsChoices = [];
 
 // Handle ghost URL param
 (function(){
@@ -854,13 +918,96 @@ function saveGhost(list, ts, total) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// MODE HELPERS
+// ═══════════════════════════════════════════════════════════════
+function seededShuffle(arr, seed) {
+  const a = [...arr];
+  let s = seed >>> 0;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (Math.imul(1664525, s) + 1013904223) >>> 0;
+    const j = s % (i + 1);
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function getDailySeed() {
+  const d = new Date();
+  return (d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate()) >>> 0;
+}
+
+function getDailyNumber() {
+  return Math.max(1, Math.floor((Date.now() - Date.UTC(2026, 4, 12)) / 86400000) + 1);
+}
+
+function getDailyCountries() {
+  return seededShuffle(countries, getDailySeed()).slice(0, 10);
+}
+
+function getSprintBest() {
+  return parseInt(localStorage.getItem('gr_sprint_best') || '0');
+}
+
+function saveSprintResult(count) {
+  const prev = getSprintBest();
+  const isNewPB = count > prev;
+  if (isNewPB) localStorage.setItem('gr_sprint_best', String(count));
+  return { isNewPB, prev };
+}
+
+function getDailyData() {
+  try { return JSON.parse(localStorage.getItem('gr_daily') || '{}'); } catch { return {}; }
+}
+
+function saveDailyResult(count, total) {
+  const today = Math.floor(Date.now() / 86400000);
+  const d = getDailyData();
+  if (d.lastDay === today) return d;
+  const streak = d.lastDay === today - 1 ? (d.streak || 0) + 1 : 1;
+  const next = { lastDay: today, streak, lastScore: count, lastTotal: total };
+  localStorage.setItem('gr_daily', JSON.stringify(next));
+  return next;
+}
+
+function shareDaily(count, total, num, time) {
+  const text = `Global Recall Daily #${num}\n${count}/${total} countries · ${time}\nglobalrecall.themillrace.ca`;
+  navigator.clipboard.writeText(text)
+    .then(() => toast('RESULT COPIED!'))
+    .catch(() => toast('COPY FAILED'));
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  const badge = document.getElementById('mode-badge');
+  if (mode === 'sprint')      { badge.textContent = '⏱ SPRINT'; badge.style.display = ''; }
+  else if (mode === 'daily')  { badge.textContent = '📅 DAILY'; badge.style.display = ''; }
+  else if (mode === 'kids')   { badge.textContent = '🎮 KIDS'; badge.style.display = ''; }
+  else                        { badge.style.display = 'none'; }
+  document.getElementById('mode-nameall-btn').classList.toggle('mode-active', mode === 'name-all');
+  document.getElementById('mode-sprint-btn').classList.toggle('mode-active', mode === 'sprint');
+  document.getElementById('mode-daily-btn').classList.toggle('mode-active', mode === 'daily');
+  document.getElementById('mode-kids-btn').classList.toggle('mode-active', mode === 'kids');
+  document.getElementById('timer-display').classList.remove('danger');
+  const isKids = mode === 'kids';
+  document.getElementById('kids-panel').style.display  = isKids ? 'block' : 'none';
+  document.getElementById('input-row').style.display   = isKids ? 'none'  : 'flex';
+  document.getElementById('chip-strip').style.display  = isKids ? 'none'  : 'flex';
+  toggleMenu();
+  document.getElementById('chip-strip').innerHTML = '';
+  document.getElementById('end-screen').style.display = 'none';
+  startGame();
+}
+
+// ═══════════════════════════════════════════════════════════════
 // GLOBE
 // ═══════════════════════════════════════════════════════════════
 let myGlobe = null;
 let geoFeatures = [];
 let renderTick = 0; // bump to force re-render
 
-const NAMED_COLOR  = 'rgba(34,197,94,0.88)'; // mint green
+const NAMED_COLOR  = 'rgba(34,197,94,0.88)';
+const DAILY_COLOR  = 'rgba(245,158,11,0.45)'; // amber — daily targets not yet named
+const KIDS_COLOR   = 'rgba(245,158,11,0.80)'; // amber — kids current target
 const BORDER_COLOR = 'rgba(255,255,255,0.18)';
 
 // Globe style presets
@@ -883,7 +1030,12 @@ function setStyle(key) {
   });
 }
 
-function getCapColor(f) { return f._named ? NAMED_COLOR : 'rgba(0,0,0,0)'; }
+function getCapColor(f) {
+  if (f._named)      return NAMED_COLOR;
+  if (f._kidsTarget) return KIDS_COLOR;
+  if (f._dailyTarget) return DAILY_COLOR;
+  return 'rgba(0,0,0,0)';
+}
 function getAltitude(f)  { return f._named ? 0.005 : 0; } // 0.005 clears z-fighting without visible parallax
 
 function refreshGlobe() {
@@ -949,7 +1101,8 @@ function jumpToNext() {
   if (!myGlobe) return;
   const pov = myGlobe.pointOfView();
   let best = null, bestDist = Infinity;
-  for (const c of countries) {
+  const pool = currentMode === 'daily' ? dailyTarget : countries;
+  for (const c of pool) {
     if (c.named || !c.feat) continue;
     const center = featureCentroid(c.feat);
     if (!center) continue;
@@ -1058,25 +1211,70 @@ function addChip(name, fresh = true) {
 }
 
 function updateHUD() {
-  const count = namedList.length;
-  const elapsed = isRunning ? (Date.now() - sessionStart) / 1000 : 0;
-  document.getElementById('timer-display').textContent = fmt(elapsed);
-  document.getElementById('score-display').textContent = `${count} / ${TOTAL}`;
-  document.getElementById('remaining-badge').textContent = `${TOTAL - count} left`;
+  const count = currentMode === 'kids' ? kidsCorrect : namedList.length;
+  const remaining = currentMode === 'kids' ? KIDS_ROUNDS - kidsRounds : modeTotal - count;
+  if (currentMode === 'sprint') {
+    const rem = Math.max(0, (sprintEnd - Date.now()) / 1000);
+    document.getElementById('timer-display').textContent = fmt(rem);
+  } else {
+    const elapsed = isRunning ? (Date.now() - sessionStart) / 1000 : 0;
+    document.getElementById('timer-display').textContent = fmt(elapsed);
+  }
+  document.getElementById('score-display').textContent = `${count} / ${modeTotal}`;
+  document.getElementById('remaining-badge').textContent = `${remaining} left`;
 }
 
 // ═══════════════════════════════════════════════════════════════
 // GAME LOOP
 // ═══════════════════════════════════════════════════════════════
 function startGame() {
-  countries.forEach(c => { c.named = false; if (c.feat) c.feat._named = false; });
+  countries.forEach(c => {
+    c.named = false;
+    if (c.feat) { c.feat._named = false; c.feat._dailyTarget = false; c.feat._kidsTarget = false; }
+  });
   namedList = []; namedTs = [];
   ghostData = getGhost(); // TODO: ghost replay hooks in here
   isRunning = true;
   sessionStart = Date.now();
-  if (myGlobe) { myGlobe.polygonsData(geoFeatures); myGlobe.controls().autoRotate = true; }
+
+  // Mode setup
+  autoNext = false;
+  if (currentMode === 'daily') {
+    dailyTarget = getDailyCountries();
+    modeTotal = dailyTarget.length;
+    dailyTarget.forEach(c => { if (c.feat) c.feat._dailyTarget = true; });
+    autoNext = true;
+  } else if (currentMode === 'sprint') {
+    dailyTarget = [];
+    modeTotal = TOTAL;
+    sprintEnd = Date.now() + 300000;
+    autoNext = true;
+  } else if (currentMode === 'kids') {
+    dailyTarget = [];
+    modeTotal = KIDS_ROUNDS;
+    kidsCorrect = 0;
+    kidsRounds = 0;
+    kidsTarget = null;
+  } else {
+    dailyTarget = [];
+    modeTotal = TOTAL;
+  }
+  document.getElementById('autonext-btn').classList.toggle('on', autoNext);
+
+  if (myGlobe) {
+    myGlobe.polygonsData(geoFeatures);
+    myGlobe.controls().autoRotate = true;
+    refreshGlobe();
+    if (currentMode === 'daily') {
+      const first = dailyTarget.find(c => c.feat);
+      if (first) flyToFeature(first.feat);
+    } else if (currentMode === 'kids') {
+      kidsStartRound();
+    }
+  }
+
   updateHUD();
-  document.getElementById('cinput').focus();
+  if (currentMode !== 'kids') document.getElementById('cinput').focus();
 
   cancelAnimationFrame(animRaf);
   let lastTimerUpdate = 0;
@@ -1084,7 +1282,15 @@ function startGame() {
     if (!isRunning) return;
     const now = Date.now();
     if (now - lastTimerUpdate >= 1000) {
-      document.getElementById('timer-display').textContent = fmt((now - sessionStart) / 1000);
+      if (currentMode === 'sprint') {
+        const remaining = Math.max(0, (sprintEnd - now) / 1000);
+        const el = document.getElementById('timer-display');
+        el.textContent = fmt(remaining);
+        el.classList.toggle('danger', remaining <= 30);
+        if (remaining <= 0) { isRunning = false; endGame(); return; }
+      } else {
+        document.getElementById('timer-display').textContent = fmt((now - sessionStart) / 1000);
+      }
       lastTimerUpdate = now;
     }
     animRaf = requestAnimationFrame(tick);
@@ -1095,25 +1301,71 @@ function startGame() {
 function endGame() {
   isRunning = false;
   cancelAnimationFrame(animRaf);
-  const elapsed = (Date.now() - sessionStart) / 1000;
-  saveGhost(namedList, namedTs, elapsed);
-
   const count = namedList.length;
-  const { isPB, prev } = saveRec(count, elapsed);
-
-  document.getElementById('end-headline').textContent =
-    count === TOTAL ? 'WORLD CONQUERED!' : `${count} / ${TOTAL}`;
-  document.getElementById('end-count').textContent = `${count}/${TOTAL}`;
-  document.getElementById('end-time').textContent = fmt(elapsed);
-
   const pb = document.getElementById('pb-banner');
-  if (isPB && count > 0) {
-    pb.style.display = '';
-    pb.textContent = prev > 0
-      ? `NEW PERSONAL BEST! Previous: ${prev} countries`
-      : 'NEW PERSONAL BEST!';
-  } else pb.style.display = 'none';
+  const shareGhostBtn = document.getElementById('share-ghost-btn');
+  const shareDailyBtn = document.getElementById('share-daily-btn');
+  // Reset banner styles
+  pb.style.background = ''; pb.style.color = '';
 
+  let headline, countText, timeText;
+
+  if (currentMode === 'sprint') {
+    const elapsed = 300;
+    const { isNewPB, prev } = saveSprintResult(count);
+    headline = "TIME'S UP!";
+    countText = `${count}/${TOTAL}`;
+    timeText = '5:00';
+    if (isNewPB) {
+      pb.style.display = ''; pb.textContent = 'NEW SPRINT RECORD!';
+    } else if (prev > 0) {
+      pb.style.display = ''; pb.textContent = `BEST: ${prev} COUNTRIES`;
+      pb.style.background = 'var(--surface)'; pb.style.color = 'var(--text)';
+    } else pb.style.display = 'none';
+    shareGhostBtn.style.display = 'none';
+    shareDailyBtn.style.display = 'none';
+
+  } else if (currentMode === 'daily') {
+    const elapsed = (Date.now() - sessionStart) / 1000;
+    const num = getDailyNumber();
+    const dailyData = saveDailyResult(count, modeTotal);
+    headline = count === modeTotal ? `DAILY #${num} COMPLETE!` : `DAILY #${num}`;
+    countText = `${count}/${modeTotal}`;
+    timeText = fmt(elapsed);
+    pb.style.display = '';
+    pb.style.background = 'var(--blue)'; pb.style.color = '#fff';
+    pb.textContent = dailyData.streak > 1 ? `🔥 ${dailyData.streak} DAY STREAK!` : 'FIRST DAILY DONE!';
+    shareGhostBtn.style.display = 'none';
+    shareDailyBtn.style.display = '';
+    shareDailyBtn.onclick = () => shareDaily(count, modeTotal, num, timeText);
+
+  } else if (currentMode === 'kids') {
+    const elapsed = (Date.now() - sessionStart) / 1000;
+    headline = kidsCorrect === KIDS_ROUNDS ? 'PERFECT SCORE!' : `${kidsCorrect}/${KIDS_ROUNDS} CORRECT!`;
+    countText = `${kidsCorrect}/${KIDS_ROUNDS}`;
+    timeText = fmt(elapsed);
+    pb.style.display = 'none';
+    shareGhostBtn.style.display = 'none';
+    shareDailyBtn.style.display = 'none';
+
+  } else {
+    const elapsed = (Date.now() - sessionStart) / 1000;
+    saveGhost(namedList, namedTs, elapsed);
+    const { isPB, prev } = saveRec(count, elapsed);
+    headline = count === TOTAL ? 'WORLD CONQUERED!' : `${count} / ${TOTAL}`;
+    countText = `${count}/${TOTAL}`;
+    timeText = fmt(elapsed);
+    if (isPB && count > 0) {
+      pb.style.display = '';
+      pb.textContent = prev > 0 ? `NEW PERSONAL BEST! Previous: ${prev} countries` : 'NEW PERSONAL BEST!';
+    } else pb.style.display = 'none';
+    shareGhostBtn.style.display = '';
+    shareDailyBtn.style.display = 'none';
+  }
+
+  document.getElementById('end-headline').textContent = headline;
+  document.getElementById('end-count').textContent = countText;
+  document.getElementById('end-time').textContent = timeText;
   document.getElementById('end-screen').style.display = 'flex';
 }
 
@@ -1165,6 +1417,70 @@ function shareGhost() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// KIDS MODE
+// ═══════════════════════════════════════════════════════════════
+function kidsGetDecoys(target) {
+  const pool = countries.filter(c => c !== target);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+  }
+  return pool.slice(0, 3);
+}
+
+function kidsStartRound() {
+  if (kidsRounds >= KIDS_ROUNDS) { endGame(); return; }
+  const pool = countries.filter(c => !c.named);
+  if (!pool.length) { endGame(); return; }
+  kidsTarget = pool[Math.floor(Math.random() * pool.length)];
+  const decoys = kidsGetDecoys(kidsTarget);
+  kidsChoices = [kidsTarget, ...decoys];
+  for (let i = kidsChoices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = kidsChoices[i]; kidsChoices[i] = kidsChoices[j]; kidsChoices[j] = tmp;
+  }
+  // Highlight on globe
+  geoFeatures.forEach(f => f._kidsTarget = false);
+  if (kidsTarget.feat) { kidsTarget.feat._kidsTarget = true; refreshGlobe(); flyToFeature(kidsTarget.feat); }
+  // Update UI
+  const cont = CONTINENT[kidsTarget.canonical] || '';
+  document.getElementById('kids-progress').textContent =
+    `ROUND ${kidsRounds + 1} / ${KIDS_ROUNDS}  ·  SCORE: ${kidsCorrect}`;
+  document.getElementById('kids-hint').textContent = cont ? cont.toUpperCase() : '';
+  const btns = document.querySelectorAll('.kids-btn');
+  kidsChoices.forEach((c, i) => {
+    btns[i].textContent = c.canonical.toUpperCase();
+    btns[i].className = 'kids-btn';
+    btns[i].style.pointerEvents = '';
+  });
+  updateHUD();
+}
+
+function kidsAnswer(idx) {
+  if (!isRunning || !kidsTarget) return;
+  const chosen = kidsChoices[idx];
+  const btns = document.querySelectorAll('.kids-btn');
+  btns.forEach(b => b.style.pointerEvents = 'none');
+  const isCorrect = chosen === kidsTarget;
+  btns[idx].classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
+    kidsChoices.forEach((c, i) => { if (c === kidsTarget) btns[i].classList.add('correct'); });
+  }
+  if (isCorrect) {
+    kidsCorrect++;
+    kidsTarget.named = true;
+    namedList.push(kidsTarget.canonical);
+    if (kidsTarget.feat) { kidsTarget.feat._named = true; kidsTarget.feat._kidsTarget = false; refreshGlobe(); }
+    toast(`✓ ${kidsTarget.canonical.toUpperCase()}`);
+  } else {
+    toast(`✗ ${kidsTarget.canonical.toUpperCase()}`);
+  }
+  kidsRounds++;
+  updateHUD();
+  setTimeout(() => { if (kidsRounds >= KIDS_ROUNDS) endGame(); else kidsStartRound(); }, 1500);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // INPUT HANDLER
 // ═══════════════════════════════════════════════════════════════
 document.getElementById('cinput').addEventListener('input', function() {
@@ -1172,6 +1488,11 @@ document.getElementById('cinput').addEventListener('input', function() {
   const c = findMatch(this.value);
   if (!c) return;
   if (c.named) { this.value = ''; return; }
+  if (currentMode === 'daily' && !dailyTarget.includes(c)) {
+    toast("NOT IN TODAY'S 10!");
+    this.value = '';
+    return;
+  }
 
   c.named = true;
   namedList.push(c.canonical);
@@ -1179,6 +1500,7 @@ document.getElementById('cinput').addEventListener('input', function() {
 
   if (c.feat) {
     c.feat._named = true;
+    c.feat._dailyTarget = false;
     refreshGlobe();
     flyToFeature(c.feat);
   }
@@ -1191,7 +1513,7 @@ document.getElementById('cinput').addEventListener('input', function() {
   addChip(c.canonical);
   updateHUD();
   this.value = '';
-  if (namedList.length === TOTAL) { endGame(); return; }
+  if (namedList.length === modeTotal) { endGame(); return; }
   if (autoNext) {
     clearTimeout(autoNextTimer);
     autoNextTimer = setTimeout(jumpToNext, 1000);
