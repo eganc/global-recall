@@ -230,6 +230,54 @@ body { font-family: var(--font-body); color: var(--text); }
   .hud-chip { font-size: 12px; padding: 3px 8px; }
 }
 
+/* ── ONBOARDING OVERLAY ── */
+#onboarding {
+  position: fixed; inset: 0; z-index: 95;
+  background: rgba(10,5,3,0.96);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+#onboarding-card {
+  background: var(--surface);
+  border: 3px solid #000; box-shadow: 8px 8px 0 #000;
+  padding: 32px; max-width: 380px; width: 100%;
+  display: flex; flex-direction: column; gap: 20px;
+}
+#onboarding-title {
+  font-family: var(--font-head); font-weight: 900; font-size: 26px;
+  letter-spacing: 4px; color: #fff; text-shadow: 3px 3px 0 #000;
+  text-align: center;
+}
+#onboarding-body {
+  font-family: var(--font-body); font-size: 15px; color: var(--text);
+  line-height: 1.8; text-align: center;
+}
+#onboarding-body strong { color: var(--mint); }
+#onboarding-rules {
+  display: flex; flex-direction: column; gap: 8px;
+  background: rgba(0,0,0,0.3); padding: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.rule-item {
+  font-family: var(--font-head); font-size: 12px; color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+.rule-item span { color: var(--mint); margin-right: 6px; }
+#onboarding-start {
+  font-family: var(--font-head); font-weight: 900; font-size: 16px;
+  letter-spacing: 3px; cursor: pointer;
+  background: var(--mint); color: #000;
+  border: 3px solid #000; box-shadow: 4px 4px 0 #000;
+  padding: 14px; width: 100%;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+#onboarding-start:hover { background: #1db954; }
+#onboarding-start:active { transform: translate(2px,2px); box-shadow: 2px 2px 0 #000; }
+@media (orientation: portrait) {
+  #onboarding-card { padding: 24px; gap: 16px; }
+  #onboarding-title { font-size: 22px; }
+}
+
 /* ── TOAST ── */
 #toast {
   position: fixed; bottom: 110px; left: 50%;
@@ -389,6 +437,24 @@ body { font-family: var(--font-body); color: var(--text); }
   <div class="end-btns">
     <button class="end-btn primary" onclick="resetGame()">PLAY AGAIN</button>
     <button class="end-btn secondary" onclick="shareGhost()">SHARE GHOST</button>
+  </div>
+</div>
+
+<!-- Onboarding Overlay (first visit only) -->
+<div id="onboarding" style="display:none">
+  <div id="onboarding-card">
+    <div id="onboarding-title">GLOBAL RECALL</div>
+    <div id="onboarding-body">
+      You have <strong>195 countries</strong>.<br>
+      No hints. No clues. Just memory.<br>
+      Type any country name to begin.
+    </div>
+    <div id="onboarding-rules">
+      <div class="rule-item"><span>✓</span>Fuzzy spelling — "Brazl" still counts</div>
+      <div class="rule-item"><span>✓</span>Aliases — "Burma", "Czechia", "UK" all work</div>
+      <div class="rule-item"><span>✓</span>Watch them light up on the globe</div>
+    </div>
+    <button id="onboarding-start" onclick="dismissOnboarding()">START →</button>
   </div>
 </div>
 
@@ -608,6 +674,74 @@ const RAW = [
   ["Kosovo",["Republic of Kosovo"]],
   ["Western Sahara",["Sahrawi Republic","SADR"]],
 ];
+
+// Continent lookup — used to enrich toast on first 3 correct answers
+const CONTINENT = {
+  // Africa
+  Algeria:'Africa',Angola:'Africa',Benin:'Africa',Botswana:'Africa',
+  'Burkina Faso':'Africa',Burundi:'Africa','Cabo Verde':'Africa',Cameroon:'Africa',
+  'Central African Republic':'Africa',Chad:'Africa',Comoros:'Africa',
+  'DR Congo':'Africa','Republic of the Congo':'Africa',Djibouti:'Africa',
+  Egypt:'Africa','Equatorial Guinea':'Africa',Eritrea:'Africa',Eswatini:'Africa',
+  Ethiopia:'Africa',Gabon:'Africa',Gambia:'Africa',Ghana:'Africa',
+  Guinea:'Africa','Guinea-Bissau':'Africa','Ivory Coast':'Africa',Kenya:'Africa',
+  Lesotho:'Africa',Liberia:'Africa',Libya:'Africa',Madagascar:'Africa',
+  Malawi:'Africa',Mali:'Africa',Mauritania:'Africa',Mauritius:'Africa',
+  Morocco:'Africa',Mozambique:'Africa',Namibia:'Africa',Niger:'Africa',
+  Nigeria:'Africa',Rwanda:'Africa','São Tomé and Príncipe':'Africa',
+  Senegal:'Africa',Seychelles:'Africa','Sierra Leone':'Africa',Somalia:'Africa',
+  'South Africa':'Africa','South Sudan':'Africa',Sudan:'Africa',Tanzania:'Africa',
+  Togo:'Africa',Tunisia:'Africa',Uganda:'Africa',Zambia:'Africa',
+  Zimbabwe:'Africa','Western Sahara':'Africa',
+  // Asia
+  Afghanistan:'Asia',Armenia:'Asia',Azerbaijan:'Asia',Bahrain:'Asia',
+  Bangladesh:'Asia',Bhutan:'Asia',Brunei:'Asia',Cambodia:'Asia',
+  China:'Asia',Cyprus:'Asia',Georgia:'Asia',India:'Asia',
+  Indonesia:'Asia',Iran:'Asia',Iraq:'Asia',Israel:'Asia',
+  Japan:'Asia',Jordan:'Asia',Kazakhstan:'Asia',Kuwait:'Asia',
+  Kyrgyzstan:'Asia',Laos:'Asia',Lebanon:'Asia',Malaysia:'Asia',
+  Maldives:'Asia',Mongolia:'Asia',Myanmar:'Asia',Nepal:'Asia',
+  'North Korea':'Asia',Oman:'Asia',Pakistan:'Asia',Palestine:'Asia',
+  Philippines:'Asia',Qatar:'Asia','Saudi Arabia':'Asia',
+  Singapore:'Asia','South Korea':'Asia','Sri Lanka':'Asia',Syria:'Asia',
+  Taiwan:'Asia',Tajikistan:'Asia',Thailand:'Asia','Timor-Leste':'Asia',
+  Turkey:'Asia',Turkmenistan:'Asia','United Arab Emirates':'Asia',
+  Uzbekistan:'Asia',Vietnam:'Asia',Yemen:'Asia',
+  // Europe
+  Albania:'Europe',Andorra:'Europe',Austria:'Europe',Belarus:'Europe',
+  Belgium:'Europe','Bosnia and Herzegovina':'Europe',Bulgaria:'Europe',
+  Croatia:'Europe','Czech Republic':'Europe',Denmark:'Europe',Estonia:'Europe',
+  Finland:'Europe',France:'Europe',Germany:'Europe',Greece:'Europe',
+  Hungary:'Europe',Iceland:'Europe',Ireland:'Europe',Italy:'Europe',
+  Kosovo:'Europe',Latvia:'Europe',Liechtenstein:'Europe',Lithuania:'Europe',
+  Luxembourg:'Europe',Malta:'Europe',Moldova:'Europe',Monaco:'Europe',
+  Montenegro:'Europe',Netherlands:'Europe','North Macedonia':'Europe',
+  Norway:'Europe',Poland:'Europe',Portugal:'Europe',Romania:'Europe',
+  Russia:'Europe','San Marino':'Europe',Serbia:'Europe',Slovakia:'Europe',
+  Slovenia:'Europe',Spain:'Europe',Sweden:'Europe',Switzerland:'Europe',
+  Ukraine:'Europe','United Kingdom':'Europe',
+  // North America
+  'Antigua and Barbuda':'North America',Bahamas:'North America',Barbados:'North America',
+  Belize:'North America',Canada:'North America','Costa Rica':'North America',
+  Cuba:'North America',Dominica:'North America','Dominican Republic':'North America',
+  'El Salvador':'North America',Grenada:'North America',Guatemala:'North America',
+  Haiti:'North America',Honduras:'North America',Jamaica:'North America',
+  Mexico:'North America',Nicaragua:'North America',Panama:'North America',
+  'Saint Kitts and Nevis':'North America','Saint Lucia':'North America',
+  'Saint Vincent and the Grenadines':'North America','Trinidad and Tobago':'North America',
+  'United States':'North America',
+  // South America
+  Argentina:'South America',Bolivia:'South America',Brazil:'South America',
+  Chile:'South America',Colombia:'South America',Ecuador:'South America',
+  Guyana:'South America',Paraguay:'South America',Peru:'South America',
+  Suriname:'South America',Uruguay:'South America',Venezuela:'South America',
+  // Oceania
+  Australia:'Oceania',Fiji:'Oceania',Kiribati:'Oceania',
+  'Marshall Islands':'Oceania',Micronesia:'Oceania',Nauru:'Oceania',
+  'New Zealand':'Oceania',Palau:'Oceania','Papua New Guinea':'Oceania',
+  Samoa:'Oceania','Solomon Islands':'Oceania',Tonga:'Oceania',
+  Tuvalu:'Oceania',Vanuatu:'Oceania',
+};
 
 const countries = RAW.map(([canonical, aliases]) => ({
   canonical, aliases, named: false, feat: null
@@ -1049,7 +1183,11 @@ document.getElementById('cinput').addEventListener('input', function() {
     flyToFeature(c.feat);
   }
 
-  toast('✓ ' + c.canonical.toUpperCase());
+  const continent = CONTINENT[c.canonical];
+  const toastMsg = namedList.length <= 3 && continent
+    ? `✓ ${c.canonical.toUpperCase()} · ${continent.toUpperCase()}`
+    : `✓ ${c.canonical.toUpperCase()}`;
+  toast(toastMsg);
   addChip(c.canonical);
   updateHUD();
   this.value = '';
@@ -1103,6 +1241,7 @@ async function boot() {
   await new Promise(r => requestAnimationFrame(r));
 
   startGame();
+  showOnboarding();
   setTimeout(showInstallBanner, 1500);
 }
 
@@ -1115,6 +1254,20 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () =>
     navigator.serviceWorker.register('/sw.js').catch(() => {})
   );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ONBOARDING
+// ═══════════════════════════════════════════════════════════════
+function showOnboarding() {
+  if (localStorage.getItem('gr_visited')) return;
+  document.getElementById('onboarding').style.display = 'flex';
+}
+
+function dismissOnboarding() {
+  document.getElementById('onboarding').style.display = 'none';
+  localStorage.setItem('gr_visited', '1');
+  document.getElementById('cinput').focus();
 }
 
 // ═══════════════════════════════════════════════════════════════
