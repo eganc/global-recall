@@ -268,52 +268,94 @@ body { font-family: var(--font-body); color: var(--text); }
   .hud-chip { font-size: 12px; padding: 3px 8px; }
 }
 
-/* ── ONBOARDING OVERLAY ── */
-#onboarding {
-  position: fixed; inset: 0; z-index: 95;
-  background: rgba(10,5,3,0.96);
+/* ── START MENU ── */
+#start-menu {
+  position: fixed; inset: 0; z-index: 92;
+  background: rgba(10,5,3,0.93);
   display: flex; align-items: center; justify-content: center;
-  padding: 24px;
+  padding: 20px;
 }
-#onboarding-card {
+#start-menu-inner {
   background: var(--surface);
-  border: 3px solid #000; box-shadow: 8px 8px 0 #000;
-  padding: 32px; max-width: 380px; width: 100%;
-  display: flex; flex-direction: column; gap: 20px;
+  border: 4px solid #000; box-shadow: 10px 10px 0 #000;
+  padding: 28px 28px 24px;
+  max-width: 460px; width: 100%;
+  display: flex; flex-direction: column; gap: 18px;
+  position: relative;
 }
-#onboarding-title {
-  font-family: var(--font-head); font-weight: 900; font-size: 26px;
-  letter-spacing: 4px; color: #fff; text-shadow: 3px 3px 0 #000;
-  text-align: center;
+#start-title-group { text-align: center; }
+#start-title-big {
+  font-family: var(--font-head); font-weight: 900; font-size: 34px;
+  letter-spacing: 5px; color: #fff;
+  text-shadow: 4px 4px 0 #000;
 }
-#onboarding-body {
-  font-family: var(--font-body); font-size: 15px; color: var(--text);
-  line-height: 1.8; text-align: center;
+#start-divider {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 7px;
 }
-#onboarding-body strong { color: var(--mint); }
-#onboarding-rules {
-  display: flex; flex-direction: column; gap: 8px;
-  background: rgba(0,0,0,0.3); padding: 14px;
-  border: 1px solid rgba(255,255,255,0.08);
+.start-div-bar { height: 2px; width: 36px; background: var(--amber); }
+#start-subtitle {
+  font-family: var(--font-head); font-size: 9px; letter-spacing: 3px;
+  color: var(--text-muted);
 }
-.rule-item {
-  font-family: var(--font-head); font-size: 12px; color: var(--text-muted);
-  letter-spacing: 0.5px;
+#mode-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
 }
-.rule-item span { color: var(--mint); margin-right: 6px; }
-#onboarding-start {
-  font-family: var(--font-head); font-weight: 900; font-size: 16px;
+.mode-tile {
+  display: flex; flex-direction: column; gap: 0;
+  padding: 12px 12px 10px; text-align: left;
+  border: 4px solid #000; cursor: pointer;
+  box-shadow: 5px 5px 0 rgba(0,0,0,0.55);
+  transition: transform 0.08s, box-shadow 0.08s;
+  position: relative;
+}
+.mode-tile:hover { transform: translate(2px,2px); box-shadow: 3px 3px 0 rgba(0,0,0,0.55); }
+.mode-tile.selected {
+  transform: translate(5px,5px); box-shadow: none;
+  outline: 3px solid rgba(255,255,255,0.7); outline-offset: -3px;
+}
+.mode-tile-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 8px;
+}
+.mode-tile-icon { font-size: 22px; line-height: 1; }
+.mode-tile-num {
+  font-family: var(--font-head); font-weight: 700; font-size: 9px;
+  letter-spacing: 1px; background: #000; color: #fff;
+  padding: 2px 6px; white-space: nowrap;
+}
+.mode-tile-name {
+  font-family: var(--font-head); font-weight: 900; font-size: 15px;
+  letter-spacing: 0.5px; line-height: 1.2; margin-bottom: 4px;
+}
+.mode-tile-stat {
+  font-family: var(--font-head); font-size: 10px; letter-spacing: 1px;
+  opacity: 0.72;
+}
+#tile-name-all { background: var(--blue);    color: #fff; }
+#tile-sprint   { background: var(--amber);   color: #000; }
+#tile-daily    { background: var(--mint);    color: #000; }
+#tile-kids     { background: #ff5540;        color: #fff; }
+#start-game-btn {
+  font-family: var(--font-head); font-weight: 900; font-size: 20px;
   letter-spacing: 3px; cursor: pointer;
   background: var(--mint); color: #000;
-  border: 3px solid #000; box-shadow: 4px 4px 0 #000;
-  padding: 14px; width: 100%;
+  border: 4px solid #000; box-shadow: 8px 8px 0 #000;
+  padding: 15px; width: 100%;
   transition: transform 0.1s, box-shadow 0.1s;
 }
-#onboarding-start:hover { background: #1db954; }
-#onboarding-start:active { transform: translate(2px,2px); box-shadow: 2px 2px 0 #000; }
+#start-game-btn:hover { background: #1db954; }
+#start-game-btn:active { transform: translate(4px,4px); box-shadow: 4px 4px 0 #000; }
+#start-hint {
+  font-family: var(--font-head); font-size: 10px; letter-spacing: 2px;
+  color: var(--text-muted); text-align: center; opacity: 0.55;
+}
 @media (orientation: portrait) {
-  #onboarding-card { padding: 24px; gap: 16px; }
-  #onboarding-title { font-size: 22px; }
+  #start-menu-inner { padding: 20px 18px 18px; gap: 14px; }
+  #start-title-big { font-size: 26px; letter-spacing: 4px; }
+  .mode-tile { padding: 10px 10px 8px; }
+  .mode-tile-name { font-size: 13px; }
+  #start-game-btn { font-size: 17px; padding: 13px; }
 }
 
 /* ── TOAST ── */
@@ -490,26 +532,59 @@ body { font-family: var(--font-body); color: var(--text); }
   <div id="pb-banner" style="display:none">NEW PERSONAL BEST!</div>
   <div class="end-btns">
     <button class="end-btn primary" onclick="resetGame()">PLAY AGAIN</button>
+    <button class="end-btn secondary" onclick="goToMenu()">↩ MENU</button>
     <button class="end-btn secondary" id="share-ghost-btn" onclick="shareGhost()">SHARE GHOST</button>
     <button class="end-btn secondary" id="share-daily-btn" style="display:none">SHARE RESULT</button>
   </div>
 </div>
 
-<!-- Onboarding Overlay (first visit only) -->
-<div id="onboarding" style="display:none">
-  <div id="onboarding-card">
-    <div id="onboarding-title">GLOBAL RECALL</div>
-    <div id="onboarding-body">
-      You have <strong>195 countries</strong>.<br>
-      No hints. No clues. Just memory.<br>
-      Type any country name to begin.
+<!-- Start Menu -->
+<div id="start-menu" style="display:none">
+  <div id="start-menu-inner">
+    <div id="start-title-group">
+      <div id="start-title-big">GLOBAL RECALL</div>
+      <div id="start-divider">
+        <div class="start-div-bar"></div>
+        <div id="start-subtitle">THE ULTIMATE GEOGRAPHY CHALLENGE</div>
+        <div class="start-div-bar"></div>
+      </div>
     </div>
-    <div id="onboarding-rules">
-      <div class="rule-item"><span>✓</span>Fuzzy spelling — "Brazl" still counts</div>
-      <div class="rule-item"><span>✓</span>Aliases — "Burma", "Czechia", "UK" all work</div>
-      <div class="rule-item"><span>✓</span>Watch them light up on the globe</div>
+    <div id="mode-grid">
+      <button class="mode-tile selected" id="tile-name-all" onclick="selectMenuMode('name-all')">
+        <div class="mode-tile-header">
+          <span class="mode-tile-icon">◎</span>
+          <span class="mode-tile-num">MODE 01</span>
+        </div>
+        <div class="mode-tile-name">NAME ALL</div>
+        <div class="mode-tile-stat" id="stat-name-all">— / 195 COUNTRIES</div>
+      </button>
+      <button class="mode-tile" id="tile-sprint" onclick="selectMenuMode('sprint')">
+        <div class="mode-tile-header">
+          <span class="mode-tile-icon">⚡</span>
+          <span class="mode-tile-num">MODE 02</span>
+        </div>
+        <div class="mode-tile-name">SPRINT · 5 MIN</div>
+        <div class="mode-tile-stat" id="stat-sprint">BEST: — COUNTRIES</div>
+      </button>
+      <button class="mode-tile" id="tile-daily" onclick="selectMenuMode('daily')">
+        <div class="mode-tile-header">
+          <span class="mode-tile-icon">📅</span>
+          <span class="mode-tile-num">MODE 03</span>
+        </div>
+        <div class="mode-tile-name">DAILY</div>
+        <div class="mode-tile-stat" id="stat-daily">TODAY'S 10 COUNTRIES</div>
+      </button>
+      <button class="mode-tile" id="tile-kids" onclick="selectMenuMode('kids')">
+        <div class="mode-tile-header">
+          <span class="mode-tile-icon">🎮</span>
+          <span class="mode-tile-num">MODE 04</span>
+        </div>
+        <div class="mode-tile-name">KIDS MODE</div>
+        <div class="mode-tile-stat" id="stat-kids">10 ROUNDS · MULTIPLE CHOICE</div>
+      </button>
     </div>
-    <button id="onboarding-start" onclick="dismissOnboarding()">START →</button>
+    <button id="start-game-btn" onclick="launchFromMenu()">START GAME</button>
+    <div id="start-hint">SELECT A MODE TO BEGIN YOUR EXPEDITION</div>
   </div>
 </div>
 
@@ -1373,7 +1448,7 @@ function resetGame() {
   document.getElementById('end-screen').style.display = 'none';
   document.getElementById('chip-strip').innerHTML = '';
   refreshGlobe();
-  startGame();
+  startGame(); // restart same mode, skip menu
 }
 
 function toggleMenu() {
@@ -1562,9 +1637,11 @@ async function boot() {
   // One more frame for globe to attach its canvas
   await new Promise(r => requestAnimationFrame(r));
 
-  startGame();
-  showOnboarding();
-  setTimeout(showInstallBanner, 1500);
+  // Prime the globe with polygons so it renders behind the menu
+  myGlobe.polygonsData(geoFeatures);
+  myGlobe.controls().autoRotate = true;
+  showStartMenu();
+  setTimeout(showInstallBanner, 2000);
 }
 
 boot().catch(e => {
@@ -1579,17 +1656,72 @@ if ('serviceWorker' in navigator) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ONBOARDING
+// START MENU
 // ═══════════════════════════════════════════════════════════════
-function showOnboarding() {
-  if (localStorage.getItem('gr_visited')) return;
-  document.getElementById('onboarding').style.display = 'flex';
+let selectedMenuMode = 'name-all';
+
+function showStartMenu() {
+  updateStartMenuStats();
+  selectMenuMode(currentMode);
+  document.getElementById('start-menu').style.display = 'flex';
+  document.getElementById('end-screen').style.display = 'none';
 }
 
-function dismissOnboarding() {
-  document.getElementById('onboarding').style.display = 'none';
-  localStorage.setItem('gr_visited', '1');
-  document.getElementById('cinput').focus();
+function hideStartMenu() {
+  document.getElementById('start-menu').style.display = 'none';
+}
+
+function selectMenuMode(mode) {
+  selectedMenuMode = mode;
+  const tileId = { 'name-all': 'tile-name-all', 'sprint': 'tile-sprint', 'daily': 'tile-daily', 'kids': 'tile-kids' };
+  document.querySelectorAll('.mode-tile').forEach(t => t.classList.remove('selected'));
+  const tile = document.getElementById(tileId[mode]);
+  if (tile) tile.classList.add('selected');
+}
+
+function updateStartMenuStats() {
+  const recs = getRecs();
+  const naRec = recs['name_all'];
+  document.getElementById('stat-name-all').textContent = naRec && naRec.best
+    ? `PB: ${naRec.best} / ${TOTAL}`
+    : `— / ${TOTAL} COUNTRIES`;
+  const sb = getSprintBest();
+  document.getElementById('stat-sprint').textContent = sb
+    ? `PB: ${sb} COUNTRIES`
+    : 'BEST: — COUNTRIES';
+  const dd = getDailyData();
+  document.getElementById('stat-daily').textContent = dd.streak
+    ? `🔥 ${dd.streak} DAY STREAK`
+    : "TODAY'S 10 COUNTRIES";
+}
+
+function launchFromMenu() {
+  // Apply selected mode (reuse setMode logic without toggleMenu)
+  const mode = selectedMenuMode;
+  currentMode = mode;
+  const badge = document.getElementById('mode-badge');
+  if (mode === 'sprint')      { badge.textContent = '⏱ SPRINT'; badge.style.display = ''; }
+  else if (mode === 'daily')  { badge.textContent = '📅 DAILY'; badge.style.display = ''; }
+  else if (mode === 'kids')   { badge.textContent = '🎮 KIDS'; badge.style.display = ''; }
+  else                        { badge.style.display = 'none'; }
+  document.getElementById('mode-nameall-btn').classList.toggle('mode-active', mode === 'name-all');
+  document.getElementById('mode-sprint-btn').classList.toggle('mode-active', mode === 'sprint');
+  document.getElementById('mode-daily-btn').classList.toggle('mode-active', mode === 'daily');
+  document.getElementById('mode-kids-btn').classList.toggle('mode-active', mode === 'kids');
+  const isKids = mode === 'kids';
+  document.getElementById('kids-panel').style.display  = isKids ? 'block' : 'none';
+  document.getElementById('input-row').style.display   = isKids ? 'none'  : 'flex';
+  document.getElementById('chip-strip').style.display  = isKids ? 'none'  : 'flex';
+  document.getElementById('chip-strip').innerHTML = '';
+  hideStartMenu();
+  startGame();
+}
+
+function goToMenu() {
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('chip-strip').innerHTML = '';
+  refreshGlobe();
+  showStartMenu();
 }
 
 // ═══════════════════════════════════════════════════════════════
