@@ -479,6 +479,7 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="menu-item" id="mode-sprint-btn" onclick="setMode('sprint')">⏱ SPRINT · 5 MIN</button>
     <button class="menu-item" id="mode-daily-btn" onclick="setMode('daily')">📅 DAILY CHALLENGE</button>
     <button class="menu-item" id="mode-kids-btn" onclick="setMode('kids')">🎮 KIDS MODE</button>
+    <button class="menu-item" id="menu-install-btn" onclick="menuInstall()">📲 INSTALL APP</button>
     <button class="menu-item" onclick="toggleMenu()">CLOSE</button>
   </div>
   <div id="globe-wrap">
@@ -1642,6 +1643,8 @@ async function boot() {
   myGlobe.controls().autoRotate = true;
   showStartMenu();
   setTimeout(showInstallBanner, 2000);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (isStandalone) { const b = document.getElementById('menu-install-btn'); if (b) b.style.display = 'none'; }
 }
 
 boot().catch(e => {
@@ -1738,8 +1741,9 @@ window.addEventListener('beforeinstallprompt', e => {
 function showInstallBanner() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
     || window.navigator.standalone;
-  if (isStandalone) return; // already installed
-  if (localStorage.getItem('gr_install_dismissed')) return;
+  if (isStandalone) return;
+  const dismissed = parseInt(localStorage.getItem('gr_install_dismissed') || '0');
+  if (dismissed && Date.now() - dismissed < 7 * 86400000) return; // snooze 7 days
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const banner = document.getElementById('install-banner');
@@ -1760,6 +1764,16 @@ function showInstallBanner() {
   banner.classList.add('show');
 }
 
+function menuInstall() {
+  toggleMenu();
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (isStandalone) { toast('ALREADY INSTALLED!'); return; }
+  // Clear snooze so banner shows
+  localStorage.removeItem('gr_install_dismissed');
+  showInstallBanner();
+  if (!_installPrompt) toast('USE BROWSER MENU → ADD TO HOME SCREEN');
+}
+
 function doInstall() {
   if (_installPrompt) {
     _installPrompt.prompt();
@@ -1773,7 +1787,7 @@ function doInstall() {
 
 function dismissInstall() {
   document.getElementById('install-banner').classList.remove('show');
-  localStorage.setItem('gr_install_dismissed', '1');
+  localStorage.setItem('gr_install_dismissed', String(Date.now()));
 }
 </script>
 </body>
