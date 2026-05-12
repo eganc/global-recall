@@ -36,8 +36,8 @@ Last updated: 2026-05-12
 - [ ] **Alias expansion** — currently ~30–50 aliases per country. Phase 3 polish target is ~100 per country (historical names, native scripts, common misspellings). Edit `RAW` in `index.html`.
 
 ### Features worth considering
-- [ ] **Share card image** — Canvas CORS already verified (jsDelivr serves with `Access-Control-Allow-Origin: *`). Could render an end-of-game image to the clipboard for social sharing.
-- [ ] **Ghost replay** — placeholder hook exists at `startGame()` (`// TODO: ghost replay hooks in here`). The ghost data is already saved and shared as URL params, but it doesn't actually animate during play yet.
+- [x] **Share card image** — 1080×1080 PNG rendered on-canvas at end of run. Native share sheet on mobile, clipboard fallback, download as last resort. End screen has new 📸 SHARE CARD button.
+- [x] **Ghost replay** — `👻 N` HUD chip shows the previous run's progress in real time during Name All. Goes red ("ahead") when the ghost is beating you. Updates on tick and immediately on each player answer.
 - [ ] **Stats page** — `gr_recs`, `gr_sprint_best`, `gr_daily` all sit in localStorage. A "view stats" overlay could surface them.
 
 ### Tech debt (low priority)

@@ -131,6 +131,8 @@ body { font-family: var(--font-body); color: var(--text); }
   letter-spacing: 1px;
 }
 #score-chip { min-width: 70px; text-align: center; }
+.ghost-chip { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.75); }
+.ghost-chip.ahead { background: rgba(255,85,64,0.35); color: #fff; }
 
 /* ── GLOBE CONTAINER ── */
 #globe-wrap {
@@ -435,6 +437,7 @@ body { font-family: var(--font-body); color: var(--text); }
 }
 .end-btn:active { transform: translate(2px,2px); box-shadow: 2px 2px 0 #000; }
 .end-btn.primary { background: var(--mint); color: #000; }
+.end-btn.share   { background: var(--amber); color: #000; }
 .end-btn.secondary { background: var(--surface); color: var(--text); }
 </style>
 </head>
@@ -465,6 +468,7 @@ body { font-family: var(--font-body); color: var(--text); }
     <div id="logo">GLOBAL RECALL</div>
     <div id="hud">
       <div id="mode-badge" style="display:none"></div>
+      <div id="ghost-display" class="hud-chip ghost-chip" style="display:none">👻 0</div>
       <div id="timer-display" class="hud-chip">00:00</div>
       <div id="score-display" class="hud-chip score-chip">0 / 0</div>
     </div>
@@ -533,6 +537,7 @@ body { font-family: var(--font-body); color: var(--text); }
   <div id="pb-banner" style="display:none">NEW PERSONAL BEST!</div>
   <div class="end-btns">
     <button class="end-btn primary" onclick="resetGame()">PLAY AGAIN</button>
+    <button class="end-btn share" onclick="shareResultCard()">📸 SHARE CARD</button>
     <button class="end-btn secondary" onclick="goToMenu()">↩ MENU</button>
     <button class="end-btn secondary" id="share-ghost-btn" onclick="shareGhost()">SHARE GHOST</button>
     <button class="end-btn secondary" id="share-daily-btn" style="display:none">SHARE RESULT</button>
@@ -953,6 +958,7 @@ let sessionStart = 0;
 let animRaf = null;
 let namedList = [], namedTs = [];
 let ghostData = null;
+let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
@@ -1322,7 +1328,17 @@ function startGame() {
     if (c.feat) { c.feat._named = false; c.feat._dailyTarget = false; c.feat._kidsTarget = false; }
   });
   namedList = []; namedTs = [];
-  ghostData = getGhost(); // TODO: ghost replay hooks in here
+  // Ghost replay is only meaningful for Name All (sprint/daily/kids have different victory conditions)
+  ghostData = (currentMode === 'name-all') ? getGhost() : null;
+  ghostNamedCount = 0;
+  const ghostEl = document.getElementById('ghost-display');
+  if (ghostData && ghostData.timestamps && ghostData.timestamps.length) {
+    ghostEl.textContent = '👻 0';
+    ghostEl.classList.remove('ahead');
+    ghostEl.style.display = '';
+  } else {
+    ghostEl.style.display = 'none';
+  }
   isRunning = true;
   sessionStart = Date.now();
 
@@ -1371,6 +1387,7 @@ function startGame() {
     if (!isRunning) return;
     const now = Date.now();
     if (now - lastTimerUpdate >= 1000) {
+      const elapsed = (now - sessionStart) / 1000;
       if (currentMode === 'sprint') {
         const remaining = Math.max(0, (sprintEnd - now) / 1000);
         const el = document.getElementById('timer-display');
@@ -1378,13 +1395,28 @@ function startGame() {
         el.classList.toggle('danger', remaining <= 30);
         if (remaining <= 0) { isRunning = false; endGame(); return; }
       } else {
-        document.getElementById('timer-display').textContent = fmt((now - sessionStart) / 1000);
+        document.getElementById('timer-display').textContent = fmt(elapsed);
       }
+      if (ghostData) updateGhostProgress(elapsed);
       lastTimerUpdate = now;
     }
     animRaf = requestAnimationFrame(tick);
   }
   animRaf = requestAnimationFrame(tick);
+}
+
+// How many countries had the ghost named by `elapsed` seconds?
+function updateGhostProgress(elapsed) {
+  if (!ghostData || !ghostData.timestamps) return;
+  const ts = ghostData.timestamps;
+  // ts is sorted ascending; binary search would be faster but length is bounded
+  let count = 0;
+  for (let i = 0; i < ts.length; i++) { if (ts[i] <= elapsed) count++; else break; }
+  if (count === ghostNamedCount) return;
+  ghostNamedCount = count;
+  const el = document.getElementById('ghost-display');
+  el.textContent = `👻 ${count}`;
+  el.classList.toggle('ahead', count > namedList.length);
 }
 
 function endGame() {
@@ -1506,6 +1538,136 @@ function shareGhost() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// SHARE CARD — renders a 1080×1080 PNG of the result for social sharing.
+// Tries native share sheet (mobile), then clipboard, then download.
+// ═══════════════════════════════════════════════════════════════
+function generateShareCard({ headline, count, total, timeText, modeLabel, accent }) {
+  const W = 1080, H = 1080;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#0a0503';
+  ctx.fillRect(0, 0, W, H);
+  // Subtle dot grid
+  ctx.fillStyle = 'rgba(255,218,212,0.04)';
+  for (let x = 24; x < W; x += 48) {
+    for (let y = 24; y < H; y += 48) {
+      ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // Title block
+  ctx.textAlign = 'center';
+  ctx.font = '900 64px "Space Grotesk", system-ui, sans-serif';
+  ctx.fillStyle = '#000';
+  ctx.fillText('GLOBAL RECALL', W / 2 + 6, 156);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('GLOBAL RECALL', W / 2, 150);
+
+  // Amber divider
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillRect(W / 2 - 200, 190, 400, 4);
+
+  // Mode label
+  ctx.font = '700 22px "Space Grotesk", system-ui, sans-serif';
+  ctx.fillStyle = '#ebbbb4';
+  ctx.fillText(modeLabel.toUpperCase(), W / 2, 240);
+
+  // Headline card
+  const cardX = 90, cardY = 310, cardW = W - 180, cardH = 480;
+  // shadow
+  ctx.fillStyle = '#000';
+  ctx.fillRect(cardX + 12, cardY + 12, cardW, cardH);
+  // card
+  ctx.fillStyle = '#2f1a17';
+  ctx.fillRect(cardX, cardY, cardW, cardH);
+  // border
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 6;
+  ctx.strokeRect(cardX, cardY, cardW, cardH);
+
+  // Big headline
+  ctx.font = '900 56px "Space Grotesk", system-ui, sans-serif';
+  ctx.fillStyle = accent;
+  ctx.fillText(headline, W / 2, cardY + 110);
+
+  // Big number
+  ctx.font = '900 200px "Space Grotesk", system-ui, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(`${count}`, W / 2, cardY + 320);
+
+  // "of N countries"
+  ctx.font = '700 30px "Space Grotesk", system-ui, sans-serif';
+  ctx.fillStyle = '#ebbbb4';
+  ctx.fillText(`OF ${total} COUNTRIES`, W / 2, cardY + 370);
+
+  // Time pill
+  ctx.font = '900 32px "Space Grotesk", system-ui, sans-serif';
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillText(`⏱ ${timeText}`, W / 2, cardY + 440);
+
+  // Footer URL
+  ctx.font = '700 24px "Space Grotesk", system-ui, sans-serif';
+  ctx.fillStyle = '#ebbbb4';
+  ctx.fillText('GLOBALRECALL.THEMILLRACE.CA', W / 2, H - 80);
+
+  return canvas;
+}
+
+async function shareResultCard() {
+  // Pull stats from the visible end-screen
+  const count = parseInt(document.getElementById('end-count').textContent) || 0;
+  const total = parseInt(document.getElementById('end-count').textContent.split('/')[1]) || 195;
+  const timeText = document.getElementById('end-time').textContent;
+  const headline = document.getElementById('end-headline').textContent;
+  const modeLabel = MODE_LABELS[currentMode] || 'NAME ALL';
+  const accent = MODE_ACCENTS[currentMode] || '#22c55e';
+
+  const canvas = generateShareCard({ headline, count, total, timeText, modeLabel, accent });
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+  if (!blob) { toast('IMAGE BUILD FAILED'); return; }
+
+  const file = new File([blob], 'global-recall.png', { type: 'image/png' });
+  const shareText = `${count}/${total} on Global Recall (${modeLabel}) · ${timeText}`;
+
+  // 1) Native share with file (mobile)
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Global Recall', text: shareText });
+      return;
+    } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  // 2) Clipboard image
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      toast('IMAGE COPIED TO CLIPBOARD!');
+      return;
+    }
+  } catch (e) { /* fall through */ }
+  // 3) Download
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'global-recall.png'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('IMAGE DOWNLOADED!');
+}
+
+const MODE_LABELS = {
+  'name-all': 'Name All',
+  sprint:     'Sprint · 5 Min',
+  daily:      'Daily Challenge',
+  kids:       'Kids Mode',
+};
+const MODE_ACCENTS = {
+  'name-all': '#22c55e',
+  sprint:     '#f59e0b',
+  daily:      '#22c55e',
+  kids:       '#ff5540',
+};
+
+// ═══════════════════════════════════════════════════════════════
 // KIDS MODE
 // ═══════════════════════════════════════════════════════════════
 function kidsGetDecoys(target) {
@@ -1601,6 +1763,10 @@ document.getElementById('cinput').addEventListener('input', function() {
   toast(toastMsg);
   addChip(c.canonical);
   updateHUD();
+  if (ghostData) {
+    // Player just gained a point — re-evaluate "ahead" state immediately
+    document.getElementById('ghost-display').classList.toggle('ahead', ghostNamedCount > namedList.length);
+  }
   this.value = '';
   if (namedList.length === modeTotal) { endGame(); return; }
   if (autoNext) {
