@@ -24,7 +24,7 @@ My son started learning world geography a couple years ago. I looked at the apps
 - **Name All** — no timer, just try to get all 195
 - **Sprint** — 5 minutes, how many can you get?
 - **Daily** — 10 countries, same for everyone, changes each day
-- **Kids Mode** — multiple choice with continent hints, good for younger players or people just getting started
+- **Easy Mode** — multiple choice with continent hints, for when naming from memory is too hard (which is most of us, honestly)
 
 **A few things that make it nicer to use:**
 - Typos are forgiven ("Brazl" works, "Nicragua" works)

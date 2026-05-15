@@ -482,7 +482,7 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="menu-item mode-active" id="mode-nameall-btn" onclick="setMode('name-all')">◎ NAME ALL</button>
     <button class="menu-item" id="mode-sprint-btn" onclick="setMode('sprint')">⏱ SPRINT · 5 MIN</button>
     <button class="menu-item" id="mode-daily-btn" onclick="setMode('daily')">📅 DAILY CHALLENGE</button>
-    <button class="menu-item" id="mode-kids-btn" onclick="setMode('kids')">🎮 KIDS MODE</button>
+    <button class="menu-item" id="mode-kids-btn" onclick="setMode('kids')">🎮 EASY MODE</button>
     <button class="menu-item" id="menu-install-btn" onclick="menuInstall()">📲 INSTALL APP</button>
     <button class="menu-item" onclick="toggleMenu()">CLOSE</button>
   </div>
@@ -585,7 +585,7 @@ body { font-family: var(--font-body); color: var(--text); }
           <span class="mode-tile-icon">🎮</span>
           <span class="mode-tile-num">MODE 04</span>
         </div>
-        <div class="mode-tile-name">KIDS MODE</div>
+        <div class="mode-tile-name">EASY MODE</div>
         <div class="mode-tile-stat" id="stat-kids">10 ROUNDS · MULTIPLE CHOICE</div>
       </button>
     </div>
@@ -1065,7 +1065,7 @@ function shareDaily(count, total, num, time) {
 const MODE_BADGES = {
   sprint:    '⏱ SPRINT',
   daily:     '📅 DAILY',
-  kids:      '🎮 KIDS',
+  kids:      '🎮 EASY',
   'name-all': null,
 };
 function applyMode(mode) {
@@ -1658,7 +1658,7 @@ const MODE_LABELS = {
   'name-all': 'Name All',
   sprint:     'Sprint · 5 Min',
   daily:      'Daily Challenge',
-  kids:       'Kids Mode',
+  kids:       'Easy Mode',
 };
 const MODE_ACCENTS = {
   'name-all': '#22c55e',
