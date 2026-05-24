@@ -489,9 +489,10 @@ body { font-family: var(--font-body); color: var(--text); }
   <div id="globe-wrap">
     <div id="globe-el"></div>
     <div id="style-switcher">
-      <button class="style-btn active" onclick="setStyle('blue')" title="Blue Marble">🌍 CLASSIC</button>
-      <button class="style-btn" onclick="setStyle('night')" title="Night Lights">🌃 NIGHT</button>
-      <button class="style-btn" onclick="setStyle('dark')" title="Dark Topo">🗺 TOPO</button>
+      <button class="style-btn" data-style="atlas" onclick="setStyle('atlas')" title="Political atlas — light & low-distraction">📜 ATLAS</button>
+      <button class="style-btn" data-style="blue" onclick="setStyle('blue')" title="Blue Marble">🌍 CLASSIC</button>
+      <button class="style-btn" data-style="night" onclick="setStyle('night')" title="Night Lights">🌃 NIGHT</button>
+      <button class="style-btn" data-style="dark" onclick="setStyle('dark')" title="Dark Topo">🗺 TOPO</button>
     </div>
     <div id="next-controls">
       <button id="next-btn" onclick="jumpToNext()" title="Jump to nearest unnamed country">⊕ NEXT</button>
@@ -1103,25 +1104,61 @@ let renderTick = 0; // bump to force re-render
 const NAMED_COLOR  = 'rgba(34,197,94,0.88)';
 const DAILY_COLOR  = 'rgba(245,158,11,0.45)'; // amber — daily targets not yet named
 const KIDS_COLOR   = 'rgba(245,158,11,0.80)'; // amber — kids current target
-const BORDER_COLOR = 'rgba(255,255,255,0.18)';
 
-// Globe style presets
+// Generate a tiny solid-color texture for styles that want a flat ocean
+// instead of a satellite JPG (the Atlas style). Cached because globe.gl
+// reloads the texture whenever globeImageUrl() changes.
+const _solidTextureCache = {};
+function solidColorTexture(hex) {
+  if (_solidTextureCache[hex]) return _solidTextureCache[hex];
+  const c = document.createElement('canvas');
+  c.width = c.height = 2;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = hex;
+  ctx.fillRect(0, 0, 2, 2);
+  return (_solidTextureCache[hex] = c.toDataURL());
+}
+
+// Globe style presets.
+// land/border drive how unhighlighted countries paint:
+//   - transparent land lets the underlying sphere texture show through
+//     (Classic/Night/Topo — the satellite imagery IS the visible surface)
+//   - opaque land turns each polygon into a filled political-map shape
+//     and the sphere texture becomes the ocean fill (Atlas)
 const STYLES = {
-  blue:  { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg', atmo: '#6699ff', bg: '#000510' },
-  night: { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg',       atmo: '#ff6644', bg: '#000000' },
-  dark:  { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-dark.jpg',        atmo: '#ff9955', bg: '#000510' },
+  atlas: {
+    ocean: '#f5ecd9',           // cream — used as a solid sphere texture
+    atmo:  '#d4b88a',
+    bg:    '#1a1410',
+    land:   'rgba(230,216,184,1)',    // parchment tan, opaque
+    border: 'rgba(90,74,48,0.65)',    // dark sepia
+  },
+  blue:  { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg', atmo: '#6699ff', bg: '#000510', land: 'rgba(0,0,0,0)', border: 'rgba(255,255,255,0.18)' },
+  night: { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg',       atmo: '#ff6644', bg: '#000000', land: 'rgba(0,0,0,0)', border: 'rgba(255,255,255,0.18)' },
+  dark:  { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-dark.jpg',        atmo: '#ff9955', bg: '#000510', land: 'rgba(0,0,0,0)', border: 'rgba(255,255,255,0.18)' },
 };
-let currentStyle = 'blue';
+function styleImageUrl(s) {
+  return s.img || solidColorTexture(s.ocean);
+}
+// Default to Atlas for first-time users; respect any saved preference.
+let currentStyle = (() => {
+  const saved = localStorage.getItem('gr_style');
+  return (saved && STYLES[saved]) ? saved : 'atlas';
+})();
 
 function setStyle(key) {
   if (!STYLES[key]) return;
   currentStyle = key;
+  localStorage.setItem('gr_style', key);
   const s = STYLES[key];
   document.getElementById('globe-wrap').style.background =
     `radial-gradient(ellipse at center, ${s.bg} 0%, #000 100%)`;
-  if (myGlobe) myGlobe.globeImageUrl(s.img).atmosphereColor(s.atmo);
-  document.querySelectorAll('.style-btn').forEach((b, i) => {
-    b.classList.toggle('active', ['blue','night','dark'][i] === key);
+  if (myGlobe) {
+    myGlobe.globeImageUrl(styleImageUrl(s)).atmosphereColor(s.atmo);
+    refreshGlobe();  // repaint polygon caps + borders with the new land/border colors
+  }
+  document.querySelectorAll('.style-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.style === key);
   });
 }
 
@@ -1129,21 +1166,28 @@ function getCapColor(f) {
   if (f._named)      return NAMED_COLOR;
   if (f._kidsTarget) return KIDS_COLOR;
   if (f._dailyTarget) return DAILY_COLOR;
-  return 'rgba(0,0,0,0)';
+  return STYLES[currentStyle].land;  // transparent for satellite styles, parchment for Atlas
 }
-// Any highlighted polygon must be lifted off the terrain or 3D relief pokes
-// through the colored cap (z-fighting). Easy Mode + Daily highlights had this
-// bug — only _named was lifted, so the green/amber overlay didn't fully cover
-// mountainous countries. 0.005 clears z-fighting without visible parallax.
-function getAltitude(f)  { return (f._named || f._kidsTarget || f._dailyTarget) ? 0.005 : 0; }
+// Any visible polygon must be lifted off the sphere or it z-fights with the
+// underlying texture (3D terrain relief pokes through on satellite styles;
+// flat ocean fill flickers through on Atlas). In Atlas every polygon is an
+// opaque country fill, so EVERY polygon needs lifting; in satellite styles
+// only the highlighted ones are visible, so only those need it. 0.005 clears
+// z-fighting without visible parallax.
+function getAltitude(f) {
+  if (f._named || f._kidsTarget || f._dailyTarget) return 0.005;
+  return currentStyle === 'atlas' ? 0.005 : 0;
+}
 
 function refreshGlobe() {
   if (!myGlobe) return;
   renderTick++;
   const t = renderTick;
+  const border = STYLES[currentStyle].border;
   myGlobe
     .polygonCapColor(f => { void t; return getCapColor(f); })
-    .polygonAltitude(f => { void t; return getAltitude(f); });
+    .polygonAltitude(f => { void t; return getAltitude(f); })
+    .polygonStrokeColor(() => { void t; return border; });
 }
 
 // Compute centroid of a GeoJSON feature (weighted by largest polygon)
@@ -1221,16 +1265,20 @@ function jumpToNext() {
 function initGlobe(el) {
   myGlobe = Globe()(el);
   const s = STYLES[currentStyle];
+  // Mirror the radial-gradient backdrop the style switcher applies, so the
+  // first paint already matches the active style (no flash of CSS default).
+  document.getElementById('globe-wrap').style.background =
+    `radial-gradient(ellipse at center, ${s.bg} 0%, #000 100%)`;
   myGlobe
     .backgroundColor('rgba(0,0,0,0)')
-    .globeImageUrl(s.img)
+    .globeImageUrl(styleImageUrl(s))
     .showAtmosphere(true)
     .atmosphereColor(s.atmo)
     .atmosphereAltitude(0.15)
     .polygonsData([])
     .polygonCapColor(getCapColor)
     .polygonSideColor(() => 'rgba(0,0,0,0.25)')
-    .polygonStrokeColor(() => BORDER_COLOR)
+    .polygonStrokeColor(() => STYLES[currentStyle].border)
     .polygonAltitude(getAltitude)
     .polygonLabel(() => '');  // no tooltip — that's the whole game!
 
@@ -1841,6 +1889,7 @@ async function boot() {
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   const globeEl = document.getElementById('globe-el');
   initGlobe(globeEl);
+  setStyle(currentStyle);  // mark the active style button + apply the saved/default style
 
   // One more frame for globe to attach its canvas
   await new Promise(r => requestAnimationFrame(r));
