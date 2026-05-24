@@ -1179,15 +1179,46 @@ function getAltitude(f) {
   return currentStyle === 'atlas' ? 0.005 : 0;
 }
 
+// "Next target" blink — when auto-next is on, the country jumpToNext flew to
+// pulses its outline to signal "this is the one to name next" without filling
+// the cap (a fill would look too similar to the green _named state in Name All).
+// Daily mode uses cyan because the unnamed daily targets are already amber-
+// filled — an amber outline blink on top would visually muddle.
+let blinkPhase = 0;
+let blinkInterval = null;
+function blinkAccent() {
+  return currentMode === 'daily' ? 'rgba(56,189,248,0.95)' : 'rgba(245,158,11,0.95)';
+}
+function shouldBlink() {
+  return autoNext && isRunning && lastJumpTarget && !lastJumpTarget.named
+    && lastJumpTarget.feat && currentMode !== 'kids';
+}
+function startBlink() {
+  if (blinkInterval) return;
+  blinkInterval = setInterval(() => {
+    blinkPhase = blinkPhase ? 0 : 1;
+    refreshGlobe();
+  }, 600);
+}
+function stopBlink() {
+  if (blinkInterval) { clearInterval(blinkInterval); blinkInterval = null; }
+  if (blinkPhase !== 0) { blinkPhase = 0; refreshGlobe(); }
+}
+function maybeUpdateBlink() {
+  if (shouldBlink()) startBlink(); else stopBlink();
+}
+
 function refreshGlobe() {
   if (!myGlobe) return;
   renderTick++;
   const t = renderTick;
-  const border = STYLES[currentStyle].border;
+  const defaultBorder = STYLES[currentStyle].border;
+  const targetFeat = (blinkPhase === 1 && shouldBlink()) ? lastJumpTarget.feat : null;
+  const accent = blinkAccent();
   myGlobe
     .polygonCapColor(f => { void t; return getCapColor(f); })
     .polygonAltitude(f => { void t; return getAltitude(f); })
-    .polygonStrokeColor(() => { void t; return border; });
+    .polygonStrokeColor(f => { void t; return f === targetFeat ? accent : defaultBorder; });
 }
 
 // Compute centroid of a GeoJSON feature (weighted by largest polygon)
@@ -1260,6 +1291,7 @@ function jumpToNext() {
   lastJumpTarget = pick;
   flyToFeature(pick.feat);
   document.getElementById('cinput').focus();
+  maybeUpdateBlink();
 }
 
 function initGlobe(el) {
@@ -1387,6 +1419,7 @@ function startGame() {
   });
   namedList = []; namedTs = [];
   lastJumpTarget = null;
+  stopBlink();
   // Ghost replay is only meaningful for Name All (sprint/daily/kids have different victory conditions)
   ghostData = (currentMode === 'name-all') ? getGhost() : null;
   ghostNamedCount = 0;
@@ -1480,6 +1513,7 @@ function updateGhostProgress(elapsed) {
 
 function endGame() {
   isRunning = false;
+  stopBlink();
   cancelAnimationFrame(animRaf);
   const count = namedList.length;
   const pb = document.getElementById('pb-banner');
@@ -1571,6 +1605,7 @@ function toggleAutoNext() {
   autoNext = !autoNext;
   document.getElementById('autonext-btn').classList.toggle('on', autoNext);
   toast(autoNext ? 'AUTO-NEXT ON' : 'AUTO-NEXT OFF');
+  maybeUpdateBlink();
 }
 function menuEndNow() {
   toggleMenu();
@@ -1831,6 +1866,7 @@ document.getElementById('cinput').addEventListener('input', function() {
     refreshGlobe();
     flyToFeature(c.feat);
   }
+  if (c === lastJumpTarget) maybeUpdateBlink();  // target named → stop blinking
 
   const continent = CONTINENT[c.canonical];
   const toastMsg = namedList.length <= 3 && continent
