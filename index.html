@@ -1192,19 +1192,25 @@ function gcd(lat1, lng1, lat2, lng2) {
   return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
+let lastJumpTarget = null;
 function jumpToNext() {
   if (!myGlobe) return;
   const pov = myGlobe.pointOfView();
-  let best = null, bestDist = Infinity;
   const pool = currentMode === 'daily' ? dailyTarget : countries;
+  const candidates = [];
   for (const c of pool) {
     if (c.named || !c.feat) continue;
     const center = featureCentroid(c.feat);
     if (!center) continue;
-    const d = gcd(pov.lat, pov.lng, center.lat, center.lng);
-    if (d < bestDist) { bestDist = d; best = c; }
+    candidates.push({ c, d: gcd(pov.lat, pov.lng, center.lat, center.lng) });
   }
-  if (best) flyToFeature(best.feat);
+  if (!candidates.length) { document.getElementById('cinput').focus(); return; }
+  candidates.sort((a, b) => a.d - b.d);
+  // Skip the country we just jumped to so repeat Next presses always move somewhere new
+  // (without this, Next can re-fly to the country already centered in view — looks broken)
+  const pick = (candidates.find(x => x.c !== lastJumpTarget) || candidates[0]).c;
+  lastJumpTarget = pick;
+  flyToFeature(pick.feat);
   document.getElementById('cinput').focus();
 }
 
@@ -1328,6 +1334,7 @@ function startGame() {
     if (c.feat) { c.feat._named = false; c.feat._dailyTarget = false; c.feat._kidsTarget = false; }
   });
   namedList = []; namedTs = [];
+  lastJumpTarget = null;
   // Ghost replay is only meaningful for Name All (sprint/daily/kids have different victory conditions)
   ghostData = (currentMode === 'name-all') ? getGhost() : null;
   ghostNamedCount = 0;
@@ -1671,7 +1678,8 @@ const MODE_ACCENTS = {
 // KIDS MODE
 // ═══════════════════════════════════════════════════════════════
 function kidsGetDecoys(target) {
-  const pool = countries.filter(c => c !== target);
+  // Decoys must have a feat too so the globe can fly to them on wrong answers (FT-004 backlog)
+  const pool = countries.filter(c => c !== target && c.feat);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
@@ -1681,7 +1689,8 @@ function kidsGetDecoys(target) {
 
 function kidsStartRound() {
   if (kidsRounds >= KIDS_ROUNDS) { endGame(); return; }
-  const pool = countries.filter(c => !c.named);
+  // Only target countries we can actually render — otherwise the globe shows nothing
+  const pool = countries.filter(c => !c.named && c.feat);
   if (!pool.length) { endGame(); return; }
   kidsTarget = pool[Math.floor(Math.random() * pool.length)];
   const decoys = kidsGetDecoys(kidsTarget);
@@ -1740,6 +1749,21 @@ document.getElementById('cinput').addEventListener('input', function() {
   if (!c) return;
   if (c.named) { this.value = ''; return; }
   if (currentMode === 'daily' && !dailyTarget.includes(c)) {
+    // If the user could still be mid-way through typing a longer daily target
+    // (e.g. typing "Nigeria" passes through "Niger"; "Guinea-Bissau" passes through
+    // "Guinea") — stay quiet and let them finish. Otherwise we clear their input
+    // mid-word and they have to retype.
+    const inp = norm(this.value);
+    let isPrefix = false;
+    for (const dt of dailyTarget) {
+      if (dt.named) continue;
+      const names = [norm(dt.canonical), ...dt.aliases.map(norm)];
+      for (const n of names) {
+        if (n.length > inp.length && n.startsWith(inp)) { isPrefix = true; break; }
+      }
+      if (isPrefix) break;
+    }
+    if (isPrefix) return;
     toast("NOT IN TODAY'S 10!");
     this.value = '';
     return;
