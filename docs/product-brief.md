@@ -40,7 +40,6 @@ The product already exists in playable form (Name All, Sprint, Daily, multiple-c
 - **Visible fluency level** — a simple, motivating progression metric ("Level 7 — 142/195 fluent") shown on the home screen and shareable.
 - **Polished Daily-mode share card** — clean enough that someone would actually post it in a group chat. Includes streak.
 - **Globe UX fixes** — country-outlines overlay mode for readability; fix the highlight-layer z-fighting where terrain pokes through.
-- **Rename "Kids Mode" → "Easy Mode" or "Multiple Choice"** — the current name actively pushes the real adult audience away.
 
 **Out (deferred):**
 - Capitals, flags, US states, regions, mountain ranges — all the multi-domain expansion. Only build these after the core daily-habit loop is proven with countries alone.

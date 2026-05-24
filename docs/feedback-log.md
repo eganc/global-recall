@@ -1,0 +1,16 @@
+# Feedback Log
+
+## Triage Batch — 2026-05-15 (Mia Hlywa + Milo Cheung, iMessage)
+
+### Do Now
+- [x] **[Bug]** Daily mode submits/dismisses before user finishes typing a full country name (FT-001)
+- [x] **[Bug]** Daily mode "Next" button fails intermittently — user can't advance (FT-002)
+- [~] **[Bug]** Easy Mode sometimes doesn't highlight the target country on the globe — likely the known highlight-layer z-fighting (FT-003) — mitigated (target/decoy pool filtered to features with geometry); z-fighting root cause not yet addressed
+- [ ] **[Bug]** PWA-installed app missing the map style switcher present on web (FT-005)
+
+### Backlog
+- [ ] **[Feature]** Reveal the chosen country's true location on the globe after a wrong Easy-mode answer — supports memory-palace thesis (FT-004)
+
+### Monitor
+- [ ] **[Polish]** Sprint scoring is gameable by typing short country names first — consider weighting or alphabetical fairness if Sprint becomes a focus mode (FT-006)
+- [ ] **[Feature]** Landmass-based Sprint variants (biggest-first, smallest-first) — fun but deferred until core daily-habit loop is proven (FT-007)
