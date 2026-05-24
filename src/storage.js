@@ -1,0 +1,176 @@
+// Persistence layer for Global Recall.
+//
+// Every piece of user state — records, ghost runs, daily streak, globe style,
+// install-banner snooze — flows through this module. The runtime in
+// index.html mirrors this exact shape so the game works without a build step,
+// the same pattern src/core.js uses (see the "Mirror of src/core.js" comments
+// in index.html).
+//
+// Why this exists: the product brief commits to building state "in a shape
+// that could migrate to a backend later without a rewrite." Direct
+// `localStorage.setItem('gr_foo', ...)` scattered across the file would make
+// that migration mean touching every feature. Everything goes through this
+// module instead, and the day we want cloud sync we swap the `store` argument
+// for a remote-backed implementation.
+//
+// Schema versioning is load-bearing. Returning users have data in the v1
+// shape already — v0 → v1 is a no-op that just stamps the version. The
+// migration runner is in place so v2 (when we change the daily blob shape or
+// add per-country miss counts for spaced repetition) doesn't strand anyone.
+
+export const SCHEMA_VERSION = 1;
+
+export const STORAGE_KEYS = Object.freeze({
+  schemaVersion:    'gr_schema_version',
+  ghost:            'gr_ghost',
+  recs:             'gr_recs',
+  sprintBest:       'gr_sprint_best',
+  daily:            'gr_daily',
+  style:            'gr_style',
+  installDismissed: 'gr_install_dismissed',
+});
+
+// Migrations are keyed by the version they UPGRADE TO. To go from v(N-1) to
+// vN, run migrations[N]. Add new entries here when the schema changes; never
+// rewrite an existing one (returning users at any prior version must walk
+// through every step to land on the current schema).
+const MIGRATIONS = {
+  1: (_store) => {
+    // No-op: v1 is the initial stamped schema. Existing users' localStorage
+    // data is already in this shape — we just need to record the version so
+    // future migrations have a defined starting point.
+  },
+};
+
+function readJSON(store, key, fallback) {
+  try {
+    const raw = store.getItem(key);
+    return raw == null ? fallback : JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJSON(store, key, value) {
+  store.setItem(key, JSON.stringify(value));
+}
+
+function runMigrations(store) {
+  const current = parseInt(store.getItem(STORAGE_KEYS.schemaVersion) || '0', 10) || 0;
+  for (let v = current + 1; v <= SCHEMA_VERSION; v++) {
+    const fn = MIGRATIONS[v];
+    if (fn) fn(store);
+    store.setItem(STORAGE_KEYS.schemaVersion, String(v));
+  }
+}
+
+// In-memory fallback so tests and non-browser environments don't crash and
+// so a single Storage instance can be used uniformly.
+function memoryStore() {
+  const mem = new Map();
+  return {
+    getItem:    (k) => (mem.has(k) ? mem.get(k) : null),
+    setItem:    (k, v) => { mem.set(k, String(v)); },
+    removeItem: (k) => { mem.delete(k); },
+  };
+}
+
+export function createStorage(store) {
+  if (!store) store = memoryStore();
+  runMigrations(store);
+
+  return {
+    // ── Schema introspection ────────────────────────────────────────────
+    getSchemaVersion() {
+      return parseInt(store.getItem(STORAGE_KEYS.schemaVersion) || '0', 10) || 0;
+    },
+
+    // ── Ghost replay (Name All) ─────────────────────────────────────────
+    // Shape: { countries: string[], timestamps: number[], totalTime: number } | null
+    getGhost() {
+      return readJSON(store, STORAGE_KEYS.ghost, null);
+    },
+    saveGhost(countries, timestamps, totalTime) {
+      writeJSON(store, STORAGE_KEYS.ghost, {
+        countries:  countries.slice(0, 100),
+        timestamps: timestamps.slice(0, 100),
+        totalTime,
+      });
+    },
+    // Used by the share-link handler that imports a ghost from a URL param.
+    saveRawGhost(blob) {
+      writeJSON(store, STORAGE_KEYS.ghost, blob);
+    },
+
+    // ── Personal records ────────────────────────────────────────────────
+    // Shape: { [mode]: { best: number, best_time: number, runs: number } }
+    getRecs() {
+      return readJSON(store, STORAGE_KEYS.recs, {});
+    },
+    // Record a Name All run; returns { isPB, prev }.
+    saveNameAllRun(count, timeS) {
+      const recs = readJSON(store, STORAGE_KEYS.recs, {});
+      const key = 'name_all';
+      if (!recs[key]) recs[key] = { best: 0, best_time: Infinity, runs: 0 };
+      recs[key].runs++;
+      const isPB = count > recs[key].best
+        || (count === recs[key].best && timeS < recs[key].best_time);
+      const prev = recs[key].best;
+      if (count > recs[key].best) recs[key].best = count;
+      if (timeS < recs[key].best_time) recs[key].best_time = timeS;
+      writeJSON(store, STORAGE_KEYS.recs, recs);
+      return { isPB, prev };
+    },
+
+    // ── Sprint best ─────────────────────────────────────────────────────
+    getSprintBest() {
+      return parseInt(store.getItem(STORAGE_KEYS.sprintBest) || '0', 10) || 0;
+    },
+    // Returns { isNewPB, prev }.
+    saveSprintResult(count) {
+      const prev = parseInt(store.getItem(STORAGE_KEYS.sprintBest) || '0', 10) || 0;
+      const isNewPB = count > prev;
+      if (isNewPB) store.setItem(STORAGE_KEYS.sprintBest, String(count));
+      return { isNewPB, prev };
+    },
+
+    // ── Daily challenge ─────────────────────────────────────────────────
+    // Shape: { lastDay: number, streak: number, lastScore: number, lastTotal: number }
+    getDaily() {
+      return readJSON(store, STORAGE_KEYS.daily, {});
+    },
+    // Records today's result. Once-per-day idempotent (second call same UTC
+    // day returns existing state). Streak increments when yesterday was the
+    // last day played, resets to 1 otherwise. Returns the persisted blob.
+    saveDailyResult(count, total, nowMs = Date.now()) {
+      const today = Math.floor(nowMs / 86400000);
+      const d = readJSON(store, STORAGE_KEYS.daily, {});
+      if (d.lastDay === today) return d;
+      const streak = d.lastDay === today - 1 ? (d.streak || 0) + 1 : 1;
+      const next = { lastDay: today, streak, lastScore: count, lastTotal: total };
+      writeJSON(store, STORAGE_KEYS.daily, next);
+      return next;
+    },
+
+    // ── Globe style preference ─────────────────────────────────────────
+    getStyle() {
+      return store.getItem(STORAGE_KEYS.style);
+    },
+    saveStyle(key) {
+      store.setItem(STORAGE_KEYS.style, key);
+    },
+
+    // ── Install-banner snooze ──────────────────────────────────────────
+    // Stored as the epoch-ms timestamp of the last dismissal. The 7-day
+    // snooze window lives in the caller — Storage just records the stamp.
+    getInstallDismissedAt() {
+      return parseInt(store.getItem(STORAGE_KEYS.installDismissed) || '0', 10) || 0;
+    },
+    snoozeInstall(nowMs = Date.now()) {
+      store.setItem(STORAGE_KEYS.installDismissed, String(nowMs));
+    },
+    clearInstallSnooze() {
+      store.removeItem(STORAGE_KEYS.installDismissed);
+    },
+  };
+}

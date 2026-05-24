@@ -972,33 +972,92 @@ let kidsCorrect = 0;
 let kidsRounds = 0;
 let kidsChoices = [];
 
-// Handle ghost URL param
+// ═══════════════════════════════════════════════════════════════
+// STORAGE — mirror of src/storage.js (which has the tests).
+// Keep in sync. Every piece of persistent user state flows through here so
+// the day we want cloud sync, only this block has to change.
+// ═══════════════════════════════════════════════════════════════
+const Storage = (function() {
+  const SCHEMA_VERSION = 1;
+  const K = {
+    schemaVersion:    'gr_schema_version',
+    ghost:            'gr_ghost',
+    recs:             'gr_recs',
+    sprintBest:       'gr_sprint_best',
+    daily:            'gr_daily',
+    style:            'gr_style',
+    installDismissed: 'gr_install_dismissed',
+  };
+  const MIGRATIONS = {
+    1: (_s) => { /* v1 is the initial stamped schema — no-op */ },
+  };
+  const readJSON = (k, fb) => {
+    try { const raw = localStorage.getItem(k); return raw == null ? fb : JSON.parse(raw); }
+    catch { return fb; }
+  };
+  const writeJSON = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const readInt = (k) => parseInt(localStorage.getItem(k) || '0', 10) || 0;
+  (function runMigrations() {
+    const current = readInt(K.schemaVersion);
+    for (let v = current + 1; v <= SCHEMA_VERSION; v++) {
+      const fn = MIGRATIONS[v]; if (fn) fn(localStorage);
+      localStorage.setItem(K.schemaVersion, String(v));
+    }
+  })();
+  return {
+    getGhost:     ()    => readJSON(K.ghost, null),
+    saveGhost:    (countries, timestamps, totalTime) => writeJSON(K.ghost, {
+                    countries: countries.slice(0, 100),
+                    timestamps: timestamps.slice(0, 100),
+                    totalTime,
+                  }),
+    saveRawGhost: (b)   => writeJSON(K.ghost, b),
+    getRecs:      ()    => readJSON(K.recs, {}),
+    saveNameAllRun(count, timeS) {
+      const recs = readJSON(K.recs, {});
+      const key = 'name_all';
+      if (!recs[key]) recs[key] = { best: 0, best_time: Infinity, runs: 0 };
+      recs[key].runs++;
+      const isPB = count > recs[key].best
+        || (count === recs[key].best && timeS < recs[key].best_time);
+      const prev = recs[key].best;
+      if (count > recs[key].best) recs[key].best = count;
+      if (timeS < recs[key].best_time) recs[key].best_time = timeS;
+      writeJSON(K.recs, recs);
+      return { isPB, prev };
+    },
+    getSprintBest: () => readInt(K.sprintBest),
+    saveSprintResult(count) {
+      const prev = readInt(K.sprintBest);
+      const isNewPB = count > prev;
+      if (isNewPB) localStorage.setItem(K.sprintBest, String(count));
+      return { isNewPB, prev };
+    },
+    getDaily: () => readJSON(K.daily, {}),
+    saveDailyResult(count, total, nowMs = Date.now()) {
+      const today = Math.floor(nowMs / 86400000);
+      const d = readJSON(K.daily, {});
+      if (d.lastDay === today) return d;
+      const streak = d.lastDay === today - 1 ? (d.streak || 0) + 1 : 1;
+      const next = { lastDay: today, streak, lastScore: count, lastTotal: total };
+      writeJSON(K.daily, next);
+      return next;
+    },
+    getStyle: () => localStorage.getItem(K.style),
+    saveStyle: (key) => localStorage.setItem(K.style, key),
+    getInstallDismissedAt: () => readInt(K.installDismissed),
+    snoozeInstall:    (nowMs = Date.now()) => localStorage.setItem(K.installDismissed, String(nowMs)),
+    clearInstallSnooze: () => localStorage.removeItem(K.installDismissed),
+  };
+})();
+
+// Handle ghost URL param — import a shared run into local storage.
 (function(){
   try {
     const g = new URLSearchParams(location.search).get('ghost');
-    if (g) { const d = JSON.parse(atob(g)); localStorage.setItem('gr_ghost', JSON.stringify(d)); }
+    if (g) Storage.saveRawGhost(JSON.parse(atob(g)));
   } catch {}
 })();
-
-function getRecs() { try { return JSON.parse(localStorage.getItem('gr_recs')||'{}'); } catch { return {}; } }
-function saveRec(count, timeS) {
-  const r = getRecs();
-  const key = 'name_all';
-  if (!r[key]) r[key] = { best: 0, best_time: Infinity, runs: 0 };
-  r[key].runs++;
-  const isPB = count > r[key].best || (count === r[key].best && timeS < r[key].best_time);
-  const prev = r[key].best;
-  if (count > r[key].best) r[key].best = count;
-  if (timeS < r[key].best_time) r[key].best_time = timeS;
-  localStorage.setItem('gr_recs', JSON.stringify(r));
-  return { isPB, prev };
-}
-function getGhost() { try { return JSON.parse(localStorage.getItem('gr_ghost')||'null'); } catch { return null; } }
-function saveGhost(list, ts, total) {
-  localStorage.setItem('gr_ghost', JSON.stringify({
-    countries: list.slice(0,100), timestamps: ts.slice(0,100), totalTime: total
-  }));
-}
 
 // ═══════════════════════════════════════════════════════════════
 // MODE HELPERS
@@ -1027,31 +1086,6 @@ function getDailyNumber() {
 
 function getDailyCountries() {
   return seededShuffle(countries, getDailySeed()).slice(0, 10);
-}
-
-function getSprintBest() {
-  return parseInt(localStorage.getItem('gr_sprint_best') || '0');
-}
-
-function saveSprintResult(count) {
-  const prev = getSprintBest();
-  const isNewPB = count > prev;
-  if (isNewPB) localStorage.setItem('gr_sprint_best', String(count));
-  return { isNewPB, prev };
-}
-
-function getDailyData() {
-  try { return JSON.parse(localStorage.getItem('gr_daily') || '{}'); } catch { return {}; }
-}
-
-function saveDailyResult(count, total) {
-  const today = Math.floor(Date.now() / 86400000);
-  const d = getDailyData();
-  if (d.lastDay === today) return d;
-  const streak = d.lastDay === today - 1 ? (d.streak || 0) + 1 : 1;
-  const next = { lastDay: today, streak, lastScore: count, lastTotal: total };
-  localStorage.setItem('gr_daily', JSON.stringify(next));
-  return next;
 }
 
 function shareDaily(count, total, num, time) {
@@ -1142,14 +1176,14 @@ function styleImageUrl(s) {
 }
 // Default to Atlas for first-time users; respect any saved preference.
 let currentStyle = (() => {
-  const saved = localStorage.getItem('gr_style');
+  const saved = Storage.getStyle();
   return (saved && STYLES[saved]) ? saved : 'atlas';
 })();
 
 function setStyle(key) {
   if (!STYLES[key]) return;
   currentStyle = key;
-  localStorage.setItem('gr_style', key);
+  Storage.saveStyle(key);
   const s = STYLES[key];
   document.getElementById('globe-wrap').style.background =
     `radial-gradient(ellipse at center, ${s.bg} 0%, #000 100%)`;
@@ -1421,7 +1455,7 @@ function startGame() {
   lastJumpTarget = null;
   stopBlink();
   // Ghost replay is only meaningful for Name All (sprint/daily/kids have different victory conditions)
-  ghostData = (currentMode === 'name-all') ? getGhost() : null;
+  ghostData = (currentMode === 'name-all') ? Storage.getGhost() : null;
   ghostNamedCount = 0;
   const ghostEl = document.getElementById('ghost-display');
   if (ghostData && ghostData.timestamps && ghostData.timestamps.length) {
@@ -1526,7 +1560,7 @@ function endGame() {
 
   if (currentMode === 'sprint') {
     const elapsed = 300;
-    const { isNewPB, prev } = saveSprintResult(count);
+    const { isNewPB, prev } = Storage.saveSprintResult(count);
     headline = "TIME'S UP!";
     countText = `${count}/${TOTAL}`;
     timeText = '5:00';
@@ -1542,7 +1576,7 @@ function endGame() {
   } else if (currentMode === 'daily') {
     const elapsed = (Date.now() - sessionStart) / 1000;
     const num = getDailyNumber();
-    const dailyData = saveDailyResult(count, modeTotal);
+    const dailyData = Storage.saveDailyResult(count, modeTotal);
     headline = count === modeTotal ? `DAILY #${num} COMPLETE!` : `DAILY #${num}`;
     countText = `${count}/${modeTotal}`;
     timeText = fmt(elapsed);
@@ -1564,8 +1598,8 @@ function endGame() {
 
   } else {
     const elapsed = (Date.now() - sessionStart) / 1000;
-    saveGhost(namedList, namedTs, elapsed);
-    const { isPB, prev } = saveRec(count, elapsed);
+    Storage.saveGhost(namedList, namedTs, elapsed);
+    const { isPB, prev } = Storage.saveNameAllRun(count, elapsed);
     headline = count === TOTAL ? 'WORLD CONQUERED!' : `${count} / ${TOTAL}`;
     countText = `${count}/${TOTAL}`;
     timeText = fmt(elapsed);
@@ -1621,7 +1655,7 @@ function toggleAutoRotate() {
 }
 
 function shareGhost() {
-  const g = getGhost();
+  const g = Storage.getGhost();
   if (!g) return;
   try {
     const enc = btoa(JSON.stringify(g));
@@ -1975,16 +2009,16 @@ function selectMenuMode(mode) {
 }
 
 function updateStartMenuStats() {
-  const recs = getRecs();
+  const recs = Storage.getRecs();
   const naRec = recs['name_all'];
   document.getElementById('stat-name-all').textContent = naRec && naRec.best
     ? `PB: ${naRec.best} / ${TOTAL}`
     : `— / ${TOTAL} COUNTRIES`;
-  const sb = getSprintBest();
+  const sb = Storage.getSprintBest();
   document.getElementById('stat-sprint').textContent = sb
     ? `PB: ${sb} COUNTRIES`
     : 'BEST: — COUNTRIES';
-  const dd = getDailyData();
+  const dd = Storage.getDaily();
   document.getElementById('stat-daily').textContent = dd.streak
     ? `🔥 ${dd.streak} DAY STREAK`
     : "TODAY'S 10 COUNTRIES";
@@ -2018,7 +2052,7 @@ function showInstallBanner() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
     || window.navigator.standalone;
   if (isStandalone) return;
-  const dismissed = parseInt(localStorage.getItem('gr_install_dismissed') || '0');
+  const dismissed = Storage.getInstallDismissedAt();
   if (dismissed && Date.now() - dismissed < 7 * 86400000) return; // snooze 7 days
 
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -2045,7 +2079,7 @@ function menuInstall() {
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   if (isStandalone) { toast('ALREADY INSTALLED!'); return; }
   // Clear snooze so banner shows
-  localStorage.removeItem('gr_install_dismissed');
+  Storage.clearInstallSnooze();
   showInstallBanner();
   if (!_installPrompt) toast('USE BROWSER MENU → ADD TO HOME SCREEN');
 }
@@ -2063,7 +2097,7 @@ function doInstall() {
 
 function dismissInstall() {
   document.getElementById('install-banner').classList.remove('show');
-  localStorage.setItem('gr_install_dismissed', String(Date.now()));
+  Storage.snoozeInstall();
 }
 </script>
 </body>
