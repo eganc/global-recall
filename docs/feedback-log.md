@@ -5,7 +5,7 @@
 ### Do Now
 - [x] **[Bug]** Daily mode submits/dismisses before user finishes typing a full country name (FT-001)
 - [x] **[Bug]** Daily mode "Next" button fails intermittently — user can't advance (FT-002)
-- [~] **[Bug]** Easy Mode sometimes doesn't highlight the target country on the globe — likely the known highlight-layer z-fighting (FT-003) — mitigated (target/decoy pool filtered to features with geometry); z-fighting root cause not yet addressed
+- [x] **[Bug]** Easy Mode sometimes doesn't highlight the target country on the globe — likely the known highlight-layer z-fighting (FT-003) — fixed: getAltitude now lifts _dailyTarget and _kidsTarget polygons, not just _named
 - [ ] **[Bug]** PWA-installed app missing the map style switcher present on web (FT-005)
 
 ### Backlog

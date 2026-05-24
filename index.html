@@ -1131,7 +1131,11 @@ function getCapColor(f) {
   if (f._dailyTarget) return DAILY_COLOR;
   return 'rgba(0,0,0,0)';
 }
-function getAltitude(f)  { return f._named ? 0.005 : 0; } // 0.005 clears z-fighting without visible parallax
+// Any highlighted polygon must be lifted off the terrain or 3D relief pokes
+// through the colored cap (z-fighting). Easy Mode + Daily highlights had this
+// bug — only _named was lifted, so the green/amber overlay didn't fully cover
+// mountainous countries. 0.005 clears z-fighting without visible parallax.
+function getAltitude(f)  { return (f._named || f._kidsTarget || f._dailyTarget) ? 0.005 : 0; }
 
 function refreshGlobe() {
   if (!myGlobe) return;
