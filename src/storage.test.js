@@ -31,7 +31,8 @@ describe('schema versioning', () => {
     const s = createStorage(store);
     expect(s.getSchemaVersion()).toBe(SCHEMA_VERSION);
     expect(s.getSprintBest()).toBe(47);
-    expect(s.getDaily()).toEqual({ lastDay: 100, streak: 3 });
+    // v0 → v2 also runs the v2 migration, which seeds longestStreak from streak.
+    expect(s.getDaily()).toEqual({ lastDay: 100, streak: 3, longestStreak: 3 });
   });
 
   it('is idempotent on re-init', () => {
@@ -39,6 +40,34 @@ describe('schema versioning', () => {
     createStorage(store);
     const s = createStorage(store);
     expect(s.getSchemaVersion()).toBe(SCHEMA_VERSION);
+  });
+
+  it('v2 migration seeds longestStreak from a returning v1 user', () => {
+    // A v1 user with a live 7-day streak. v2 must seed longestStreak=7
+    // so they don't see "BEST 0" the day the migration ships.
+    const store = makeStore({
+      gr_schema_version: '1',
+      [STORAGE_KEYS.daily]: JSON.stringify({ lastDay: 100, streak: 7, lastScore: 8, lastTotal: 10 }),
+    });
+    const s = createStorage(store);
+    expect(s.getDaily().longestStreak).toBe(7);
+    expect(s.getDaily().streak).toBe(7);
+  });
+
+  it('v2 migration tolerates a user who has never played Daily', () => {
+    const store = makeStore({ gr_schema_version: '1' });
+    const s = createStorage(store);
+    expect(s.getSchemaVersion()).toBe(SCHEMA_VERSION);
+    expect(s.getDaily()).toEqual({});
+  });
+
+  it('v2 migration does not overwrite a pre-existing longestStreak', () => {
+    const store = makeStore({
+      gr_schema_version: '1',
+      [STORAGE_KEYS.daily]: JSON.stringify({ lastDay: 100, streak: 3, longestStreak: 9 }),
+    });
+    const s = createStorage(store);
+    expect(s.getDaily().longestStreak).toBe(9);
   });
 });
 
@@ -138,6 +167,41 @@ describe('daily', () => {
     const next = s.saveDailyResult(10, 10, 100 * DAY);
     expect(next.streak).toBe(1);
     expect(next.lastScore).toBe(8);  // not overwritten
+    expect(next.isNewBest).toBe(false);
+  });
+
+  it('tracks longestStreak as a high-water mark', () => {
+    const s = createStorage(makeStore());
+    s.saveDailyResult(5, 10, 100 * DAY);
+    s.saveDailyResult(6, 10, 101 * DAY);
+    s.saveDailyResult(7, 10, 102 * DAY);
+    expect(s.getDaily().streak).toBe(3);
+    expect(s.getDaily().longestStreak).toBe(3);
+    // Break the streak — longestStreak stays at 3.
+    const broken = s.saveDailyResult(4, 10, 110 * DAY);
+    expect(broken.streak).toBe(1);
+    expect(broken.longestStreak).toBe(3);
+  });
+
+  it('reports isNewBest only when current crosses longest AND streak > 1', () => {
+    const s = createStorage(makeStore());
+    // Day 1 — streak goes 0→1. Not "new best" — first daily is not a milestone.
+    const first = s.saveDailyResult(5, 10, 100 * DAY);
+    expect(first.isNewBest).toBe(false);
+    // Day 2 — streak 1→2. Crosses prior longest (1). NEW BEST.
+    const second = s.saveDailyResult(6, 10, 101 * DAY);
+    expect(second.isNewBest).toBe(true);
+    expect(second.longestStreak).toBe(2);
+    // Day 3 — streak 2→3. Crosses prior longest (2). NEW BEST.
+    const third = s.saveDailyResult(7, 10, 102 * DAY);
+    expect(third.isNewBest).toBe(true);
+    // Break streak then rebuild — equal to but not exceeding longest = NOT a new best.
+    s.saveDailyResult(4, 10, 110 * DAY);  // streak resets to 1
+    s.saveDailyResult(5, 10, 111 * DAY);  // streak 1→2 — longest is 3
+    const equal = s.saveDailyResult(6, 10, 112 * DAY);  // streak 2→3 — ties longest
+    expect(equal.streak).toBe(3);
+    expect(equal.isNewBest).toBe(false);   // ties don't count as new best
+    expect(equal.longestStreak).toBe(3);
   });
 });
 

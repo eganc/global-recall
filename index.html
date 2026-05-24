@@ -300,6 +300,24 @@ body { font-family: var(--font-body); color: var(--text); }
   font-family: var(--font-head); font-size: 9px; letter-spacing: 3px;
   color: var(--text-muted);
 }
+#start-streak-row {
+  display: flex; border: 4px solid #000;
+  box-shadow: 5px 5px 0 rgba(0,0,0,0.55);
+  font-family: var(--font-head); overflow: hidden;
+}
+#start-streak-row.empty {
+  background: var(--surface); justify-content: center; align-items: center;
+  padding: 14px 10px;
+  font-size: 11px; letter-spacing: 3px; color: var(--text-muted);
+}
+.streak-cell {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 12px 8px;
+}
+.streak-cell.current { background: var(--amber); color: #000; }
+.streak-cell.best    { background: #000;         color: #fff; }
+.streak-num   { font-weight: 900; font-size: 22px; line-height: 1; }
+.streak-label { font-size: 9px; letter-spacing: 2px; margin-top: 5px; opacity: 0.85; }
 #mode-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
 }
@@ -556,6 +574,7 @@ body { font-family: var(--font-body); color: var(--text); }
         <div class="start-div-bar"></div>
       </div>
     </div>
+    <div id="start-streak-row"></div>
     <div id="mode-grid">
       <button class="mode-tile selected" id="tile-name-all" onclick="selectMenuMode('name-all')">
         <div class="mode-tile-header">
@@ -978,7 +997,7 @@ let kidsChoices = [];
 // the day we want cloud sync, only this block has to change.
 // ═══════════════════════════════════════════════════════════════
 const Storage = (function() {
-  const SCHEMA_VERSION = 1;
+  const SCHEMA_VERSION = 2;
   const K = {
     schemaVersion:    'gr_schema_version',
     ghost:            'gr_ghost',
@@ -990,6 +1009,19 @@ const Storage = (function() {
   };
   const MIGRATIONS = {
     1: (_s) => { /* v1 is the initial stamped schema — no-op */ },
+    2: (_s) => {
+      // Seed longestStreak from current streak for returning users so
+      // "BEST N" doesn't read 0 the day this ships.
+      try {
+        const raw = localStorage.getItem(K.daily);
+        if (!raw) return;
+        const d = JSON.parse(raw);
+        if (d && typeof d === 'object' && d.longestStreak == null) {
+          d.longestStreak = d.streak || 0;
+          localStorage.setItem(K.daily, JSON.stringify(d));
+        }
+      } catch {}
+    },
   };
   const readJSON = (k, fb) => {
     try { const raw = localStorage.getItem(k); return raw == null ? fb : JSON.parse(raw); }
@@ -1037,11 +1069,15 @@ const Storage = (function() {
     saveDailyResult(count, total, nowMs = Date.now()) {
       const today = Math.floor(nowMs / 86400000);
       const d = readJSON(K.daily, {});
-      if (d.lastDay === today) return d;
+      if (d.lastDay === today) return { ...d, isNewBest: false };
       const streak = d.lastDay === today - 1 ? (d.streak || 0) + 1 : 1;
-      const next = { lastDay: today, streak, lastScore: count, lastTotal: total };
+      const prevLongest = d.longestStreak || 0;
+      const longestStreak = Math.max(prevLongest, streak);
+      const isNewBest = streak > prevLongest && streak > 1;
+      const next = { lastDay: today, streak, longestStreak,
+                     lastScore: count, lastTotal: total };
       writeJSON(K.daily, next);
-      return next;
+      return { ...next, isNewBest };
     },
     getStyle: () => localStorage.getItem(K.style),
     saveStyle: (key) => localStorage.setItem(K.style, key),
@@ -1088,8 +1124,12 @@ function getDailyCountries() {
   return seededShuffle(countries, getDailySeed()).slice(0, 10);
 }
 
-function shareDaily(count, total, num, time) {
-  const text = `Global Recall Daily #${num}\n${count}/${total} countries · ${time}\nglobalrecall.themillrace.ca`;
+function shareDaily(count, total, num, time, dailyData) {
+  const d = dailyData || Storage.getDaily();
+  const streakLine = d.streak
+    ? `🔥 ${d.streak} day streak${d.isNewBest ? ' (new best!)' : ''}\n`
+    : '';
+  const text = `Global Recall Daily #${num}\n${count}/${total} countries · ${time}\n${streakLine}globalrecall.themillrace.ca`;
   navigator.clipboard.writeText(text)
     .then(() => toast('RESULT COPIED!'))
     .catch(() => toast('COPY FAILED'));
@@ -1582,10 +1622,14 @@ function endGame() {
     timeText = fmt(elapsed);
     pb.style.display = '';
     pb.style.background = 'var(--blue)'; pb.style.color = '#fff';
-    pb.textContent = dailyData.streak > 1 ? `🔥 ${dailyData.streak} DAY STREAK!` : 'FIRST DAILY DONE!';
+    pb.textContent = dailyData.isNewBest
+      ? `🔥 ${dailyData.streak} DAY STREAK — NEW BEST!`
+      : dailyData.streak > 1
+        ? `🔥 ${dailyData.streak} DAY STREAK!`
+        : 'FIRST DAILY DONE!';
     shareGhostBtn.style.display = 'none';
     shareDailyBtn.style.display = '';
-    shareDailyBtn.onclick = () => shareDaily(count, modeTotal, num, timeText);
+    shareDailyBtn.onclick = () => shareDaily(count, modeTotal, num, timeText, dailyData);
 
   } else if (currentMode === 'kids') {
     const elapsed = (Date.now() - sessionStart) / 1000;
@@ -2022,6 +2066,27 @@ function updateStartMenuStats() {
   document.getElementById('stat-daily').textContent = dd.streak
     ? `🔥 ${dd.streak} DAY STREAK`
     : "TODAY'S 10 COUNTRIES";
+
+  // Identity stat — always visible above the mode grid so the streak feels
+  // like the user's primary number, not a per-tile detail.
+  const row = document.getElementById('start-streak-row');
+  const current = dd.streak || 0;
+  const best = dd.longestStreak || 0;
+  if (current === 0 && best === 0) {
+    row.className = 'empty';
+    row.textContent = 'START YOUR STREAK · PLAY DAILY';
+  } else {
+    row.className = '';
+    row.innerHTML =
+      `<div class="streak-cell current">
+         <div class="streak-num">🔥 ${current}</div>
+         <div class="streak-label">DAY STREAK</div>
+       </div>
+       <div class="streak-cell best">
+         <div class="streak-num">${best}</div>
+         <div class="streak-label">BEST</div>
+       </div>`;
+  }
 }
 
 function launchFromMenu() {

@@ -18,7 +18,7 @@
 // migration runner is in place so v2 (when we change the daily blob shape or
 // add per-country miss counts for spaced repetition) doesn't strand anyone.
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const STORAGE_KEYS = Object.freeze({
   schemaVersion:    'gr_schema_version',
@@ -39,6 +39,21 @@ const MIGRATIONS = {
     // No-op: v1 is the initial stamped schema. Existing users' localStorage
     // data is already in this shape — we just need to record the version so
     // future migrations have a defined starting point.
+  },
+  2: (store) => {
+    // Add longestStreak to the daily blob. Seed from the user's current
+    // streak so a returning user with a 7-day streak immediately sees
+    // "BEST 7" instead of "BEST 0" — losing the streak right after this
+    // ships would otherwise feel like the app forgot.
+    try {
+      const raw = store.getItem(STORAGE_KEYS.daily);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d && typeof d === 'object' && d.longestStreak == null) {
+        d.longestStreak = d.streak || 0;
+        store.setItem(STORAGE_KEYS.daily, JSON.stringify(d));
+      }
+    } catch { /* corrupt blob — leave it; readJSON will fall back later */ }
   },
 };
 
@@ -135,21 +150,28 @@ export function createStorage(store) {
     },
 
     // ── Daily challenge ─────────────────────────────────────────────────
-    // Shape: { lastDay: number, streak: number, lastScore: number, lastTotal: number }
+    // Shape: { lastDay, streak, longestStreak, lastScore, lastTotal }
     getDaily() {
       return readJSON(store, STORAGE_KEYS.daily, {});
     },
     // Records today's result. Once-per-day idempotent (second call same UTC
-    // day returns existing state). Streak increments when yesterday was the
-    // last day played, resets to 1 otherwise. Returns the persisted blob.
+    // day returns existing state without re-stamping isNewBest). Streak
+    // increments when yesterday was the last day played, resets to 1
+    // otherwise. longestStreak only ever moves up. Returns the persisted
+    // blob with one extra ephemeral field — `isNewBest` — used by the UI
+    // for "🔥 N DAY STREAK — NEW BEST!" treatment.
     saveDailyResult(count, total, nowMs = Date.now()) {
       const today = Math.floor(nowMs / 86400000);
       const d = readJSON(store, STORAGE_KEYS.daily, {});
-      if (d.lastDay === today) return d;
+      if (d.lastDay === today) return { ...d, isNewBest: false };
       const streak = d.lastDay === today - 1 ? (d.streak || 0) + 1 : 1;
-      const next = { lastDay: today, streak, lastScore: count, lastTotal: total };
+      const prevLongest = d.longestStreak || 0;
+      const longestStreak = Math.max(prevLongest, streak);
+      const isNewBest = streak > prevLongest && streak > 1;
+      const next = { lastDay: today, streak, longestStreak,
+                     lastScore: count, lastTotal: total };
       writeJSON(store, STORAGE_KEYS.daily, next);
-      return next;
+      return { ...next, isNewBest };
     },
 
     // ── Globe style preference ─────────────────────────────────────────
