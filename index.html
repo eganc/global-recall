@@ -1459,13 +1459,6 @@ function flyToFeature(feat) {
   if (!feat) return;
   const center = featureCentroid(feat);
   if (!center || !mapLibreMap) return;
-  // Defer the fly until MapLibre is fully loaded. Without this the
-  // initial Daily-mode first-target fly fires before the map's 'load'
-  // event and silently sticks the camera at the constructor's zoom 1.2.
-  if (typeof mapLibreMap.loaded === 'function' && !mapLibreMap.loaded()) {
-    mapLibreMap.once('load', () => flyToFeature(feat));
-    return;
-  }
   // curve > default (1.42) makes the camera arc out to a high altitude at the
   // midpoint of the flight before descending into the destination — feels like
   // "zoom out, glide, zoom in." Especially helpful for jumps across the globe
@@ -1927,7 +1920,15 @@ function startGame() {
     const first = dailyTarget.find(c => c.feat);
     if (first) {
       lastJumpTarget = first;  // so the visualViewport-resize re-fly has a target
-      flyToFeature(first.feat);
+      // Defer to a double-RAF + small timeout so applyMode's layout
+      // changes settle, the map container reaches its final size, and
+      // any keyboard pop from the cinput.focus() below has had a chance
+      // to fire before we compute padding. Without this the first
+      // Daily-mode fly often ran against a transitional layout and
+      // appeared not to happen at all.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        setTimeout(() => flyToFeature(first.feat), 50);
+      }));
     }
   }
 
