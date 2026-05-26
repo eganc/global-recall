@@ -1446,14 +1446,19 @@ function initGlobe(el) {
     style: 'https://demotiles.maplibre.org/style.json',
     center: [0, 20],
     zoom: 1.2,
-    projection: 'globe',
     attributionControl: false,
   });
 
+  // The demotiles style.json declares projection: 'mercator' which overrides
+  // any constructor option in v5. Force globe after style loads.
+  mapLibreMap.on('style.load', () => {
+    mapLibreMap.setProjection({ type: 'globe' });
+  });
+
   mapLibreMap.on('load', () => {
-    // Expose for ad-hoc FPS probing from the console during the spike.
     window.__mlMap = mapLibreMap;
-    console.info('[Global Recall] MapLibre spike loaded. projection=globe');
+    console.info('[Global Recall] MapLibre spike loaded. projection=',
+      mapLibreMap.getProjection && mapLibreMap.getProjection());
   });
 
   const wrap = document.getElementById('globe-wrap');
