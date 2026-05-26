@@ -1710,10 +1710,12 @@ function startGame() {
     if (currentMode === 'daily') {
       const first = dailyTarget.find(c => c.feat);
       if (first) flyToFeature(first.feat);
-    } else if (currentMode === 'kids') {
-      kidsStartRound();
     }
   }
+  // Mode-specific kickoff that doesn't depend on the legacy globe.gl instance.
+  // (Easy mode needs this to render its multiple-choice buttons.) The Daily
+  // initial flyTo will move into the MapLibre branch in Phase 5.
+  if (currentMode === 'kids') kidsStartRound();
 
   updateHUD();
   if (currentMode !== 'kids') document.getElementById('cinput').focus();
