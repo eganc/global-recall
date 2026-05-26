@@ -988,6 +988,7 @@ let dailyTarget = [];
 let modeTotal = TOTAL;
 const KIDS_ROUNDS = 10;
 let kidsTarget = null;
+let prevKidsTargetAdmin = null;  // tracks the MapLibre feature id we painted amber last round, so the next round can clear it without scanning all features
 let kidsCorrect = 0;
 let kidsRounds = 0;
 let kidsChoices = [];
@@ -1627,6 +1628,7 @@ function startGame() {
     if (c.feat) { c.feat._named = false; c.feat._dailyTarget = false; c.feat._kidsTarget = false; }
   });
   clearAllHighlights();  // wipe any previous round's MapLibre feature-state
+  prevKidsTargetAdmin = null;
   namedList = []; namedTs = [];
   lastJumpTarget = null;
   stopBlink();
@@ -1649,7 +1651,13 @@ function startGame() {
   if (currentMode === 'daily') {
     dailyTarget = getDailyCountries();
     modeTotal = dailyTarget.length;
-    dailyTarget.forEach(c => { if (c.feat) c.feat._dailyTarget = true; });
+    dailyTarget.forEach(c => {
+      if (!c.feat) return;
+      c.feat._dailyTarget = true;
+      if (c.feat.properties && c.feat.properties.ADMIN) {
+        setCountryHighlight(c.feat.properties.ADMIN, 'dailyTarget');
+      }
+    });
     autoNext = true;
   } else if (currentMode === 'sprint') {
     dailyTarget = [];
@@ -2003,6 +2011,17 @@ function kidsStartRound() {
   // Highlight on globe
   geoFeatures.forEach(f => f._kidsTarget = false);
   if (kidsTarget.feat) { kidsTarget.feat._kidsTarget = true; refreshGlobe(); flyToFeature(kidsTarget.feat); }
+  // MapLibre port: clear previous round's amber, paint this round's target.
+  if (mapLibreMap) {
+    if (prevKidsTargetAdmin) setCountryHighlight(prevKidsTargetAdmin, null);
+    const admin = kidsTarget.feat && kidsTarget.feat.properties && kidsTarget.feat.properties.ADMIN;
+    if (admin) {
+      setCountryHighlight(admin, 'kidsTarget');
+      prevKidsTargetAdmin = admin;
+    } else {
+      prevKidsTargetAdmin = null;
+    }
+  }
   // Update UI
   const cont = CONTINENT[kidsTarget.canonical] || '';
   document.getElementById('kids-progress').textContent =
@@ -2032,6 +2051,13 @@ function kidsAnswer(idx) {
     kidsTarget.named = true;
     namedList.push(kidsTarget.canonical);
     if (kidsTarget.feat) { kidsTarget.feat._named = true; kidsTarget.feat._kidsTarget = false; refreshGlobe(); }
+    if (mapLibreMap && kidsTarget.feat && kidsTarget.feat.properties) {
+      const admin = kidsTarget.feat.properties.ADMIN;
+      if (admin) {
+        setCountryHighlight(admin, 'named');
+        if (prevKidsTargetAdmin === admin) prevKidsTargetAdmin = null;
+      }
+    }
     toast(`✓ ${kidsTarget.canonical.toUpperCase()}`);
   } else {
     toast(`✗ ${kidsTarget.canonical.toUpperCase()}`);
