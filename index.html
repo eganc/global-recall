@@ -1455,15 +1455,83 @@ function initGlobe(el) {
     mapLibreMap.setProjection({ type: 'globe' });
   });
 
-  mapLibreMap.on('load', () => {
+  mapLibreMap.on('load', async () => {
     window.__mlMap = mapLibreMap;
     console.info('[Global Recall] MapLibre spike loaded. projection=',
       mapLibreMap.getProjection && mapLibreMap.getProjection());
+    try {
+      await loadGeoJSON();
+      addCountryLayers();
+      console.info('[Global Recall] Country layers ready.',
+        geoFeatures.length, 'features. Try setCountryHighlight("France","named")');
+    } catch (e) {
+      console.error('[Global Recall] Country layer init failed:', e);
+    }
   });
 
   const wrap = document.getElementById('globe-wrap');
   new ResizeObserver(() => mapLibreMap && mapLibreMap.resize()).observe(wrap);
 }
+
+// ─── Country layers (MapLibre Phase 2) ────────────────────────────
+// Adds a single geojson source with a fill layer + line layer. Each
+// country's highlight state lives in MapLibre feature-state, not in
+// per-country meshes — that's the FT-008 win. Painting 195 countries
+// is one draw call, not 195.
+//
+// promoteId: 'ADMIN' lifts the Natural Earth ADMIN string into the
+// feature id so setFeatureState({source, id: 'France'}, ...) works
+// without per-feature numeric ids.
+function addCountryLayers() {
+  if (!mapLibreMap || !geoFeatures || !geoFeatures.length) return;
+  mapLibreMap.addSource('countries', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: geoFeatures },
+    promoteId: 'ADMIN',
+  });
+  mapLibreMap.addLayer({
+    id: 'country-fills',
+    type: 'fill',
+    source: 'countries',
+    paint: {
+      'fill-color': [
+        'case',
+        ['boolean', ['feature-state', 'named'], false],       'rgba(34,197,94,0.88)',
+        ['boolean', ['feature-state', 'kidsTarget'], false],  'rgba(245,158,11,0.80)',
+        ['boolean', ['feature-state', 'dailyTarget'], false], 'rgba(245,158,11,0.45)',
+        'rgba(0,0,0,0)',
+      ],
+    },
+  });
+  mapLibreMap.addLayer({
+    id: 'country-borders',
+    type: 'line',
+    source: 'countries',
+    paint: {
+      'line-color': 'rgba(255,255,255,0.35)',
+      'line-width': 0.4,
+    },
+  });
+}
+
+// Console-callable smoke test helpers for Phase 2.
+// state: 'named' | 'kidsTarget' | 'dailyTarget' | null (clear)
+function setCountryHighlight(featureId, state) {
+  if (!mapLibreMap) return;
+  mapLibreMap.removeFeatureState({ source: 'countries', id: featureId });
+  if (state) {
+    mapLibreMap.setFeatureState(
+      { source: 'countries', id: featureId },
+      { [state]: true }
+    );
+  }
+}
+function clearAllHighlights() {
+  if (!mapLibreMap) return;
+  mapLibreMap.removeFeatureState({ source: 'countries' });
+}
+window.setCountryHighlight = setCountryHighlight;
+window.clearAllHighlights  = clearAllHighlights;
 
 async function loadGeoJSON() {
   const urls = [
