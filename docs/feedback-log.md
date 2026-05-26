@@ -22,3 +22,9 @@
 
 ### Monitor
 - [ ] **[Feature]** Flat 2D map fallback for devices that can't run the 3D globe — son's explicit ask; only revisit if FT-008 perf work can't reach acceptable on weak devices (FT-009)
+
+## Triage Batch — 2026-05-26 (Egan, during Lite Mode Chromebook testing)
+
+### Do Now
+- [ ] **[Bug]** China highlights green on correct match but the input text box doesn't clear — likely a race in the matching engine; investigate the findMatch path for multi-alias countries (FT-010)
+- [ ] **[Polish]** Typing a country that's already been named gives zero feedback — the input just sits there silently. Should toast "ALREADY NAMED" or shake/flash the input so the user knows something happened (FT-011)
