@@ -1259,19 +1259,12 @@ let currentStyle = (() => {
 
 function setStyle(key) {
   if (!STYLES[key]) return;
-  if (liteMode && key === 'atlas') {
-    toast('ATLAS NOT AVAILABLE IN LITE MODE');
-    return;
-  }
   currentStyle = key;
   Storage.saveStyle(key);
-  const s = STYLES[key];
-  document.getElementById('globe-wrap').style.background =
-    `radial-gradient(ellipse at center, ${s.bg} 0%, #000 100%)`;
-  if (myGlobe) {
-    myGlobe.globeImageUrl(styleImageUrl(s)).atmosphereColor(s.atmo);
-    refreshGlobe();  // repaint polygon caps + borders with the new land/border colors
-  }
+  // Atlas is currently the only rendered MapLibre style; the other style
+  // buttons keep their saved preference + active state but don't actually
+  // change the map. Follow-up: author alternative MapLibre style specs
+  // (satellite-style, etc.) and call mapLibreMap.setStyle(...) here.
   document.querySelectorAll('.style-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.style === key);
   });
@@ -1468,29 +1461,50 @@ function jumpToNext() {
   maybeUpdateBlink();
 }
 
-// MapLibre map instance (Phase 1 spike — replaces globe.gl).
-// myGlobe stays null so all the legacy globe.gl call sites (refreshGlobe,
-// pushPolygons, flyToFeature, jumpToNext, ResizeObserver) short-circuit via
-// their existing `if (myGlobe)` guards. The game is not playable in this
-// state — that is intentional for the spike. Goal: verify MapLibre's globe
-// projection holds 30+ FPS on Chromebook before porting any game logic.
 let mapLibreMap = null;
 
+// Atlas style spec — parchment ocean, opaque tan country fills, sepia
+// borders. No external tile source: the entire world is just background
+// color + the GeoJSON country layer we add separately. That keeps the
+// install footprint tiny and the look identical regardless of zoom.
+const ATLAS_STYLE = {
+  version: 8,
+  projection: { type: 'globe' },
+  sources: {},
+  layers: [
+    {
+      id: 'ocean',
+      type: 'background',
+      paint: { 'background-color': '#f5ecd9' },  // cream parchment
+    },
+  ],
+  // Warm halo around the globe — matches the old globe.gl atmosphere tint.
+  sky: {
+    'sky-color':      '#e6d8b8',
+    'horizon-color':  '#d4b88a',
+    'fog-color':      '#d4b88a',
+    'sky-horizon-blend': 0.6,
+    'horizon-fog-blend': 0.3,
+    'fog-ground-blend':  0.5,
+    'atmosphere-blend':  0.6,
+  },
+};
+
 function initGlobe(el) {
-  const s = STYLES[currentStyle];
+  // Backdrop matches Atlas's warm tones so the globe sits in a halo of
+  // related colour rather than against a black void.
   document.getElementById('globe-wrap').style.background =
-    `radial-gradient(ellipse at center, ${s.bg} 0%, #000 100%)`;
+    'radial-gradient(ellipse at center, #2a1f14 0%, #000 100%)';
 
   mapLibreMap = new maplibregl.Map({
     container: el,
-    style: 'https://demotiles.maplibre.org/style.json',
+    style: ATLAS_STYLE,
     center: [0, 20],
     zoom: 1.2,
     attributionControl: false,
   });
 
-  // The demotiles style.json declares projection: 'mercator' which overrides
-  // any constructor option in v5. Force globe after style loads.
+  // Re-apply globe projection on any future setStyle() call (style switcher).
   mapLibreMap.on('style.load', () => {
     mapLibreMap.setProjection({ type: 'globe' });
   });
@@ -1536,10 +1550,10 @@ function addCountryLayers() {
     paint: {
       'fill-color': [
         'case',
-        ['boolean', ['feature-state', 'named'], false],       'rgba(34,197,94,0.88)',
-        ['boolean', ['feature-state', 'kidsTarget'], false],  'rgba(245,158,11,0.80)',
-        ['boolean', ['feature-state', 'dailyTarget'], false], 'rgba(245,158,11,0.45)',
-        'rgba(0,0,0,0)',
+        ['boolean', ['feature-state', 'named'], false],       'rgba(34,197,94,0.92)',
+        ['boolean', ['feature-state', 'kidsTarget'], false],  'rgba(245,158,11,0.85)',
+        ['boolean', ['feature-state', 'dailyTarget'], false], 'rgba(245,158,11,0.55)',
+        'rgba(230,216,184,1)',  // parchment tan — the Atlas default fill
       ],
     },
   });
@@ -1554,12 +1568,12 @@ function addCountryLayers() {
         'case',
         ['==', ['feature-state', 'blink'], 'cyan'],  'rgba(56,189,248,0.95)',
         ['==', ['feature-state', 'blink'], 'amber'], 'rgba(245,158,11,0.95)',
-        'rgba(255,255,255,0.35)',
+        'rgba(90,74,48,0.65)',  // dark sepia — the Atlas default border
       ],
       'line-width': [
         'case',
         ['!=', ['feature-state', 'blink'], null], 2,
-        0.4,
+        0.5,
       ],
     },
   });
