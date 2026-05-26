@@ -1,4 +1,4 @@
-const CACHE = 'global-recall-v26';
+const CACHE = 'global-recall-v27';
 
 // CACHE CHECKLIST: when adding new JS module files, add their paths here AND
 // bump the CACHE version string above. Silent stale-cache failures on deploy

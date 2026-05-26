@@ -1249,31 +1249,32 @@ let liteMode = (() => {
 
 let currentStyle = (() => {
   const saved = Storage.getStyle();
-  const desired = (saved && STYLES[saved]) ? saved : 'atlas';
-  // Atlas needs all 195 polygons rendered as opaque fills — not viable in
-  // Lite Mode. Fall back to Classic satellite, which shows country shapes
-  // via the imagery rather than the polygon meshes.
-  if (liteMode && desired === 'atlas') return 'blue';
-  return desired;
+  // Accept the saved key only if it's a legacy STYLES entry; later filtering
+  // against STYLE_SPECS (atlas + blue) happens at first setStyle() call —
+  // if the saved key has no MapLibre spec yet (night/dark), the map will
+  // still render the constructor's chosen style.
+  return (saved && STYLES[saved]) ? saved : 'atlas';
 })();
 
 function setStyle(key) {
   if (!STYLES[key]) return;
-  // Only atlas + blue have MapLibre style specs authored so far. Other
-  // legacy keys (night, dark) save the preference and update the button
-  // state but don't actually re-render the map.
   const spec = STYLE_SPECS[key];
   if (!spec) {
     toast('STYLE NOT YET AVAILABLE IN MAPLIBRE BUILD');
     return;
   }
+  // Only swap the map's actual style if it's a real change. Boot calls
+  // setStyle(currentStyle) just to mark the active button + sync the
+  // backdrop; we must not trigger an unnecessary mapLibreMap.setStyle()
+  // there, because that wipes the country source mid-flight and widens
+  // the race window during which a fast click on START GAME would fire
+  // adapter calls against a missing source.
+  const isChange = key !== currentStyle;
   currentStyle = key;
   Storage.saveStyle(key);
   document.getElementById('globe-wrap').style.background =
     `radial-gradient(ellipse at center, ${spec.backdrop} 0%, #000 100%)`;
-  if (mapLibreMap) {
-    // setStyle wipes everything; the 'style.load' handler will re-add the
-    // country source/layers and re-paint any active highlights.
+  if (mapLibreMap && isChange) {
     mapLibreMap.setStyle(spec.mapStyle);
   }
   document.querySelectorAll('.style-btn').forEach(b => {
@@ -1675,17 +1676,22 @@ function reapplyHighlights() {
 // When you edit one, edit both.
 function createMapAdapter(map) {
   let prevKidsTargetAdmin = null;
+  function sourceReady() {
+    if (!map) return false;
+    if (typeof map.getSource !== 'function') return true;
+    return !!map.getSource('countries');
+  }
   function highlight(featureId, state) {
-    if (!map || !featureId) return;
+    if (!featureId || !sourceReady()) return;
     map.removeFeatureState({ source: 'countries', id: featureId });
     if (state) {
       map.setFeatureState({ source: 'countries', id: featureId }, { [state]: true });
     }
   }
   function clear() {
-    if (!map) return;
-    map.removeFeatureState({ source: 'countries' });
     prevKidsTargetAdmin = null;
+    if (!sourceReady()) return;
+    map.removeFeatureState({ source: 'countries' });
   }
   function paintDailyTargets(adminIds) {
     for (const id of adminIds) highlight(id, 'dailyTarget');
@@ -1707,7 +1713,7 @@ function createMapAdapter(map) {
     if (prevKidsTargetAdmin === adminId) prevKidsTargetAdmin = null;
   }
   function setBlink(adminId, color) {
-    if (!map || !adminId) return;
+    if (!adminId || !sourceReady()) return;
     map.setFeatureState({ source: 'countries', id: adminId }, { blink: color || null });
   }
   return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed, setBlink };

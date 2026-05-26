@@ -11,8 +11,21 @@ export function createMapAdapter(map) {
   // caller doesn't have to thread it through. clear() resets it.
   let prevKidsTargetAdmin = null;
 
+  // Returns true if it's safe to call setFeatureState — i.e. the map has a
+  // 'countries' source loaded. On slow devices the user can fire a click
+  // before the map's first style.load + ensureCountryLayers completes;
+  // calling setFeatureState then throws "Source 'countries' not found",
+  // which aborts whatever game-setup code was mid-flight. Silently
+  // no-op'ing here keeps that code path running; reapplyHighlights paints
+  // the active state once the source actually loads.
+  function sourceReady() {
+    if (!map) return false;
+    if (typeof map.getSource !== 'function') return true;  // test fake
+    return !!map.getSource('countries');
+  }
+
   function highlight(featureId, state) {
-    if (!map || !featureId) return;
+    if (!featureId || !sourceReady()) return;
     map.removeFeatureState({ source: 'countries', id: featureId });
     if (state) {
       map.setFeatureState(
@@ -23,9 +36,9 @@ export function createMapAdapter(map) {
   }
 
   function clear() {
-    if (!map) return;
-    map.removeFeatureState({ source: 'countries' });
     prevKidsTargetAdmin = null;
+    if (!sourceReady()) return;
+    map.removeFeatureState({ source: 'countries' });
   }
 
   function paintDailyTargets(adminIds) {
@@ -53,7 +66,7 @@ export function createMapAdapter(map) {
   // Toggle the auto-next "next target" outline pulse. color: 'amber'|'cyan'|null.
   // Uses setFeatureState additively so it doesn't wipe fill state (named etc.).
   function setBlink(adminId, color) {
-    if (!map || !adminId) return;
+    if (!adminId || !sourceReady()) return;
     map.setFeatureState(
       { source: 'countries', id: adminId },
       { blink: color || null }
