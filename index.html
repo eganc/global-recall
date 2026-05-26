@@ -1256,6 +1256,80 @@ let currentStyle = (() => {
   return (saved && STYLES[saved]) ? saved : 'atlas';
 })();
 
+// Surgical style application — never calls mapLibreMap.setStyle(). The
+// country source + layers stay live continuously across style swaps, so
+// feature-state (named, dailyTarget, kidsTarget, blink) is preserved
+// without needing to be manually reapplied. We only mutate the base
+// layer (ocean background vs satellite raster), the sky, and the country
+// paint defaults — surgical changes MapLibre handles without a full
+// reload, and without the race window where the map briefly has no
+// source and visibly blanks out.
+function applyMapStyle(key) {
+  if (!mapLibreMap) return;
+  const spec = STYLE_SPECS[key];
+  if (!spec) return;
+
+  // Remove whichever base layer + source are currently in place.
+  ['ocean', 'satellite-base'].forEach(id => {
+    if (mapLibreMap.getLayer(id)) mapLibreMap.removeLayer(id);
+  });
+  ['esri-imagery'].forEach(id => {
+    if (mapLibreMap.getSource(id)) mapLibreMap.removeSource(id);
+  });
+
+  // Insert the new base UNDER country-fills so countries paint on top.
+  const insertBefore = mapLibreMap.getLayer('country-fills') ? 'country-fills' : undefined;
+  if (key === 'atlas') {
+    mapLibreMap.addLayer({
+      id: 'ocean',
+      type: 'background',
+      paint: { 'background-color': '#f5ecd9' },
+    }, insertBefore);
+  } else if (key === 'blue') {
+    mapLibreMap.addSource('esri-imagery', {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      maxzoom: 18,
+      attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+    });
+    mapLibreMap.addLayer({
+      id: 'satellite-base',
+      type: 'raster',
+      source: 'esri-imagery',
+    }, insertBefore);
+  }
+
+  // Update the country paint defaults so highlights still read against
+  // the new base (sepia borders look right on parchment; soft white
+  // borders look right over satellite imagery).
+  if (mapLibreMap.getLayer('country-fills')) {
+    mapLibreMap.setPaintProperty('country-fills', 'fill-color', [
+      'case',
+      ['boolean', ['feature-state', 'named'], false],       'rgba(34,197,94,0.92)',
+      ['boolean', ['feature-state', 'kidsTarget'], false],  'rgba(245,158,11,0.85)',
+      ['boolean', ['feature-state', 'dailyTarget'], false], 'rgba(245,158,11,0.55)',
+      spec.fillDefault,
+    ]);
+  }
+  if (mapLibreMap.getLayer('country-borders')) {
+    mapLibreMap.setPaintProperty('country-borders', 'line-color', [
+      'case',
+      ['==', ['feature-state', 'blink'], 'cyan'],  'rgba(56,189,248,0.95)',
+      ['==', ['feature-state', 'blink'], 'amber'], 'rgba(245,158,11,0.95)',
+      spec.borderDefault,
+    ]);
+  }
+
+  // Sky settings — atmosphere tint shifts with the style (warm halo for
+  // Atlas, cold space-blue for satellite).
+  if (typeof mapLibreMap.setSky === 'function' && spec.mapStyle && spec.mapStyle.sky) {
+    mapLibreMap.setSky(spec.mapStyle.sky);
+  }
+}
+
 function setStyle(key) {
   if (!STYLES[key]) return;
   const spec = STYLE_SPECS[key];
@@ -1263,19 +1337,13 @@ function setStyle(key) {
     toast('STYLE NOT YET AVAILABLE IN MAPLIBRE BUILD');
     return;
   }
-  // Only swap the map's actual style if it's a real change. Boot calls
-  // setStyle(currentStyle) just to mark the active button + sync the
-  // backdrop; we must not trigger an unnecessary mapLibreMap.setStyle()
-  // there, because that wipes the country source mid-flight and widens
-  // the race window during which a fast click on START GAME would fire
-  // adapter calls against a missing source.
   const isChange = key !== currentStyle;
   currentStyle = key;
   Storage.saveStyle(key);
   document.getElementById('globe-wrap').style.background =
     `radial-gradient(ellipse at center, ${spec.backdrop} 0%, #000 100%)`;
   if (mapLibreMap && isChange) {
-    mapLibreMap.setStyle(spec.mapStyle);
+    applyMapStyle(key);
   }
   document.querySelectorAll('.style-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.style === key);
