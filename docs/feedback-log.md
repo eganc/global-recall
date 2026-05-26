@@ -14,3 +14,11 @@
 ### Monitor
 - [ ] **[Polish]** Sprint scoring is gameable by typing short country names first — consider weighting or alphabetical fairness if Sprint becomes a focus mode (FT-006)
 - [ ] **[Feature]** Landmass-based Sprint variants (biggest-first, smallest-first) — fun but deferred until core daily-habit loop is proven (FT-007)
+
+## Triage Batch — 2026-05-25 (Milo Cheung, son, verified on Chromebook)
+
+### Do Now
+- [ ] **[Bug]** Globe near-unusable on modern Chromebook + weak Android tablets — profile FPS / draw calls, ship a Lite Mode (no atmosphere, no auto-rotate, simplified polygon rendering, auto-detect low-end devices) (FT-008)
+
+### Monitor
+- [ ] **[Feature]** Flat 2D map fallback for devices that can't run the 3D globe — son's explicit ask; only revisit if FT-008 perf work can't reach acceptable on weak devices (FT-009)
