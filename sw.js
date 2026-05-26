@@ -1,4 +1,4 @@
-const CACHE = 'global-recall-v15';
+const CACHE = 'global-recall-v16';
 
 // CACHE CHECKLIST: when adding new JS module files, add their paths here AND
 // bump the CACHE version string above. Silent stale-cache failures on deploy
@@ -10,8 +10,8 @@ const PRECACHE = [
   '/manifest.json',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
-  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js',
-  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css',
+  'https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js',
+  'https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css',
   'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&family=Inter:wght@400;600;700&display=swap',
   'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@v5.1.2/geojson/ne_50m_admin_0_countries.geojson',
 ];
