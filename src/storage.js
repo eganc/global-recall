@@ -28,6 +28,7 @@ export const STORAGE_KEYS = Object.freeze({
   daily:            'gr_daily',
   style:            'gr_style',
   installDismissed: 'gr_install_dismissed',
+  liteMode:         'gr_lite_mode',
 });
 
 // Migrations are keyed by the version they UPGRADE TO. To go from v(N-1) to
@@ -180,6 +181,18 @@ export function createStorage(store) {
     },
     saveStyle(key) {
       store.setItem(STORAGE_KEYS.style, key);
+    },
+
+    // ── Lite Mode (performance toggle for weak GPUs) ───────────────────
+    // null = "not yet decided" (caller should run auto-detect on first boot).
+    // true / false = user or auto-detect has made a choice; persists.
+    getLiteMode() {
+      const v = store.getItem(STORAGE_KEYS.liteMode);
+      if (v == null) return null;
+      return v === 'true';
+    },
+    saveLiteMode(on) {
+      store.setItem(STORAGE_KEYS.liteMode, on ? 'true' : 'false');
     },
 
     // ── Install-banner snooze ──────────────────────────────────────────

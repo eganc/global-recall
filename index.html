@@ -495,7 +495,7 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="menu-item" onclick="menuRestart()">↻ RESTART</button>
     <button class="menu-item" onclick="menuEndNow()">■ END GAME</button>
     <button class="menu-item" onclick="menuJumpNext()">⊕ JUMP TO NEXT</button>
-    <button class="menu-item" onclick="toggleAutoRotate()">⟳ TOGGLE SPIN</button>
+    <button class="menu-item" id="menu-lite-btn" onclick="toggleLiteMode()">⚡ LITE MODE</button>
     <div class="menu-divider">MODES</div>
     <button class="menu-item mode-active" id="mode-nameall-btn" onclick="setMode('name-all')">◎ NAME ALL</button>
     <button class="menu-item" id="mode-sprint-btn" onclick="setMode('sprint')">⏱ SPRINT · 5 MIN</button>
@@ -1006,6 +1006,7 @@ const Storage = (function() {
     daily:            'gr_daily',
     style:            'gr_style',
     installDismissed: 'gr_install_dismissed',
+    liteMode:         'gr_lite_mode',
   };
   const MIGRATIONS = {
     1: (_s) => { /* v1 is the initial stamped schema — no-op */ },
@@ -1081,6 +1082,12 @@ const Storage = (function() {
     },
     getStyle: () => localStorage.getItem(K.style),
     saveStyle: (key) => localStorage.setItem(K.style, key),
+    getLiteMode() {
+      const v = localStorage.getItem(K.liteMode);
+      if (v == null) return null;
+      return v === 'true';
+    },
+    saveLiteMode: (on) => localStorage.setItem(K.liteMode, on ? 'true' : 'false'),
     getInstallDismissedAt: () => readInt(K.installDismissed),
     snoozeInstall:    (nowMs = Date.now()) => localStorage.setItem(K.installDismissed, String(nowMs)),
     clearInstallSnooze: () => localStorage.removeItem(K.installDismissed),
@@ -1215,13 +1222,46 @@ function styleImageUrl(s) {
   return s.img || solidColorTexture(s.ocean);
 }
 // Default to Atlas for first-time users; respect any saved preference.
+// ── Lite Mode (FT-008 — weak GPU support) ──────────────────────────
+// On low-end devices (Chromebooks, weak Android tablets, integrated-graphics
+// laptops) globe.gl creates 195 separate WebGL meshes for the country
+// polygons and the per-mesh draw-call overhead alone tanks the framerate to
+// 3–4 fps regardless of style or visible pixels. Lite Mode keeps only the
+// highlighted polygons in the scene (typically 0 idle, 10–20 mid-game),
+// forces Classic satellite style (so users can still navigate by the
+// imagery), disables the atmosphere shader (~2× win), and skips the
+// blink-loop's per-frame polygon repaint. Auto-detected on first run via
+// hardwareConcurrency + deviceMemory; user can override and the choice
+// persists.
+function detectLowEndDevice() {
+  const cores = navigator.hardwareConcurrency || 8;
+  const mem   = navigator.deviceMemory || 8;
+  return cores <= 4 || mem <= 4;
+}
+let liteMode = (() => {
+  const saved = Storage.getLiteMode();
+  if (saved !== null) return saved;
+  const detected = detectLowEndDevice();
+  Storage.saveLiteMode(detected);  // freeze the detection so it doesn't flap
+  return detected;
+})();
+
 let currentStyle = (() => {
   const saved = Storage.getStyle();
-  return (saved && STYLES[saved]) ? saved : 'atlas';
+  const desired = (saved && STYLES[saved]) ? saved : 'atlas';
+  // Atlas needs all 195 polygons rendered as opaque fills — not viable in
+  // Lite Mode. Fall back to Classic satellite, which shows country shapes
+  // via the imagery rather than the polygon meshes.
+  if (liteMode && desired === 'atlas') return 'blue';
+  return desired;
 })();
 
 function setStyle(key) {
   if (!STYLES[key]) return;
+  if (liteMode && key === 'atlas') {
+    toast('ATLAS NOT AVAILABLE IN LITE MODE');
+    return;
+  }
   currentStyle = key;
   Storage.saveStyle(key);
   const s = STYLES[key];
@@ -1264,6 +1304,9 @@ function blinkAccent() {
   return currentMode === 'daily' ? 'rgba(56,189,248,0.95)' : 'rgba(245,158,11,0.95)';
 }
 function shouldBlink() {
+  // No blink in Lite Mode — it relies on a 600ms refreshGlobe() that would
+  // tank framerate on weak GPUs. The static target highlight still works.
+  if (liteMode) return false;
   return autoNext && isRunning && lastJumpTarget && !lastJumpTarget.named
     && lastJumpTarget.feat && currentMode !== 'kids';
 }
@@ -1282,6 +1325,19 @@ function maybeUpdateBlink() {
   if (shouldBlink()) startBlink(); else stopBlink();
 }
 
+// Returns the polygons that should actually be in the WebGL scene right now.
+// Lite Mode keeps only highlighted polygons (named / current target / daily
+// targets) — typically 0–20 meshes instead of 195 — which is the FT-008 win.
+// Full mode returns everything.
+function visiblePolygons() {
+  if (!liteMode) return geoFeatures;
+  return geoFeatures.filter(f => f._named || f._kidsTarget || f._dailyTarget);
+}
+
+function pushPolygons() {
+  if (myGlobe) myGlobe.polygonsData(visiblePolygons());
+}
+
 function refreshGlobe() {
   if (!myGlobe) return;
   renderTick++;
@@ -1289,6 +1345,10 @@ function refreshGlobe() {
   const defaultBorder = STYLES[currentStyle].border;
   const targetFeat = (blinkPhase === 1 && shouldBlink()) ? lastJumpTarget.feat : null;
   const accent = blinkAccent();
+  // In Lite Mode the polygon scene changes as countries are highlighted, so
+  // refreshing colors isn't enough — we also have to push the new set.
+  // In full mode the scene is constant (all 195) so we skip this work.
+  if (liteMode) pushPolygons();
   myGlobe
     .polygonCapColor(f => { void t; return getCapColor(f); })
     .polygonAltitude(f => { void t; return getAltitude(f); })
@@ -1333,7 +1393,6 @@ function flyToFeature(feat) {
   if (!myGlobe || !feat) return;
   const center = featureCentroid(feat);
   if (!center) return;
-  myGlobe.controls().autoRotate = false;
   myGlobe.pointOfView({ ...center, altitude: featureAltitude(feat) }, 750);
 }
 
@@ -1378,7 +1437,7 @@ function initGlobe(el) {
   myGlobe
     .backgroundColor('rgba(0,0,0,0)')
     .globeImageUrl(styleImageUrl(s))
-    .showAtmosphere(true)
+    .showAtmosphere(!liteMode)          // atmosphere shader is ~2× cost on weak GPUs
     .atmosphereColor(s.atmo)
     .atmosphereAltitude(0.15)
     .polygonsData([])
@@ -1388,8 +1447,8 @@ function initGlobe(el) {
     .polygonAltitude(getAltitude)
     .polygonLabel(() => '');  // no tooltip — that's the whole game!
 
-  myGlobe.controls().autoRotate = true;
-  myGlobe.controls().autoRotateSpeed = 0.4;
+  // Auto-rotate removed (was distracting + a real per-frame cost on weak
+  // GPUs). The globe now sits still until the user drags or a flyTo runs.
 
   const wrap = document.getElementById('globe-wrap');
   new ResizeObserver(() => {
@@ -1533,8 +1592,7 @@ function startGame() {
   document.getElementById('autonext-btn').classList.toggle('on', autoNext);
 
   if (myGlobe) {
-    myGlobe.polygonsData(geoFeatures);
-    myGlobe.controls().autoRotate = true;
+    pushPolygons();
     refreshGlobe();
     if (currentMode === 'daily') {
       const first = dailyTarget.find(c => c.feat);
@@ -1689,13 +1747,14 @@ function menuEndNow() {
   toggleMenu();
   if (isRunning) endGame();
 }
-function toggleAutoRotate() {
+function toggleLiteMode() {
   toggleMenu();
-  if (myGlobe) {
-    const c = myGlobe.controls();
-    c.autoRotate = !c.autoRotate;
-    toast(c.autoRotate ? 'AUTO-SPIN ON' : 'AUTO-SPIN OFF');
-  }
+  const next = !liteMode;
+  Storage.saveLiteMode(next);
+  toast(next ? 'LITE MODE ON — RELOADING…' : 'LITE MODE OFF — RELOADING…');
+  // Lite Mode toggles atmosphere, polygon scene size, and style choice all
+  // at boot; reloading is simpler than tearing down + reinitialising live.
+  setTimeout(() => location.reload(), 400);
 }
 
 function shareGhost() {
@@ -1965,12 +2024,8 @@ document.getElementById('cinput').addEventListener('input', function() {
   }
 });
 
-document.getElementById('cinput').addEventListener('focus', () => {
-  if (myGlobe) myGlobe.controls().autoRotate = false;
-});
-document.getElementById('cinput').addEventListener('blur', () => {
-  if (myGlobe && isRunning) myGlobe.controls().autoRotate = true;
-});
+// Input focus/blur used to pause/resume auto-rotate. Auto-rotate is gone,
+// so these handlers are too.
 
 // ═══════════════════════════════════════════════════════════════
 // BOOT SEQUENCE
@@ -2009,8 +2064,16 @@ async function boot() {
   await new Promise(r => requestAnimationFrame(r));
 
   // Prime the globe with polygons so it renders behind the menu
-  myGlobe.polygonsData(geoFeatures);
-  myGlobe.controls().autoRotate = true;
+  // (in Lite Mode this is an empty list — no polygons until one gets highlighted)
+  pushPolygons();
+  // Reflect current Lite Mode state in the menu button label, and grey the
+  // Atlas style button if Lite Mode is on (Atlas isn't available there).
+  const liteBtn = document.getElementById('menu-lite-btn');
+  if (liteBtn) liteBtn.textContent = liteMode ? '⚡ LITE MODE: ON' : '⚡ LITE MODE: OFF';
+  if (liteMode) {
+    const atlasBtn = document.querySelector('.style-btn[data-style="atlas"]');
+    if (atlasBtn) atlasBtn.style.opacity = '0.35';
+  }
   showStartMenu();
   setTimeout(showInstallBanner, 2000);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;

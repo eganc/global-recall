@@ -218,6 +218,28 @@ describe('style', () => {
   });
 });
 
+describe('lite mode', () => {
+  it('returns null when never set (so caller knows to auto-detect)', () => {
+    const s = createStorage(makeStore());
+    expect(s.getLiteMode()).toBe(null);
+  });
+
+  it('roundtrips true and false as booleans', () => {
+    const s = createStorage(makeStore());
+    s.saveLiteMode(true);
+    expect(s.getLiteMode()).toBe(true);
+    s.saveLiteMode(false);
+    expect(s.getLiteMode()).toBe(false);
+  });
+
+  it('returns true for the literal string "true", false otherwise', () => {
+    // Defensive: corrupt or hand-edited values must not parse as truthy by mistake.
+    const store = makeStore({ [STORAGE_KEYS.liteMode]: 'yes' });
+    const s = createStorage(store);
+    expect(s.getLiteMode()).toBe(false);
+  });
+});
+
 describe('install snooze', () => {
   it('returns 0 when never dismissed', () => {
     const s = createStorage(makeStore());
