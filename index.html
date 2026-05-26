@@ -1311,16 +1311,36 @@ function shouldBlink() {
   return autoNext && isRunning && lastJumpTarget && !lastJumpTarget.named
     && lastJumpTarget.feat && currentMode !== 'kids';
 }
+function blinkColorName() {
+  return currentMode === 'daily' ? 'cyan' : 'amber';
+}
+function blinkAdminId() {
+  const f = lastJumpTarget && lastJumpTarget.feat;
+  return (f && f.properties && f.properties.ADMIN) || null;
+}
+// Tracks which feature currently has blink state set, so we can clear it
+// when the blink target changes mid-loop (jumpToNext picks a new country).
+let currentBlinkAdmin = null;
 function startBlink() {
   if (blinkInterval) return;
   blinkInterval = setInterval(() => {
     blinkPhase = blinkPhase ? 0 : 1;
-    refreshGlobe();
+    const id = blinkAdminId();
+    if (currentBlinkAdmin && currentBlinkAdmin !== id) {
+      mapAdapter.setBlink(currentBlinkAdmin, null);
+    }
+    currentBlinkAdmin = id;
+    if (!id) return;
+    mapAdapter.setBlink(id, blinkPhase ? blinkColorName() : null);
   }, 600);
 }
 function stopBlink() {
   if (blinkInterval) { clearInterval(blinkInterval); blinkInterval = null; }
-  if (blinkPhase !== 0) { blinkPhase = 0; refreshGlobe(); }
+  blinkPhase = 0;
+  if (currentBlinkAdmin) {
+    mapAdapter.setBlink(currentBlinkAdmin, null);
+    currentBlinkAdmin = null;
+  }
 }
 function maybeUpdateBlink() {
   if (shouldBlink()) startBlink(); else stopBlink();
@@ -1390,11 +1410,25 @@ function featureAltitude(feat) {
   } catch { return 1.5; }
 }
 
+// Convert the legacy globe.gl "altitude" estimate (0.25 ≈ tiny island, 2.5
+// ≈ Russia) into a MapLibre zoom level. Empirical fit: small features need
+// zoom ~4–5; large features need ~1.5–2.
+function altitudeToZoom(alt) {
+  // alt 0.25 → ~5.0; alt 1.0 → ~3.5; alt 2.5 → ~1.5
+  const z = 5.4 - alt * 1.5;
+  return Math.max(1.2, Math.min(5.5, z));
+}
+
 function flyToFeature(feat) {
-  if (!myGlobe || !feat) return;
+  if (!feat) return;
   const center = featureCentroid(feat);
-  if (!center) return;
-  myGlobe.pointOfView({ ...center, altitude: featureAltitude(feat) }, 750);
+  if (!center || !mapLibreMap) return;
+  mapLibreMap.flyTo({
+    center: [center.lng, center.lat],
+    zoom: altitudeToZoom(featureAltitude(feat)),
+    duration: 750,
+    essential: true,  // run even if user prefers-reduced-motion
+  });
 }
 
 // Great-circle distance between two lat/lng points (degrees)
@@ -1407,8 +1441,9 @@ function gcd(lat1, lng1, lat2, lng2) {
 
 let lastJumpTarget = null;
 function jumpToNext() {
-  if (!myGlobe) return;
-  const pov = myGlobe.pointOfView();
+  if (!mapLibreMap) return;
+  const c = mapLibreMap.getCenter();
+  const pov = { lat: c.lat, lng: c.lng };
   const pool = currentMode === 'daily' ? dailyTarget : countries;
   const candidates = [];
   for (const c of pool) {
@@ -1508,8 +1543,19 @@ function addCountryLayers() {
     type: 'line',
     source: 'countries',
     paint: {
-      'line-color': 'rgba(255,255,255,0.35)',
-      'line-width': 0.4,
+      // feature-state.blink: 'amber' | 'cyan' overrides for the auto-next
+      // pulsing target. Cleared when the country is named or the timer ticks.
+      'line-color': [
+        'case',
+        ['==', ['feature-state', 'blink'], 'cyan'],  'rgba(56,189,248,0.95)',
+        ['==', ['feature-state', 'blink'], 'amber'], 'rgba(245,158,11,0.95)',
+        'rgba(255,255,255,0.35)',
+      ],
+      'line-width': [
+        'case',
+        ['!=', ['feature-state', 'blink'], null], 2,
+        0.4,
+      ],
     },
   });
 }
@@ -1550,7 +1596,11 @@ function createMapAdapter(map) {
     highlight(adminId, 'named');
     if (prevKidsTargetAdmin === adminId) prevKidsTargetAdmin = null;
   }
-  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed };
+  function setBlink(adminId, color) {
+    if (!map || !adminId) return;
+    map.setFeatureState({ source: 'countries', id: adminId }, { blink: color || null });
+  }
+  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed, setBlink };
 }
 
 // Adapter instance — constructed against the live MapLibre map. Starts
@@ -1707,15 +1757,15 @@ function startGame() {
   if (myGlobe) {
     pushPolygons();
     refreshGlobe();
-    if (currentMode === 'daily') {
-      const first = dailyTarget.find(c => c.feat);
-      if (first) flyToFeature(first.feat);
-    }
   }
-  // Mode-specific kickoff that doesn't depend on the legacy globe.gl instance.
-  // (Easy mode needs this to render its multiple-choice buttons.) The Daily
-  // initial flyTo will move into the MapLibre branch in Phase 5.
-  if (currentMode === 'kids') kidsStartRound();
+  // Mode-specific kickoff. Independent of which render layer is active so
+  // the MapLibre port doesn't silently skip them.
+  if (currentMode === 'kids') {
+    kidsStartRound();
+  } else if (currentMode === 'daily') {
+    const first = dailyTarget.find(c => c.feat);
+    if (first) flyToFeature(first.feat);
+  }
 
   updateHUD();
   if (currentMode !== 'kids') document.getElementById('cinput').focus();

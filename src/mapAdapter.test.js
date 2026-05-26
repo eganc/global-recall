@@ -150,6 +150,28 @@ describe('mapAdapter', () => {
     });
   });
 
+  describe('setBlink()', () => {
+    it('sets blink color additively (does not call removeFeatureState)', () => {
+      adapter.setBlink('France', 'cyan');
+      expect(map.calls).toEqual([
+        ['set', { source: 'countries', id: 'France' }, { blink: 'cyan' }],
+      ]);
+    });
+
+    it('with null color sets blink:null to clear without touching other state', () => {
+      adapter.setBlink('France', null);
+      expect(map.calls).toEqual([
+        ['set', { source: 'countries', id: 'France' }, { blink: null }],
+      ]);
+    });
+
+    it('ignores empty admin id', () => {
+      adapter.setBlink('', 'amber');
+      adapter.setBlink(null, 'amber');
+      expect(map.calls).toEqual([]);
+    });
+  });
+
   describe('null map', () => {
     it('every method is a no-op without throwing', () => {
       const a = createMapAdapter(null);
@@ -158,6 +180,7 @@ describe('mapAdapter', () => {
       expect(() => a.paintDailyTargets(['A', 'B'])).not.toThrow();
       expect(() => a.paintKidsTarget('Japan')).not.toThrow();
       expect(() => a.markNamed('France')).not.toThrow();
+      expect(() => a.setBlink('France', 'cyan')).not.toThrow();
     });
   });
 });

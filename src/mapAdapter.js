@@ -50,5 +50,15 @@ export function createMapAdapter(map) {
     if (prevKidsTargetAdmin === adminId) prevKidsTargetAdmin = null;
   }
 
-  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed };
+  // Toggle the auto-next "next target" outline pulse. color: 'amber'|'cyan'|null.
+  // Uses setFeatureState additively so it doesn't wipe fill state (named etc.).
+  function setBlink(adminId, color) {
+    if (!map || !adminId) return;
+    map.setFeatureState(
+      { source: 'countries', id: adminId },
+      { blink: color || null }
+    );
+  }
+
+  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed, setBlink };
 }
