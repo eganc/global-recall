@@ -624,7 +624,8 @@ body { font-family: var(--font-body); color: var(--text); }
   <button class="install-btn" id="install-no"  onclick="dismissInstall()">LATER</button>
 </div>
 
-<script src="https://unpkg.com/globe.gl@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" />
+<script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
 // COUNTRY DATA  [canonical, [aliases]]
@@ -1178,61 +1179,16 @@ function setMode(mode) {
 // ═══════════════════════════════════════════════════════════════
 // GLOBE
 // ═══════════════════════════════════════════════════════════════
-let myGlobe = null;
 let geoFeatures = [];
-let renderTick = 0; // bump to force re-render
 
-const NAMED_COLOR  = 'rgba(34,197,94,0.88)';
-const DAILY_COLOR  = 'rgba(245,158,11,0.45)'; // amber — daily targets not yet named
-const KIDS_COLOR   = 'rgba(245,158,11,0.80)'; // amber — kids current target
-
-// Generate a tiny solid-color texture for styles that want a flat ocean
-// instead of a satellite JPG (the Atlas style). Cached because globe.gl
-// reloads the texture whenever globeImageUrl() changes.
-const _solidTextureCache = {};
-function solidColorTexture(hex) {
-  if (_solidTextureCache[hex]) return _solidTextureCache[hex];
-  const c = document.createElement('canvas');
-  c.width = c.height = 2;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle = hex;
-  ctx.fillRect(0, 0, 2, 2);
-  return (_solidTextureCache[hex] = c.toDataURL());
-}
-
-// Globe style presets.
-// land/border drive how unhighlighted countries paint:
-//   - transparent land lets the underlying sphere texture show through
-//     (Classic/Night/Topo — the satellite imagery IS the visible surface)
-//   - opaque land turns each polygon into a filled political-map shape
-//     and the sphere texture becomes the ocean fill (Atlas)
-const STYLES = {
-  atlas: {
-    ocean: '#f5ecd9',           // cream — used as a solid sphere texture
-    atmo:  '#d4b88a',
-    bg:    '#1a1410',
-    land:   'rgba(230,216,184,1)',    // parchment tan, opaque
-    border: 'rgba(90,74,48,0.65)',    // dark sepia
-  },
-  blue:  { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg', atmo: '#6699ff', bg: '#000510', land: 'rgba(0,0,0,0)', border: 'rgba(255,255,255,0.18)' },
-  night: { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg',       atmo: '#ff6644', bg: '#000000', land: 'rgba(0,0,0,0)', border: 'rgba(255,255,255,0.18)' },
-  dark:  { img: 'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-dark.jpg',        atmo: '#ff9955', bg: '#000510', land: 'rgba(0,0,0,0)', border: 'rgba(255,255,255,0.18)' },
-};
-function styleImageUrl(s) {
-  return s.img || solidColorTexture(s.ocean);
-}
-// Default to Atlas for first-time users; respect any saved preference.
-// ── Lite Mode (FT-008 — weak GPU support) ──────────────────────────
-// On low-end devices (Chromebooks, weak Android tablets, integrated-graphics
-// laptops) globe.gl creates 195 separate WebGL meshes for the country
-// polygons and the per-mesh draw-call overhead alone tanks the framerate to
-// 3–4 fps regardless of style or visible pixels. Lite Mode keeps only the
-// highlighted polygons in the scene (typically 0 idle, 10–20 mid-game),
-// forces Classic satellite style (so users can still navigate by the
-// imagery), disables the atmosphere shader (~2× win), and skips the
-// blink-loop's per-frame polygon repaint. Auto-detected on first run via
-// hardwareConcurrency + deviceMemory; user can override and the choice
-// persists.
+// ── Lite Mode (legacy flag, awaiting repurpose) ────────────────────
+// Originally compensated for globe.gl's per-mesh draw-call cost on weak
+// GPUs (FT-008). The MapLibre rewrite obsoleted that — all 195 countries
+// paint in one draw call regardless. The flag is preserved for the
+// planned repurpose as the 3D Globe / Flat Globe render-mode toggle
+// (FT-009). For now its only live effect is suppressing the next-target
+// blink, which we leave in place because users who chose Lite Mode
+// likely prefer reduced motion.
 function detectLowEndDevice() {
   const cores = navigator.hardwareConcurrency || 8;
   const mem   = navigator.deviceMemory || 8;
@@ -1246,113 +1202,158 @@ let liteMode = (() => {
   return detected;
 })();
 
+// STYLE_SPECS is defined later in the file but its keys (the styles
+// that have authored MapLibre specs) are stable; if a user has an
+// outdated saved key like 'night' or 'dark', we fall back to atlas.
+const STYLE_KEYS = ['atlas', 'blue'];
 let currentStyle = (() => {
   const saved = Storage.getStyle();
-  const desired = (saved && STYLES[saved]) ? saved : 'atlas';
-  // Atlas needs all 195 polygons rendered as opaque fills — not viable in
-  // Lite Mode. Fall back to Classic satellite, which shows country shapes
-  // via the imagery rather than the polygon meshes.
-  if (liteMode && desired === 'atlas') return 'blue';
-  return desired;
+  return (saved && STYLE_KEYS.includes(saved)) ? saved : 'atlas';
 })();
 
+// Surgical style application — never calls mapLibreMap.setStyle(). The
+// country source + layers stay live continuously across style swaps, so
+// feature-state (named, dailyTarget, kidsTarget, blink) is preserved
+// without needing to be manually reapplied. We only mutate the base
+// layer (ocean background vs satellite raster), the sky, and the country
+// paint defaults — surgical changes MapLibre handles without a full
+// reload, and without the race window where the map briefly has no
+// source and visibly blanks out.
+function applyMapStyle(key) {
+  if (!mapLibreMap) return;
+  const spec = STYLE_SPECS[key];
+  if (!spec) return;
+
+  // Remove whichever base layer + source are currently in place.
+  ['ocean', 'satellite-base'].forEach(id => {
+    if (mapLibreMap.getLayer(id)) mapLibreMap.removeLayer(id);
+  });
+  ['esri-imagery'].forEach(id => {
+    if (mapLibreMap.getSource(id)) mapLibreMap.removeSource(id);
+  });
+
+  // Insert the new base UNDER country-fills so countries paint on top.
+  const insertBefore = mapLibreMap.getLayer('country-fills') ? 'country-fills' : undefined;
+  if (key === 'atlas') {
+    mapLibreMap.addLayer({
+      id: 'ocean',
+      type: 'background',
+      paint: { 'background-color': '#f5ecd9' },
+    }, insertBefore);
+  } else if (key === 'blue') {
+    mapLibreMap.addSource('esri-imagery', {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      maxzoom: 18,
+      attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+    });
+    mapLibreMap.addLayer({
+      id: 'satellite-base',
+      type: 'raster',
+      source: 'esri-imagery',
+    }, insertBefore);
+  }
+
+  // Update the country paint defaults so highlights still read against
+  // the new base (sepia borders look right on parchment; soft white
+  // borders look right over satellite imagery).
+  if (mapLibreMap.getLayer('country-fills')) {
+    mapLibreMap.setPaintProperty('country-fills', 'fill-color', [
+      'case',
+      ['boolean', ['feature-state', 'named'], false],       'rgba(34,197,94,0.92)',
+      ['boolean', ['feature-state', 'kidsTarget'], false],  'rgba(245,158,11,0.85)',
+      ['boolean', ['feature-state', 'dailyTarget'], false], 'rgba(245,158,11,0.55)',
+      spec.fillDefault,
+    ]);
+  }
+  if (mapLibreMap.getLayer('country-borders')) {
+    mapLibreMap.setPaintProperty('country-borders', 'line-color', [
+      'case',
+      ['==', ['feature-state', 'blink'], 'cyan'],  'rgba(56,189,248,0.95)',
+      ['==', ['feature-state', 'blink'], 'amber'], 'rgba(245,158,11,0.95)',
+      spec.borderDefault,
+    ]);
+  }
+
+  // Sky settings — atmosphere tint shifts with the style (warm halo for
+  // Atlas, cold space-blue for satellite).
+  if (typeof mapLibreMap.setSky === 'function' && spec.mapStyle && spec.mapStyle.sky) {
+    mapLibreMap.setSky(spec.mapStyle.sky);
+  }
+}
+
 function setStyle(key) {
-  if (!STYLES[key]) return;
-  if (liteMode && key === 'atlas') {
-    toast('ATLAS NOT AVAILABLE IN LITE MODE');
+  const spec = STYLE_SPECS[key];
+  if (!spec) {
+    if (key === 'night' || key === 'dark') {
+      toast('STYLE NOT YET AVAILABLE IN MAPLIBRE BUILD');
+    }
     return;
   }
+  const isChange = key !== currentStyle;
   currentStyle = key;
   Storage.saveStyle(key);
-  const s = STYLES[key];
   document.getElementById('globe-wrap').style.background =
-    `radial-gradient(ellipse at center, ${s.bg} 0%, #000 100%)`;
-  if (myGlobe) {
-    myGlobe.globeImageUrl(styleImageUrl(s)).atmosphereColor(s.atmo);
-    refreshGlobe();  // repaint polygon caps + borders with the new land/border colors
+    `radial-gradient(ellipse at center, ${spec.backdrop} 0%, #000 100%)`;
+  if (mapLibreMap && isChange) {
+    applyMapStyle(key);
   }
   document.querySelectorAll('.style-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.style === key);
   });
 }
 
-function getCapColor(f) {
-  if (f._named)      return NAMED_COLOR;
-  if (f._kidsTarget) return KIDS_COLOR;
-  if (f._dailyTarget) return DAILY_COLOR;
-  return STYLES[currentStyle].land;  // transparent for satellite styles, parchment for Atlas
-}
-// Any visible polygon must be lifted off the sphere or it z-fights with the
-// underlying texture (3D terrain relief pokes through on satellite styles;
-// flat ocean fill flickers through on Atlas). In Atlas every polygon is an
-// opaque country fill, so EVERY polygon needs lifting; in satellite styles
-// only the highlighted ones are visible, so only those need it. 0.005 clears
-// z-fighting without visible parallax.
-function getAltitude(f) {
-  if (f._named || f._kidsTarget || f._dailyTarget) return 0.005;
-  return currentStyle === 'atlas' ? 0.005 : 0;
-}
-
 // "Next target" blink — when auto-next is on, the country jumpToNext flew to
-// pulses its outline to signal "this is the one to name next" without filling
-// the cap (a fill would look too similar to the green _named state in Name All).
-// Daily mode uses cyan because the unnamed daily targets are already amber-
-// filled — an amber outline blink on top would visually muddle.
+// pulses its outline to signal "this is the one to name next". Daily mode
+// uses cyan because the unnamed daily targets are already amber-filled —
+// an amber outline blink on top would visually muddle.
 let blinkPhase = 0;
 let blinkInterval = null;
 function blinkAccent() {
   return currentMode === 'daily' ? 'rgba(56,189,248,0.95)' : 'rgba(245,158,11,0.95)';
 }
 function shouldBlink() {
-  // No blink in Lite Mode — it relies on a 600ms refreshGlobe() that would
-  // tank framerate on weak GPUs. The static target highlight still works.
+  // Lite Mode suppresses blink — see the Lite Mode comment above for why.
   if (liteMode) return false;
   return autoNext && isRunning && lastJumpTarget && !lastJumpTarget.named
     && lastJumpTarget.feat && currentMode !== 'kids';
 }
+function blinkColorName() {
+  return currentMode === 'daily' ? 'cyan' : 'amber';
+}
+function blinkAdminId() {
+  const f = lastJumpTarget && lastJumpTarget.feat;
+  return (f && f.properties && f.properties.ADMIN) || null;
+}
+// Tracks which feature currently has blink state set, so we can clear it
+// when the blink target changes mid-loop (jumpToNext picks a new country).
+let currentBlinkAdmin = null;
 function startBlink() {
   if (blinkInterval) return;
   blinkInterval = setInterval(() => {
     blinkPhase = blinkPhase ? 0 : 1;
-    refreshGlobe();
+    const id = blinkAdminId();
+    if (currentBlinkAdmin && currentBlinkAdmin !== id) {
+      mapAdapter.setBlink(currentBlinkAdmin, null);
+    }
+    currentBlinkAdmin = id;
+    if (!id) return;
+    mapAdapter.setBlink(id, blinkPhase ? blinkColorName() : null);
   }, 600);
 }
 function stopBlink() {
   if (blinkInterval) { clearInterval(blinkInterval); blinkInterval = null; }
-  if (blinkPhase !== 0) { blinkPhase = 0; refreshGlobe(); }
+  blinkPhase = 0;
+  if (currentBlinkAdmin) {
+    mapAdapter.setBlink(currentBlinkAdmin, null);
+    currentBlinkAdmin = null;
+  }
 }
 function maybeUpdateBlink() {
   if (shouldBlink()) startBlink(); else stopBlink();
-}
-
-// Returns the polygons that should actually be in the WebGL scene right now.
-// Lite Mode keeps only highlighted polygons (named / current target / daily
-// targets) — typically 0–20 meshes instead of 195 — which is the FT-008 win.
-// Full mode returns everything.
-function visiblePolygons() {
-  if (!liteMode) return geoFeatures;
-  return geoFeatures.filter(f => f._named || f._kidsTarget || f._dailyTarget);
-}
-
-function pushPolygons() {
-  if (myGlobe) myGlobe.polygonsData(visiblePolygons());
-}
-
-function refreshGlobe() {
-  if (!myGlobe) return;
-  renderTick++;
-  const t = renderTick;
-  const defaultBorder = STYLES[currentStyle].border;
-  const targetFeat = (blinkPhase === 1 && shouldBlink()) ? lastJumpTarget.feat : null;
-  const accent = blinkAccent();
-  // In Lite Mode the polygon scene changes as countries are highlighted, so
-  // refreshing colors isn't enough — we also have to push the new set.
-  // In full mode the scene is constant (all 195) so we skip this work.
-  if (liteMode) pushPolygons();
-  myGlobe
-    .polygonCapColor(f => { void t; return getCapColor(f); })
-    .polygonAltitude(f => { void t; return getAltitude(f); })
-    .polygonStrokeColor(f => { void t; return f === targetFeat ? accent : defaultBorder; });
 }
 
 // Compute centroid of a GeoJSON feature (weighted by largest polygon)
@@ -1389,11 +1390,30 @@ function featureAltitude(feat) {
   } catch { return 1.5; }
 }
 
+// Convert the legacy globe.gl "altitude" estimate (0.25 ≈ tiny island, 2.5
+// ≈ Russia) into a MapLibre zoom level. Tuned so Andorra fills the viewport
+// instead of showing all of southwestern Europe around a dot.
+//   alt 0.25 → z ~6.0;  alt 1.0 → z ~4.5;  alt 2.5 → z ~1.5
+function altitudeToZoom(alt) {
+  const z = 6.5 - alt * 2;
+  return Math.max(1.2, Math.min(6.5, z));
+}
+
 function flyToFeature(feat) {
-  if (!myGlobe || !feat) return;
+  if (!feat) return;
   const center = featureCentroid(feat);
-  if (!center) return;
-  myGlobe.pointOfView({ ...center, altitude: featureAltitude(feat) }, 750);
+  if (!center || !mapLibreMap) return;
+  // curve > default (1.42) makes the camera arc out to a high altitude at the
+  // midpoint of the flight before descending into the destination — feels like
+  // "zoom out, glide, zoom in." Especially helpful for jumps across the globe
+  // where a straight interpolation would skim over irrelevant terrain.
+  mapLibreMap.flyTo({
+    center: [center.lng, center.lat],
+    zoom: altitudeToZoom(featureAltitude(feat)),
+    speed: 1.4,
+    curve: 1.8,
+    essential: true,  // run even if user prefers-reduced-motion
+  });
 }
 
 // Great-circle distance between two lat/lng points (degrees)
@@ -1406,8 +1426,9 @@ function gcd(lat1, lng1, lat2, lng2) {
 
 let lastJumpTarget = null;
 function jumpToNext() {
-  if (!myGlobe) return;
-  const pov = myGlobe.pointOfView();
+  if (!mapLibreMap) return;
+  const c = mapLibreMap.getCenter();
+  const pov = { lat: c.lat, lng: c.lng };
   const pool = currentMode === 'daily' ? dailyTarget : countries;
   const candidates = [];
   for (const c of pool) {
@@ -1427,34 +1448,259 @@ function jumpToNext() {
   maybeUpdateBlink();
 }
 
-function initGlobe(el) {
-  myGlobe = Globe()(el);
-  const s = STYLES[currentStyle];
-  // Mirror the radial-gradient backdrop the style switcher applies, so the
-  // first paint already matches the active style (no flash of CSS default).
-  document.getElementById('globe-wrap').style.background =
-    `radial-gradient(ellipse at center, ${s.bg} 0%, #000 100%)`;
-  myGlobe
-    .backgroundColor('rgba(0,0,0,0)')
-    .globeImageUrl(styleImageUrl(s))
-    .showAtmosphere(!liteMode)          // atmosphere shader is ~2× cost on weak GPUs
-    .atmosphereColor(s.atmo)
-    .atmosphereAltitude(0.15)
-    .polygonsData([])
-    .polygonCapColor(getCapColor)
-    .polygonSideColor(() => 'rgba(0,0,0,0.25)')
-    .polygonStrokeColor(() => STYLES[currentStyle].border)
-    .polygonAltitude(getAltitude)
-    .polygonLabel(() => '');  // no tooltip — that's the whole game!
+let mapLibreMap = null;
 
-  // Auto-rotate removed (was distracting + a real per-frame cost on weak
-  // GPUs). The globe now sits still until the user drags or a flyTo runs.
+// Atlas style spec — parchment ocean, opaque tan country fills, sepia
+// borders. No external tile source: the entire world is just background
+// color + the GeoJSON country layer we add separately.
+const ATLAS_STYLE = {
+  version: 8,
+  projection: { type: 'globe' },
+  sources: {},
+  layers: [
+    { id: 'ocean', type: 'background', paint: { 'background-color': '#f5ecd9' } },
+  ],
+  sky: {
+    'sky-color':         '#e6d8b8',
+    'horizon-color':     '#d4b88a',
+    'fog-color':         '#d4b88a',
+    'sky-horizon-blend': 0.6,
+    'horizon-fog-blend': 0.3,
+    'fog-ground-blend':  0.5,
+    'atmosphere-blend':  0.6,
+  },
+};
+
+// Satellite style — Esri World Imagery raster tiles. No API key required.
+// Attribution shown via MapLibre's attribution control (enabled below).
+const SATELLITE_STYLE = {
+  version: 8,
+  projection: { type: 'globe' },
+  sources: {
+    'esri-imagery': {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      maxzoom: 18,
+      attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+    },
+  },
+  layers: [
+    { id: 'satellite-base', type: 'raster', source: 'esri-imagery' },
+  ],
+  sky: {
+    'sky-color':         '#0a1429',
+    'horizon-color':     '#1a2a4a',
+    'fog-color':         '#0a1429',
+    'sky-horizon-blend': 0.7,
+    'horizon-fog-blend': 0.4,
+    'fog-ground-blend':  0.6,
+    'atmosphere-blend':  0.7,
+  },
+};
+
+// Per-style render config: which MapLibre style spec to apply, what
+// backdrop to put behind the globe, and how to paint the default
+// (non-highlighted) country fill + border on top of that style.
+const STYLE_SPECS = {
+  atlas: {
+    mapStyle:     ATLAS_STYLE,
+    backdrop:     '#2a1f14',
+    fillDefault:  'rgba(230,216,184,1)',   // opaque parchment tan
+    borderDefault:'rgba(90,74,48,0.65)',   // dark sepia
+  },
+  blue: {
+    mapStyle:     SATELLITE_STYLE,
+    backdrop:     '#000510',
+    fillDefault:  'rgba(0,0,0,0)',         // transparent — satellite shows through
+    borderDefault:'rgba(255,255,255,0.45)',// soft white over imagery
+  },
+};
+
+function initGlobe(el) {
+  const spec = STYLE_SPECS[currentStyle] || STYLE_SPECS.atlas;
+  document.getElementById('globe-wrap').style.background =
+    `radial-gradient(ellipse at center, ${spec.backdrop} 0%, #000 100%)`;
+
+  mapLibreMap = new maplibregl.Map({
+    container: el,
+    style: spec.mapStyle,
+    center: [0, 20],
+    zoom: 1.2,
+    // Compact attribution required by Esri's terms; auto-hides on small
+    // screens but stays accessible via the (i) toggle.
+    attributionControl: { compact: true },
+  });
+
+  // setStyle (used by the style switcher) wipes all sources + layers; this
+  // handler re-applies globe projection, re-adds our country source/layers,
+  // and re-paints any active game-state highlights so a mid-game style
+  // swap looks seamless.
+  mapLibreMap.on('style.load', () => {
+    mapLibreMap.setProjection({ type: 'globe' });
+    ensureCountryLayers();
+    reapplyHighlights();
+  });
+
+  mapLibreMap.on('load', async () => {
+    window.__mlMap = mapLibreMap;
+    try {
+      // boot() calls loadGeoJSON before initGlobe, so geoFeatures is normally
+      // populated by the time the map fires 'load'. Only fetch if missing
+      // (e.g. someone calls initGlobe ad-hoc from the console).
+      if (!geoFeatures || !geoFeatures.length) await loadGeoJSON();
+      ensureCountryLayers();
+      mapAdapter = createMapAdapter(mapLibreMap);
+    } catch (e) {
+      console.error('[Global Recall] Country layer init failed:', e);
+    }
+  });
 
   const wrap = document.getElementById('globe-wrap');
-  new ResizeObserver(() => {
-    myGlobe.width(wrap.clientWidth).height(wrap.clientHeight);
-  }).observe(wrap);
+  new ResizeObserver(() => mapLibreMap && mapLibreMap.resize()).observe(wrap);
 }
+
+// ─── Country layers (MapLibre Phase 2) ────────────────────────────
+// Adds a single geojson source with a fill layer + line layer. Each
+// country's highlight state lives in MapLibre feature-state, not in
+// per-country meshes — that's the FT-008 win. Painting 195 countries
+// is one draw call, not 195.
+//
+// promoteId: 'ADMIN' lifts the Natural Earth ADMIN string into the
+// feature id so setFeatureState({source, id: 'France'}, ...) works
+// without per-feature numeric ids.
+function addCountryLayers() {
+  if (!mapLibreMap || !geoFeatures || !geoFeatures.length) return;
+  const spec = STYLE_SPECS[currentStyle] || STYLE_SPECS.atlas;
+  mapLibreMap.addSource('countries', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: geoFeatures },
+    promoteId: 'ADMIN',
+  });
+  mapLibreMap.addLayer({
+    id: 'country-fills',
+    type: 'fill',
+    source: 'countries',
+    paint: {
+      'fill-color': [
+        'case',
+        ['boolean', ['feature-state', 'named'], false],       'rgba(34,197,94,0.92)',
+        ['boolean', ['feature-state', 'kidsTarget'], false],  'rgba(245,158,11,0.85)',
+        ['boolean', ['feature-state', 'dailyTarget'], false], 'rgba(245,158,11,0.55)',
+        spec.fillDefault,
+      ],
+    },
+  });
+  mapLibreMap.addLayer({
+    id: 'country-borders',
+    type: 'line',
+    source: 'countries',
+    paint: {
+      // feature-state.blink: 'amber' | 'cyan' overrides for the auto-next
+      // pulsing target. Cleared when the country is named or the timer ticks.
+      'line-color': [
+        'case',
+        ['==', ['feature-state', 'blink'], 'cyan'],  'rgba(56,189,248,0.95)',
+        ['==', ['feature-state', 'blink'], 'amber'], 'rgba(245,158,11,0.95)',
+        spec.borderDefault,
+      ],
+      'line-width': [
+        'case',
+        ['!=', ['feature-state', 'blink'], null], 2,
+        0.5,
+      ],
+    },
+  });
+}
+
+// Idempotent: only adds the source/layers if they're missing. style.load
+// fires for the initial style AND for every subsequent setStyle, but the
+// initial fire may run before geoFeatures is loaded — in that case the
+// 'load' handler triggers the call once geoFeatures is in.
+function ensureCountryLayers() {
+  if (!mapLibreMap || !geoFeatures || !geoFeatures.length) return;
+  if (mapLibreMap.getSource('countries')) return;
+  addCountryLayers();
+}
+
+// After a style swap MapLibre wipes the source (along with all its
+// feature-state). Walk active game state and re-issue highlight calls so
+// named countries stay green, daily targets stay amber, etc.
+function reapplyHighlights() {
+  if (!mapAdapter || !mapLibreMap || !mapLibreMap.getSource('countries')) return;
+  for (const c of countries) {
+    const admin = c && c.feat && c.feat.properties && c.feat.properties.ADMIN;
+    if (admin && c.named) mapAdapter.markNamed(admin);
+  }
+  if (currentMode === 'daily') {
+    const admins = dailyTarget
+      .filter(c => !c.named && c.feat && c.feat.properties && c.feat.properties.ADMIN)
+      .map(c => c.feat.properties.ADMIN);
+    if (admins.length) mapAdapter.paintDailyTargets(admins);
+  }
+  if (currentMode === 'kids' && kidsTarget && kidsTarget.feat && kidsTarget.feat.properties) {
+    const admin = kidsTarget.feat.properties.ADMIN;
+    if (admin) mapAdapter.paintKidsTarget(admin);
+  }
+}
+
+// ─── Mirror of src/mapAdapter.js ──────────────────────────────────
+// Same surface as the ES module; unit-tested over there against a fake.
+// When you edit one, edit both.
+function createMapAdapter(map) {
+  let prevKidsTargetAdmin = null;
+  function sourceReady() {
+    if (!map) return false;
+    if (typeof map.getSource !== 'function') return true;
+    return !!map.getSource('countries');
+  }
+  function highlight(featureId, state) {
+    if (!featureId || !sourceReady()) return;
+    map.removeFeatureState({ source: 'countries', id: featureId });
+    if (state) {
+      map.setFeatureState({ source: 'countries', id: featureId }, { [state]: true });
+    }
+  }
+  function clear() {
+    prevKidsTargetAdmin = null;
+    if (!sourceReady()) return;
+    map.removeFeatureState({ source: 'countries' });
+  }
+  function paintDailyTargets(adminIds) {
+    for (const id of adminIds) highlight(id, 'dailyTarget');
+  }
+  function paintKidsTarget(adminId) {
+    if (prevKidsTargetAdmin && prevKidsTargetAdmin !== adminId) {
+      highlight(prevKidsTargetAdmin, null);
+    }
+    if (adminId) {
+      highlight(adminId, 'kidsTarget');
+      prevKidsTargetAdmin = adminId;
+    } else {
+      prevKidsTargetAdmin = null;
+    }
+  }
+  function markNamed(adminId) {
+    if (!adminId) return;
+    highlight(adminId, 'named');
+    if (prevKidsTargetAdmin === adminId) prevKidsTargetAdmin = null;
+  }
+  function setBlink(adminId, color) {
+    if (!adminId || !sourceReady()) return;
+    map.setFeatureState({ source: 'countries', id: adminId }, { blink: color || null });
+  }
+  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed, setBlink };
+}
+
+// Adapter instance — constructed against the live MapLibre map. Starts
+// as a no-op adapter so call sites can fire before the map is up.
+let mapAdapter = createMapAdapter(null);
+
+// Console smoke-test helpers (kept on window for ad-hoc debugging).
+window.setCountryHighlight = (id, state) => mapAdapter.highlight(id, state);
+window.clearAllHighlights  = () => mapAdapter.clear();
 
 async function loadGeoJSON() {
   const urls = [
@@ -1481,7 +1727,6 @@ async function loadGeoJSON() {
   // Build name → feature index (normalized)
   const featureByKey = {};
   for (const feat of geoFeatures) {
-    feat._named = false;
     const p = feat.properties;
     for (const field of ['ADMIN', 'NAME', 'NAME_LONG', 'FORMAL_EN', 'NAME_ALT']) {
       if (p[field] && p[field] !== '-99') featureByKey[norm(p[field])] = feat;
@@ -1546,10 +1791,8 @@ function updateHUD() {
 // GAME LOOP
 // ═══════════════════════════════════════════════════════════════
 function startGame() {
-  countries.forEach(c => {
-    c.named = false;
-    if (c.feat) { c.feat._named = false; c.feat._dailyTarget = false; c.feat._kidsTarget = false; }
-  });
+  countries.forEach(c => { c.named = false; });
+  mapAdapter.clear();  // wipe any previous round's MapLibre feature-state
   namedList = []; namedTs = [];
   lastJumpTarget = null;
   stopBlink();
@@ -1572,7 +1815,12 @@ function startGame() {
   if (currentMode === 'daily') {
     dailyTarget = getDailyCountries();
     modeTotal = dailyTarget.length;
-    dailyTarget.forEach(c => { if (c.feat) c.feat._dailyTarget = true; });
+    const dailyAdmins = [];
+    dailyTarget.forEach(c => {
+      const admin = c.feat && c.feat.properties && c.feat.properties.ADMIN;
+      if (admin) dailyAdmins.push(admin);
+    });
+    mapAdapter.paintDailyTargets(dailyAdmins);
     autoNext = true;
   } else if (currentMode === 'sprint') {
     dailyTarget = [];
@@ -1591,15 +1839,13 @@ function startGame() {
   }
   document.getElementById('autonext-btn').classList.toggle('on', autoNext);
 
-  if (myGlobe) {
-    pushPolygons();
-    refreshGlobe();
-    if (currentMode === 'daily') {
-      const first = dailyTarget.find(c => c.feat);
-      if (first) flyToFeature(first.feat);
-    } else if (currentMode === 'kids') {
-      kidsStartRound();
-    }
+  // Mode-specific kickoff. Independent of which render layer is active so
+  // the MapLibre port doesn't silently skip them.
+  if (currentMode === 'kids') {
+    kidsStartRound();
+  } else if (currentMode === 'daily') {
+    const first = dailyTarget.find(c => c.feat);
+    if (first) flyToFeature(first.feat);
   }
 
   updateHUD();
@@ -1722,7 +1968,6 @@ function endGame() {
 function resetGame() {
   document.getElementById('end-screen').style.display = 'none';
   document.getElementById('chip-strip').innerHTML = '';
-  refreshGlobe();
   startGame(); // restart same mode, skip menu
 }
 
@@ -1923,9 +2168,11 @@ function kidsStartRound() {
     const j = Math.floor(Math.random() * (i + 1));
     const tmp = kidsChoices[i]; kidsChoices[i] = kidsChoices[j]; kidsChoices[j] = tmp;
   }
-  // Highlight on globe
-  geoFeatures.forEach(f => f._kidsTarget = false);
-  if (kidsTarget.feat) { kidsTarget.feat._kidsTarget = true; refreshGlobe(); flyToFeature(kidsTarget.feat); }
+  // Highlight on globe (camera fly + amber target paint)
+  if (kidsTarget.feat) flyToFeature(kidsTarget.feat);
+  // Adapter clears the previous round's target and paints this one.
+  const newKidsAdmin = kidsTarget.feat && kidsTarget.feat.properties && kidsTarget.feat.properties.ADMIN;
+  mapAdapter.paintKidsTarget(newKidsAdmin || null);
   // Update UI
   const cont = CONTINENT[kidsTarget.canonical] || '';
   document.getElementById('kids-progress').textContent =
@@ -1954,7 +2201,9 @@ function kidsAnswer(idx) {
     kidsCorrect++;
     kidsTarget.named = true;
     namedList.push(kidsTarget.canonical);
-    if (kidsTarget.feat) { kidsTarget.feat._named = true; kidsTarget.feat._kidsTarget = false; refreshGlobe(); }
+    if (kidsTarget.feat && kidsTarget.feat.properties) {
+      mapAdapter.markNamed(kidsTarget.feat.properties.ADMIN);
+    }
     toast(`✓ ${kidsTarget.canonical.toUpperCase()}`);
   } else {
     toast(`✗ ${kidsTarget.canonical.toUpperCase()}`);
@@ -1998,10 +2247,10 @@ document.getElementById('cinput').addEventListener('input', function() {
   namedTs.push((Date.now() - sessionStart) / 1000);
 
   if (c.feat) {
-    c.feat._named = true;
-    c.feat._dailyTarget = false;
-    refreshGlobe();
     flyToFeature(c.feat);
+    if (c.feat.properties && c.feat.properties.ADMIN) {
+      mapAdapter.markNamed(c.feat.properties.ADMIN);
+    }
   }
   if (c === lastJumpTarget) maybeUpdateBlink();  // target named → stop blinking
 
@@ -2063,17 +2312,9 @@ async function boot() {
   // One more frame for globe to attach its canvas
   await new Promise(r => requestAnimationFrame(r));
 
-  // Prime the globe with polygons so it renders behind the menu
-  // (in Lite Mode this is an empty list — no polygons until one gets highlighted)
-  pushPolygons();
-  // Reflect current Lite Mode state in the menu button label, and grey the
-  // Atlas style button if Lite Mode is on (Atlas isn't available there).
+  // Reflect current Lite Mode state in the menu button label.
   const liteBtn = document.getElementById('menu-lite-btn');
   if (liteBtn) liteBtn.textContent = liteMode ? '⚡ LITE MODE: ON' : '⚡ LITE MODE: OFF';
-  if (liteMode) {
-    const atlasBtn = document.querySelector('.style-btn[data-style="atlas"]');
-    if (atlasBtn) atlasBtn.style.opacity = '0.35';
-  }
   showStartMenu();
   setTimeout(showInstallBanner, 2000);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
@@ -2161,7 +2402,6 @@ function launchFromMenu() {
 function goToMenu() {
   document.getElementById('end-screen').style.display = 'none';
   document.getElementById('chip-strip').innerHTML = '';
-  refreshGlobe();
   showStartMenu();
 }
 
