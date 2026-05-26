@@ -1457,13 +1457,12 @@ function initGlobe(el) {
 
   mapLibreMap.on('load', async () => {
     window.__mlMap = mapLibreMap;
-    console.info('[Global Recall] MapLibre spike loaded. projection=',
-      mapLibreMap.getProjection && mapLibreMap.getProjection());
     try {
-      await loadGeoJSON();
+      // boot() calls loadGeoJSON before initGlobe, so geoFeatures is already
+      // populated by the time the map fires 'load'. Only fetch if missing
+      // (e.g. someone calls initGlobe ad-hoc from the console).
+      if (!geoFeatures || !geoFeatures.length) await loadGeoJSON();
       addCountryLayers();
-      console.info('[Global Recall] Country layers ready.',
-        geoFeatures.length, 'features. Try setCountryHighlight("France","named")');
     } catch (e) {
       console.error('[Global Recall] Country layer init failed:', e);
     }
@@ -1627,6 +1626,7 @@ function startGame() {
     c.named = false;
     if (c.feat) { c.feat._named = false; c.feat._dailyTarget = false; c.feat._kidsTarget = false; }
   });
+  clearAllHighlights();  // wipe any previous round's MapLibre feature-state
   namedList = []; namedTs = [];
   lastJumpTarget = null;
   stopBlink();
@@ -2079,6 +2079,12 @@ document.getElementById('cinput').addEventListener('input', function() {
     c.feat._dailyTarget = false;
     refreshGlobe();
     flyToFeature(c.feat);
+    // MapLibre port: paint via feature-state. The legacy assignments above
+    // are harmless (no globe.gl running) and stay until Phase 5 cleanup so
+    // diffs remain reviewable phase-by-phase.
+    if (mapLibreMap && c.feat.properties && c.feat.properties.ADMIN) {
+      setCountryHighlight(c.feat.properties.ADMIN, 'named');
+    }
   }
   if (c === lastJumpTarget) maybeUpdateBlink();  // target named → stop blinking
 
