@@ -495,7 +495,7 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="menu-item" onclick="menuRestart()">↻ RESTART</button>
     <button class="menu-item" onclick="menuEndNow()">■ END GAME</button>
     <button class="menu-item" onclick="menuJumpNext()">⊕ JUMP TO NEXT</button>
-    <button class="menu-item" id="menu-lite-btn" onclick="toggleLiteMode()">⚡ LITE MODE</button>
+    <button class="menu-item" id="menu-lite-btn" onclick="toggleRenderMode()">🌐 3D GLOBE</button>
     <div class="menu-divider">MODES</div>
     <button class="menu-item mode-active" id="mode-nameall-btn" onclick="setMode('name-all')">◎ NAME ALL</button>
     <button class="menu-item" id="mode-sprint-btn" onclick="setMode('sprint')">⏱ SPRINT · 5 MIN</button>
@@ -1181,14 +1181,13 @@ function setMode(mode) {
 // ═══════════════════════════════════════════════════════════════
 let geoFeatures = [];
 
-// ── Lite Mode (legacy flag, awaiting repurpose) ────────────────────
-// Originally compensated for globe.gl's per-mesh draw-call cost on weak
-// GPUs (FT-008). The MapLibre rewrite obsoleted that — all 195 countries
-// paint in one draw call regardless. The flag is preserved for the
-// planned repurpose as the 3D Globe / Flat Globe render-mode toggle
-// (FT-009). For now its only live effect is suppressing the next-target
-// blink, which we leave in place because users who chose Lite Mode
-// likely prefer reduced motion.
+// ── Render Mode (FT-009 — 3D Globe / Flat Mercator) ────────────────
+// The boolean is still called `liteMode` and persists in `gr_lite_mode`
+// because returning users have it saved under that name. true = Flat
+// (mercator), false = 3D Globe. Auto-detected on first run: low-end
+// devices default to Flat because the globe projection has a measurable
+// per-pixel cost MapLibre incurs even when the country layer is cheap.
+// User can toggle live via the menu button — no reload needed.
 function detectLowEndDevice() {
   const cores = navigator.hardwareConcurrency || 8;
   const mem   = navigator.deviceMemory || 8;
@@ -1316,8 +1315,6 @@ function blinkAccent() {
   return currentMode === 'daily' ? 'rgba(56,189,248,0.95)' : 'rgba(245,158,11,0.95)';
 }
 function shouldBlink() {
-  // Lite Mode suppresses blink — see the Lite Mode comment above for why.
-  if (liteMode) return false;
   return autoNext && isRunning && lastJumpTarget && !lastJumpTarget.named
     && lastJumpTarget.feat && currentMode !== 'kids';
 }
@@ -1539,7 +1536,7 @@ function initGlobe(el) {
   // and re-paints any active game-state highlights so a mid-game style
   // swap looks seamless.
   mapLibreMap.on('style.load', () => {
-    mapLibreMap.setProjection({ type: 'globe' });
+    applyRenderMode();
     ensureCountryLayers();
     reapplyHighlights();
   });
@@ -1992,14 +1989,26 @@ function menuEndNow() {
   toggleMenu();
   if (isRunning) endGame();
 }
-function toggleLiteMode() {
+// Toggle between 3D Globe and Flat (Mercator) projection. The boolean
+// is still called `liteMode` and persists in `gr_lite_mode` — historical
+// name, kept so saved preferences survive. Auto-detection still defaults
+// low-end devices (Chromebook-class) to Flat on first run because globe
+// projection has a measurable per-pixel cost compared to mercator.
+function toggleRenderMode() {
   toggleMenu();
-  const next = !liteMode;
-  Storage.saveLiteMode(next);
-  toast(next ? 'LITE MODE ON — RELOADING…' : 'LITE MODE OFF — RELOADING…');
-  // Lite Mode toggles atmosphere, polygon scene size, and style choice all
-  // at boot; reloading is simpler than tearing down + reinitialising live.
-  setTimeout(() => location.reload(), 400);
+  liteMode = !liteMode;
+  Storage.saveLiteMode(liteMode);
+  applyRenderMode();
+  const liteBtn = document.getElementById('menu-lite-btn');
+  if (liteBtn) liteBtn.textContent = liteMode ? '🗺 FLAT MODE' : '🌐 3D GLOBE';
+  toast(liteMode ? 'FLAT MODE' : '3D GLOBE MODE');
+}
+
+// Re-applies the projection that matches the current liteMode flag.
+// Called on every style.load and whenever toggleRenderMode flips it.
+function applyRenderMode() {
+  if (!mapLibreMap) return;
+  mapLibreMap.setProjection({ type: liteMode ? 'mercator' : 'globe' });
 }
 
 function shareGhost() {
@@ -2312,9 +2321,9 @@ async function boot() {
   // One more frame for globe to attach its canvas
   await new Promise(r => requestAnimationFrame(r));
 
-  // Reflect current Lite Mode state in the menu button label.
+  // Reflect current render-mode state in the menu button label.
   const liteBtn = document.getElementById('menu-lite-btn');
-  if (liteBtn) liteBtn.textContent = liteMode ? '⚡ LITE MODE: ON' : '⚡ LITE MODE: OFF';
+  if (liteBtn) liteBtn.textContent = liteMode ? '🗺 FLAT MODE' : '🌐 3D GLOBE';
   showStartMenu();
   setTimeout(showInstallBanner, 2000);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
