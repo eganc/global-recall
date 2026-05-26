@@ -624,7 +624,8 @@ body { font-family: var(--font-body); color: var(--text); }
   <button class="install-btn" id="install-no"  onclick="dismissInstall()">LATER</button>
 </div>
 
-<script src="https://unpkg.com/globe.gl@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
 // COUNTRY DATA  [canonical, [aliases]]
@@ -1427,33 +1428,36 @@ function jumpToNext() {
   maybeUpdateBlink();
 }
 
+// MapLibre map instance (Phase 1 spike — replaces globe.gl).
+// myGlobe stays null so all the legacy globe.gl call sites (refreshGlobe,
+// pushPolygons, flyToFeature, jumpToNext, ResizeObserver) short-circuit via
+// their existing `if (myGlobe)` guards. The game is not playable in this
+// state — that is intentional for the spike. Goal: verify MapLibre's globe
+// projection holds 30+ FPS on Chromebook before porting any game logic.
+let mapLibreMap = null;
+
 function initGlobe(el) {
-  myGlobe = Globe()(el);
   const s = STYLES[currentStyle];
-  // Mirror the radial-gradient backdrop the style switcher applies, so the
-  // first paint already matches the active style (no flash of CSS default).
   document.getElementById('globe-wrap').style.background =
     `radial-gradient(ellipse at center, ${s.bg} 0%, #000 100%)`;
-  myGlobe
-    .backgroundColor('rgba(0,0,0,0)')
-    .globeImageUrl(styleImageUrl(s))
-    .showAtmosphere(!liteMode)          // atmosphere shader is ~2× cost on weak GPUs
-    .atmosphereColor(s.atmo)
-    .atmosphereAltitude(0.15)
-    .polygonsData([])
-    .polygonCapColor(getCapColor)
-    .polygonSideColor(() => 'rgba(0,0,0,0.25)')
-    .polygonStrokeColor(() => STYLES[currentStyle].border)
-    .polygonAltitude(getAltitude)
-    .polygonLabel(() => '');  // no tooltip — that's the whole game!
 
-  // Auto-rotate removed (was distracting + a real per-frame cost on weak
-  // GPUs). The globe now sits still until the user drags or a flyTo runs.
+  mapLibreMap = new maplibregl.Map({
+    container: el,
+    style: 'https://demotiles.maplibre.org/style.json',
+    center: [0, 20],
+    zoom: 1.2,
+    projection: 'globe',
+    attributionControl: false,
+  });
+
+  mapLibreMap.on('load', () => {
+    // Expose for ad-hoc FPS probing from the console during the spike.
+    window.__mlMap = mapLibreMap;
+    console.info('[Global Recall] MapLibre spike loaded. projection=globe');
+  });
 
   const wrap = document.getElementById('globe-wrap');
-  new ResizeObserver(() => {
-    myGlobe.width(wrap.clientWidth).height(wrap.clientHeight);
-  }).observe(wrap);
+  new ResizeObserver(() => mapLibreMap && mapLibreMap.resize()).observe(wrap);
 }
 
 async function loadGeoJSON() {
