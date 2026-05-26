@@ -1411,22 +1411,27 @@ function featureAltitude(feat) {
 }
 
 // Convert the legacy globe.gl "altitude" estimate (0.25 ≈ tiny island, 2.5
-// ≈ Russia) into a MapLibre zoom level. Empirical fit: small features need
-// zoom ~4–5; large features need ~1.5–2.
+// ≈ Russia) into a MapLibre zoom level. Tuned so Andorra fills the viewport
+// instead of showing all of southwestern Europe around a dot.
+//   alt 0.25 → z ~6.0;  alt 1.0 → z ~4.5;  alt 2.5 → z ~1.5
 function altitudeToZoom(alt) {
-  // alt 0.25 → ~5.0; alt 1.0 → ~3.5; alt 2.5 → ~1.5
-  const z = 5.4 - alt * 1.5;
-  return Math.max(1.2, Math.min(5.5, z));
+  const z = 6.5 - alt * 2;
+  return Math.max(1.2, Math.min(6.5, z));
 }
 
 function flyToFeature(feat) {
   if (!feat) return;
   const center = featureCentroid(feat);
   if (!center || !mapLibreMap) return;
+  // curve > default (1.42) makes the camera arc out to a high altitude at the
+  // midpoint of the flight before descending into the destination — feels like
+  // "zoom out, glide, zoom in." Especially helpful for jumps across the globe
+  // where a straight interpolation would skim over irrelevant terrain.
   mapLibreMap.flyTo({
     center: [center.lng, center.lat],
     zoom: altitudeToZoom(featureAltitude(feat)),
-    duration: 750,
+    speed: 1.4,
+    curve: 1.8,
     essential: true,  // run even if user prefers-reduced-motion
   });
 }
