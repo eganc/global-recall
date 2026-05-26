@@ -1416,24 +1416,56 @@ function altitudeToZoom(alt) {
   return Math.max(1.0, Math.min(5.0, z));
 }
 
-// True when the viewport is small enough that the on-screen keyboard
-// (if open) covers a large fraction of the map. flyTo's padding option
-// then biases the camera so the destination country sits in the upper
-// half of the visible area, above where the keyboard appears.
+// Compute flyTo padding so the destination country lands at the center
+// of the actually-visible viewport, accounting for the on-screen
+// keyboard. Uses visualViewport API which tells us both how much of
+// the screen the keyboard is covering and how the page has scrolled.
+//
+// Two real-world keyboard behaviours:
+//   - iOS Safari: page scrolls UP so the focused input is above the
+//     keyboard. visualViewport.offsetTop > 0, visualViewport.height
+//     equals the visible area. We need TOP padding to push the
+//     country down into the visible band.
+//   - Android Chrome: no page scroll; visualViewport.height just
+//     shrinks. We need BOTTOM padding to push the country up.
 function flyPadding() {
-  const vh = window.innerHeight || 800;
-  const vw = window.innerWidth  || 1200;
-  // Mobile-ish viewport. Empirically the iOS / Android keyboards
-  // occupy ~35-45% of the screen; 200px of bottom padding lifts the
-  // centroid clear of that without going too far up.
-  if (vw < 700 || vh < 700) return { bottom: 200 };
-  return undefined;
+  const vv = window.visualViewport;
+  if (!vv) {
+    // No visualViewport API → fall back to a static mobile guess.
+    const vh = window.innerHeight || 800;
+    const vw = window.innerWidth  || 1200;
+    return (vw < 700 || vh < 700) ? { bottom: 200 } : undefined;
+  }
+  const innerH = window.innerHeight || vv.height;
+  // Keyboard considered open if visualViewport is noticeably shorter
+  // than innerHeight. 50px threshold avoids URL-bar wobble false-positives.
+  const keyboardOpen = innerH - vv.height >= 50;
+  if (!keyboardOpen) {
+    // Small precautionary padding on mobile-ish viewports so the country
+    // doesn't sit dead-center where the keyboard would land if opened.
+    const vw = window.innerWidth || 1200;
+    if (vw < 700 || innerH < 700) return { bottom: 120 };
+    return undefined;
+  }
+  // Want feature at center of the visible band: y = offsetTop + visualHeight/2.
+  // MapLibre padding shifts feature by (top - bottom) / 2.
+  // → top - bottom = 2*offsetTop + visualHeight - innerH.
+  const twiceShift = 2 * (vv.offsetTop || 0) + vv.height - innerH;
+  if (twiceShift > 0) return { top: Math.round(twiceShift) };
+  return { bottom: Math.round(-twiceShift) };
 }
 
 function flyToFeature(feat) {
   if (!feat) return;
   const center = featureCentroid(feat);
   if (!center || !mapLibreMap) return;
+  // Defer the fly until MapLibre is fully loaded. Without this the
+  // initial Daily-mode first-target fly fires before the map's 'load'
+  // event and silently sticks the camera at the constructor's zoom 1.2.
+  if (typeof mapLibreMap.loaded === 'function' && !mapLibreMap.loaded()) {
+    mapLibreMap.once('load', () => flyToFeature(feat));
+    return;
+  }
   // curve > default (1.42) makes the camera arc out to a high altitude at the
   // midpoint of the flight before descending into the destination — feels like
   // "zoom out, glide, zoom in." Especially helpful for jumps across the globe
@@ -1443,11 +1475,25 @@ function flyToFeature(feat) {
     zoom: altitudeToZoom(featureAltitude(feat)),
     speed: 1.4,
     curve: 1.8,
-    essential: true,  // run even if user prefers-reduced-motion
+    essential: true,
   };
   const pad = flyPadding();
   if (pad) opts.padding = pad;
   mapLibreMap.flyTo(opts);
+}
+
+// Re-fly the last centered country when the visualViewport changes
+// (keyboard open/close). Without this, France stays at the geometric
+// canvas center but the visible center shifts, putting France out of
+// frame the moment the user taps the input.
+if (typeof window !== 'undefined' && window.visualViewport) {
+  let rcTimer = null;
+  window.visualViewport.addEventListener('resize', () => {
+    clearTimeout(rcTimer);
+    rcTimer = setTimeout(() => {
+      if (lastJumpTarget && lastJumpTarget.feat) flyToFeature(lastJumpTarget.feat);
+    }, 150);
+  });
 }
 
 // Great-circle distance between two lat/lng points (degrees)
@@ -1879,7 +1925,10 @@ function startGame() {
     kidsStartRound();
   } else if (currentMode === 'daily') {
     const first = dailyTarget.find(c => c.feat);
-    if (first) flyToFeature(first.feat);
+    if (first) {
+      lastJumpTarget = first;  // so the visualViewport-resize re-fly has a target
+      flyToFeature(first.feat);
+    }
   }
 
   updateHUD();
@@ -2215,7 +2264,7 @@ function kidsStartRound() {
     const tmp = kidsChoices[i]; kidsChoices[i] = kidsChoices[j]; kidsChoices[j] = tmp;
   }
   // Highlight on globe (camera fly + amber target paint)
-  if (kidsTarget.feat) flyToFeature(kidsTarget.feat);
+  if (kidsTarget.feat) { lastJumpTarget = kidsTarget; flyToFeature(kidsTarget.feat); }
   // Adapter clears the previous round's target and paints this one.
   const newKidsAdmin = kidsTarget.feat && kidsTarget.feat.properties && kidsTarget.feat.properties.ADMIN;
   mapAdapter.paintKidsTarget(newKidsAdmin || null);
@@ -2299,6 +2348,9 @@ document.getElementById('cinput').addEventListener('input', function() {
     }
   }
   if (c === lastJumpTarget) maybeUpdateBlink();  // target named → stop blinking
+  // Track the most recent camera target so the visualViewport-resize
+  // listener can re-fly here if the keyboard pops up after this.
+  lastJumpTarget = c;
 
   const continent = CONTINENT[c.canonical];
   const toastMsg = namedList.length <= 3 && continent
