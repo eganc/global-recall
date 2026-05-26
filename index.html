@@ -1455,10 +1455,31 @@ function flyPadding() {
   return { bottom: Math.round(-twiceShift) };
 }
 
+// Instant-set version. Used for the first camera position when a game
+// starts — flyTo's animation can silently no-op if the map container is
+// mid-resize (e.g., right after applyMode toggled display properties),
+// but jumpTo is synchronous and lands the camera regardless.
+function jumpToFeature(feat) {
+  if (!feat || !mapLibreMap) return;
+  const center = featureCentroid(feat);
+  if (!center) return;
+  // Force the canvas to sync to the current container size before we
+  // do the camera math. Cheap no-op when already at the right size.
+  if (typeof mapLibreMap.resize === 'function') mapLibreMap.resize();
+  const opts = {
+    center: [center.lng, center.lat],
+    zoom: altitudeToZoom(featureAltitude(feat)),
+  };
+  const pad = flyPadding();
+  if (pad) opts.padding = pad;
+  mapLibreMap.jumpTo(opts);
+}
+
 function flyToFeature(feat) {
   if (!feat) return;
   const center = featureCentroid(feat);
   if (!center || !mapLibreMap) return;
+  if (typeof mapLibreMap.resize === 'function') mapLibreMap.resize();
   // curve > default (1.42) makes the camera arc out to a high altitude at the
   // midpoint of the flight before descending into the destination — feels like
   // "zoom out, glide, zoom in." Especially helpful for jumps across the globe
@@ -1919,15 +1940,13 @@ function startGame() {
   } else if (currentMode === 'daily') {
     const first = dailyTarget.find(c => c.feat);
     if (first) {
-      lastJumpTarget = first;  // so the visualViewport-resize re-fly has a target
-      // Defer to a double-RAF + small timeout so applyMode's layout
-      // changes settle, the map container reaches its final size, and
-      // any keyboard pop from the cinput.focus() below has had a chance
-      // to fire before we compute padding. Without this the first
-      // Daily-mode fly often ran against a transitional layout and
-      // appeared not to happen at all.
+      lastJumpTarget = first;
+      // Use jumpToFeature (instant, no animation) for the initial set so
+      // the camera lands on the right country regardless of any in-flight
+      // layout reflow. The animated flyTo can silently no-op when the
+      // canvas dims aren't settled yet.
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        setTimeout(() => flyToFeature(first.feat), 50);
+        jumpToFeature(first.feat);
       }));
     }
   }
@@ -2265,7 +2284,16 @@ function kidsStartRound() {
     const tmp = kidsChoices[i]; kidsChoices[i] = kidsChoices[j]; kidsChoices[j] = tmp;
   }
   // Highlight on globe (camera fly + amber target paint)
-  if (kidsTarget.feat) { lastJumpTarget = kidsTarget; flyToFeature(kidsTarget.feat); }
+  if (kidsTarget.feat) {
+    lastJumpTarget = kidsTarget;
+    // First round needs the instant set (same layout-race reason as Daily).
+    // Subsequent rounds also use jumpToFeature for consistency — round
+    // transitions are already preceded by a 1.5s setTimeout, but a fresh
+    // canvas-resize sync before the camera move never hurts.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      jumpToFeature(kidsTarget.feat);
+    }));
+  }
   // Adapter clears the previous round's target and paints this one.
   const newKidsAdmin = kidsTarget.feat && kidsTarget.feat.properties && kidsTarget.feat.properties.ADMIN;
   mapAdapter.paintKidsTarget(newKidsAdmin || null);
@@ -2414,6 +2442,10 @@ async function boot() {
   // Reflect current render-mode state in the menu button label.
   const liteBtn = document.getElementById('menu-lite-btn');
   if (liteBtn) liteBtn.textContent = liteMode ? '🗺 FLAT MODE' : '🌐 3D GLOBE';
+  // Briefly surface the build version on first paint so mobile testers
+  // (no devtools) can tell whether they're on the latest deploy or a
+  // stale service-worker cache. Remove after the mobile zoom shakes out.
+  toast('BUILD v34');
   showStartMenu();
   setTimeout(showInstallBanner, 2000);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
