@@ -1259,12 +1259,23 @@ let currentStyle = (() => {
 
 function setStyle(key) {
   if (!STYLES[key]) return;
+  // Only atlas + blue have MapLibre style specs authored so far. Other
+  // legacy keys (night, dark) save the preference and update the button
+  // state but don't actually re-render the map.
+  const spec = STYLE_SPECS[key];
+  if (!spec) {
+    toast('STYLE NOT YET AVAILABLE IN MAPLIBRE BUILD');
+    return;
+  }
   currentStyle = key;
   Storage.saveStyle(key);
-  // Atlas is currently the only rendered MapLibre style; the other style
-  // buttons keep their saved preference + active state but don't actually
-  // change the map. Follow-up: author alternative MapLibre style specs
-  // (satellite-style, etc.) and call mapLibreMap.setStyle(...) here.
+  document.getElementById('globe-wrap').style.background =
+    `radial-gradient(ellipse at center, ${spec.backdrop} 0%, #000 100%)`;
+  if (mapLibreMap) {
+    // setStyle wipes everything; the 'style.load' handler will re-add the
+    // country source/layers and re-paint any active highlights.
+    mapLibreMap.setStyle(spec.mapStyle);
+  }
   document.querySelectorAll('.style-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.style === key);
   });
@@ -1465,24 +1476,18 @@ let mapLibreMap = null;
 
 // Atlas style spec — parchment ocean, opaque tan country fills, sepia
 // borders. No external tile source: the entire world is just background
-// color + the GeoJSON country layer we add separately. That keeps the
-// install footprint tiny and the look identical regardless of zoom.
+// color + the GeoJSON country layer we add separately.
 const ATLAS_STYLE = {
   version: 8,
   projection: { type: 'globe' },
   sources: {},
   layers: [
-    {
-      id: 'ocean',
-      type: 'background',
-      paint: { 'background-color': '#f5ecd9' },  // cream parchment
-    },
+    { id: 'ocean', type: 'background', paint: { 'background-color': '#f5ecd9' } },
   ],
-  // Warm halo around the globe — matches the old globe.gl atmosphere tint.
   sky: {
-    'sky-color':      '#e6d8b8',
-    'horizon-color':  '#d4b88a',
-    'fog-color':      '#d4b88a',
+    'sky-color':         '#e6d8b8',
+    'horizon-color':     '#d4b88a',
+    'fog-color':         '#d4b88a',
     'sky-horizon-blend': 0.6,
     'horizon-fog-blend': 0.3,
     'fog-ground-blend':  0.5,
@@ -1490,33 +1495,87 @@ const ATLAS_STYLE = {
   },
 };
 
+// Satellite style — Esri World Imagery raster tiles. No API key required.
+// Attribution shown via MapLibre's attribution control (enabled below).
+const SATELLITE_STYLE = {
+  version: 8,
+  projection: { type: 'globe' },
+  sources: {
+    'esri-imagery': {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      maxzoom: 18,
+      attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+    },
+  },
+  layers: [
+    { id: 'satellite-base', type: 'raster', source: 'esri-imagery' },
+  ],
+  sky: {
+    'sky-color':         '#0a1429',
+    'horizon-color':     '#1a2a4a',
+    'fog-color':         '#0a1429',
+    'sky-horizon-blend': 0.7,
+    'horizon-fog-blend': 0.4,
+    'fog-ground-blend':  0.6,
+    'atmosphere-blend':  0.7,
+  },
+};
+
+// Per-style render config: which MapLibre style spec to apply, what
+// backdrop to put behind the globe, and how to paint the default
+// (non-highlighted) country fill + border on top of that style.
+const STYLE_SPECS = {
+  atlas: {
+    mapStyle:     ATLAS_STYLE,
+    backdrop:     '#2a1f14',
+    fillDefault:  'rgba(230,216,184,1)',   // opaque parchment tan
+    borderDefault:'rgba(90,74,48,0.65)',   // dark sepia
+  },
+  blue: {
+    mapStyle:     SATELLITE_STYLE,
+    backdrop:     '#000510',
+    fillDefault:  'rgba(0,0,0,0)',         // transparent — satellite shows through
+    borderDefault:'rgba(255,255,255,0.45)',// soft white over imagery
+  },
+};
+
 function initGlobe(el) {
-  // Backdrop matches Atlas's warm tones so the globe sits in a halo of
-  // related colour rather than against a black void.
+  const spec = STYLE_SPECS[currentStyle] || STYLE_SPECS.atlas;
   document.getElementById('globe-wrap').style.background =
-    'radial-gradient(ellipse at center, #2a1f14 0%, #000 100%)';
+    `radial-gradient(ellipse at center, ${spec.backdrop} 0%, #000 100%)`;
 
   mapLibreMap = new maplibregl.Map({
     container: el,
-    style: ATLAS_STYLE,
+    style: spec.mapStyle,
     center: [0, 20],
     zoom: 1.2,
-    attributionControl: false,
+    // Compact attribution required by Esri's terms; auto-hides on small
+    // screens but stays accessible via the (i) toggle.
+    attributionControl: { compact: true },
   });
 
-  // Re-apply globe projection on any future setStyle() call (style switcher).
+  // setStyle (used by the style switcher) wipes all sources + layers; this
+  // handler re-applies globe projection, re-adds our country source/layers,
+  // and re-paints any active game-state highlights so a mid-game style
+  // swap looks seamless.
   mapLibreMap.on('style.load', () => {
     mapLibreMap.setProjection({ type: 'globe' });
+    ensureCountryLayers();
+    reapplyHighlights();
   });
 
   mapLibreMap.on('load', async () => {
     window.__mlMap = mapLibreMap;
     try {
-      // boot() calls loadGeoJSON before initGlobe, so geoFeatures is already
+      // boot() calls loadGeoJSON before initGlobe, so geoFeatures is normally
       // populated by the time the map fires 'load'. Only fetch if missing
       // (e.g. someone calls initGlobe ad-hoc from the console).
       if (!geoFeatures || !geoFeatures.length) await loadGeoJSON();
-      addCountryLayers();
+      ensureCountryLayers();
       mapAdapter = createMapAdapter(mapLibreMap);
     } catch (e) {
       console.error('[Global Recall] Country layer init failed:', e);
@@ -1538,6 +1597,7 @@ function initGlobe(el) {
 // without per-feature numeric ids.
 function addCountryLayers() {
   if (!mapLibreMap || !geoFeatures || !geoFeatures.length) return;
+  const spec = STYLE_SPECS[currentStyle] || STYLE_SPECS.atlas;
   mapLibreMap.addSource('countries', {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: geoFeatures },
@@ -1553,7 +1613,7 @@ function addCountryLayers() {
         ['boolean', ['feature-state', 'named'], false],       'rgba(34,197,94,0.92)',
         ['boolean', ['feature-state', 'kidsTarget'], false],  'rgba(245,158,11,0.85)',
         ['boolean', ['feature-state', 'dailyTarget'], false], 'rgba(245,158,11,0.55)',
-        'rgba(230,216,184,1)',  // parchment tan — the Atlas default fill
+        spec.fillDefault,
       ],
     },
   });
@@ -1568,7 +1628,7 @@ function addCountryLayers() {
         'case',
         ['==', ['feature-state', 'blink'], 'cyan'],  'rgba(56,189,248,0.95)',
         ['==', ['feature-state', 'blink'], 'amber'], 'rgba(245,158,11,0.95)',
-        'rgba(90,74,48,0.65)',  // dark sepia — the Atlas default border
+        spec.borderDefault,
       ],
       'line-width': [
         'case',
@@ -1577,6 +1637,37 @@ function addCountryLayers() {
       ],
     },
   });
+}
+
+// Idempotent: only adds the source/layers if they're missing. style.load
+// fires for the initial style AND for every subsequent setStyle, but the
+// initial fire may run before geoFeatures is loaded — in that case the
+// 'load' handler triggers the call once geoFeatures is in.
+function ensureCountryLayers() {
+  if (!mapLibreMap || !geoFeatures || !geoFeatures.length) return;
+  if (mapLibreMap.getSource('countries')) return;
+  addCountryLayers();
+}
+
+// After a style swap MapLibre wipes the source (along with all its
+// feature-state). Walk active game state and re-issue highlight calls so
+// named countries stay green, daily targets stay amber, etc.
+function reapplyHighlights() {
+  if (!mapAdapter || !mapLibreMap || !mapLibreMap.getSource('countries')) return;
+  for (const c of countries) {
+    const admin = c && c.feat && c.feat.properties && c.feat.properties.ADMIN;
+    if (admin && c.named) mapAdapter.markNamed(admin);
+  }
+  if (currentMode === 'daily') {
+    const admins = dailyTarget
+      .filter(c => !c.named && c.feat && c.feat.properties && c.feat.properties.ADMIN)
+      .map(c => c.feat.properties.ADMIN);
+    if (admins.length) mapAdapter.paintDailyTargets(admins);
+  }
+  if (currentMode === 'kids' && kidsTarget && kidsTarget.feat && kidsTarget.feat.properties) {
+    const admin = kidsTarget.feat.properties.ADMIN;
+    if (admin) mapAdapter.paintKidsTarget(admin);
+  }
 }
 
 // ─── Mirror of src/mapAdapter.js ──────────────────────────────────
