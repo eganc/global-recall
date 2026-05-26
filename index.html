@@ -1353,15 +1353,20 @@ function maybeUpdateBlink() {
   if (shouldBlink()) startBlink(); else stopBlink();
 }
 
-// Compute centroid of a GeoJSON feature (weighted by largest polygon)
+// ─── Mirror of src/geo.js ─────────────────────────────────────────
+// Pure geometry helpers. Unit-tested over there; when you edit one,
+// edit both.
+
 function featureCentroid(feat) {
-  const geo = feat.geometry;
+  const geo = feat && feat.geometry;
+  if (!geo) return null;
   let pts = [];
   if (geo.type === 'Polygon') pts = geo.coordinates[0];
   else if (geo.type === 'MultiPolygon') {
     let max = 0;
-    for (const poly of geo.coordinates)
-      if (poly[0].length > max) { max = poly[0].length; pts = poly[0]; }
+    for (const poly of geo.coordinates) {
+      if (poly[0] && poly[0].length > max) { max = poly[0].length; pts = poly[0]; }
+    }
   }
   if (!pts.length) return null;
   let lng = 0, lat = 0;
@@ -1369,31 +1374,60 @@ function featureCentroid(feat) {
   return { lat: lat / pts.length, lng: lng / pts.length };
 }
 
-// Estimate zoom altitude based on feature bounding box (smaller country = closer zoom)
+// Antimeridian-aware longitude span. Naïve max-min reads ~352° for
+// features that cross the dateline (New Zealand with its subantarctic
+// dependencies, Fiji, sometimes Russia). We pick the smaller of (a) the
+// naïve span and (b) the span computed after shifting negative lngs
+// by +360. No real country actually spans more than 180°, so this is
+// always safe.
+function _lngSpan(lngs) {
+  const naive = Math.max(...lngs) - Math.min(...lngs);
+  if (naive <= 180) return naive;
+  const shifted = lngs.map(l => l < 0 ? l + 360 : l);
+  return Math.min(naive, Math.max(...shifted) - Math.min(...shifted));
+}
+
 function featureAltitude(feat) {
   try {
-    const geo = feat.geometry;
+    const geo = feat && feat.geometry;
+    if (!geo) return 1.5;
     let allPts = [];
     if (geo.type === 'Polygon') allPts = geo.coordinates[0];
-    else if (geo.type === 'MultiPolygon')
+    else if (geo.type === 'MultiPolygon') {
       for (const poly of geo.coordinates) allPts = allPts.concat(poly[0]);
+    }
     if (!allPts.length) return 1.5;
-    const lngs = allPts.map(p => p[0]), lats = allPts.map(p => p[1]);
-    const spanLng = Math.max(...lngs) - Math.min(...lngs);
+    const lats = allPts.map(p => p[1]);
+    const lngs = allPts.map(p => p[0]);
     const spanLat = Math.max(...lats) - Math.min(...lats);
-    const span = Math.max(spanLng, spanLat);
-    // Large countries (Russia ~170°) → altitude ~2.5; tiny islands (~1°) → ~0.3
+    const spanLngAdj = _lngSpan(lngs);
+    const span = Math.max(spanLngAdj, spanLat);
     return Math.max(0.25, Math.min(2.5, span / 55));
   } catch { return 1.5; }
 }
 
-// Convert the legacy globe.gl "altitude" estimate (0.25 ≈ tiny island, 2.5
-// ≈ Russia) into a MapLibre zoom level. Tuned so Andorra fills the viewport
-// instead of showing all of southwestern Europe around a dot.
-//   alt 0.25 → z ~6.0;  alt 1.0 → z ~4.5;  alt 2.5 → z ~1.5
+// Map an altitude estimate to a MapLibre zoom level. Biased toward
+// less zoom than mathematically tight — user feedback says "further
+// out > too close" because surrounding context (is this near an
+// ocean? near other countries?) makes the country recognisable.
+//   alt 0.25 → z ~5.0;  alt 1.0 → z ~3.5;  alt 2.5 → z ~1.0
 function altitudeToZoom(alt) {
-  const z = 6.5 - alt * 2;
-  return Math.max(1.2, Math.min(6.5, z));
+  const z = 5.0 - alt * 1.5;
+  return Math.max(1.0, Math.min(5.0, z));
+}
+
+// True when the viewport is small enough that the on-screen keyboard
+// (if open) covers a large fraction of the map. flyTo's padding option
+// then biases the camera so the destination country sits in the upper
+// half of the visible area, above where the keyboard appears.
+function flyPadding() {
+  const vh = window.innerHeight || 800;
+  const vw = window.innerWidth  || 1200;
+  // Mobile-ish viewport. Empirically the iOS / Android keyboards
+  // occupy ~35-45% of the screen; 200px of bottom padding lifts the
+  // centroid clear of that without going too far up.
+  if (vw < 700 || vh < 700) return { bottom: 200 };
+  return undefined;
 }
 
 function flyToFeature(feat) {
@@ -1404,13 +1438,16 @@ function flyToFeature(feat) {
   // midpoint of the flight before descending into the destination — feels like
   // "zoom out, glide, zoom in." Especially helpful for jumps across the globe
   // where a straight interpolation would skim over irrelevant terrain.
-  mapLibreMap.flyTo({
+  const opts = {
     center: [center.lng, center.lat],
     zoom: altitudeToZoom(featureAltitude(feat)),
     speed: 1.4,
     curve: 1.8,
     essential: true,  // run even if user prefers-reduced-motion
-  });
+  };
+  const pad = flyPadding();
+  if (pad) opts.padding = pad;
+  mapLibreMap.flyTo(opts);
 }
 
 // Great-circle distance between two lat/lng points (degrees)

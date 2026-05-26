@@ -26,5 +26,5 @@
 ## Triage Batch — 2026-05-26 (Egan, during Lite Mode Chromebook testing)
 
 ### Do Now
-- [ ] **[Bug]** China highlights green on correct match but the input text box doesn't clear — likely a race in the matching engine; investigate the findMatch path for multi-alias countries (FT-010)
-- [ ] **[Polish]** Typing a country that's already been named gives zero feedback — the input just sits there silently. Should toast "ALREADY NAMED" or shake/flash the input so the user knows something happened (FT-011)
+- [x] **[Bug]** China highlights green on correct match but the input text box doesn't clear — verified resolved by the MapLibre migration; tested on prod (FT-010)
+- [x] **[Polish]** Typing a country that's already been named gives zero feedback — verified resolved by the MapLibre migration (FT-011)
