@@ -988,7 +988,6 @@ let dailyTarget = [];
 let modeTotal = TOTAL;
 const KIDS_ROUNDS = 10;
 let kidsTarget = null;
-let prevKidsTargetAdmin = null;  // tracks the MapLibre feature id we painted amber last round, so the next round can clear it without scanning all features
 let kidsCorrect = 0;
 let kidsRounds = 0;
 let kidsChoices = [];
@@ -1464,6 +1463,7 @@ function initGlobe(el) {
       // (e.g. someone calls initGlobe ad-hoc from the console).
       if (!geoFeatures || !geoFeatures.length) await loadGeoJSON();
       addCountryLayers();
+      mapAdapter = createMapAdapter(mapLibreMap);
     } catch (e) {
       console.error('[Global Recall] Country layer init failed:', e);
     }
@@ -1514,24 +1514,52 @@ function addCountryLayers() {
   });
 }
 
-// Console-callable smoke test helpers for Phase 2.
-// state: 'named' | 'kidsTarget' | 'dailyTarget' | null (clear)
-function setCountryHighlight(featureId, state) {
-  if (!mapLibreMap) return;
-  mapLibreMap.removeFeatureState({ source: 'countries', id: featureId });
-  if (state) {
-    mapLibreMap.setFeatureState(
-      { source: 'countries', id: featureId },
-      { [state]: true }
-    );
+// ─── Mirror of src/mapAdapter.js ──────────────────────────────────
+// Same surface as the ES module; unit-tested over there against a fake.
+// When you edit one, edit both.
+function createMapAdapter(map) {
+  let prevKidsTargetAdmin = null;
+  function highlight(featureId, state) {
+    if (!map || !featureId) return;
+    map.removeFeatureState({ source: 'countries', id: featureId });
+    if (state) {
+      map.setFeatureState({ source: 'countries', id: featureId }, { [state]: true });
+    }
   }
+  function clear() {
+    if (!map) return;
+    map.removeFeatureState({ source: 'countries' });
+    prevKidsTargetAdmin = null;
+  }
+  function paintDailyTargets(adminIds) {
+    for (const id of adminIds) highlight(id, 'dailyTarget');
+  }
+  function paintKidsTarget(adminId) {
+    if (prevKidsTargetAdmin && prevKidsTargetAdmin !== adminId) {
+      highlight(prevKidsTargetAdmin, null);
+    }
+    if (adminId) {
+      highlight(adminId, 'kidsTarget');
+      prevKidsTargetAdmin = adminId;
+    } else {
+      prevKidsTargetAdmin = null;
+    }
+  }
+  function markNamed(adminId) {
+    if (!adminId) return;
+    highlight(adminId, 'named');
+    if (prevKidsTargetAdmin === adminId) prevKidsTargetAdmin = null;
+  }
+  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed };
 }
-function clearAllHighlights() {
-  if (!mapLibreMap) return;
-  mapLibreMap.removeFeatureState({ source: 'countries' });
-}
-window.setCountryHighlight = setCountryHighlight;
-window.clearAllHighlights  = clearAllHighlights;
+
+// Adapter instance — constructed against the live MapLibre map. Starts
+// as a no-op adapter so call sites can fire before the map is up.
+let mapAdapter = createMapAdapter(null);
+
+// Console smoke-test helpers (kept on window for ad-hoc debugging).
+window.setCountryHighlight = (id, state) => mapAdapter.highlight(id, state);
+window.clearAllHighlights  = () => mapAdapter.clear();
 
 async function loadGeoJSON() {
   const urls = [
@@ -1627,8 +1655,7 @@ function startGame() {
     c.named = false;
     if (c.feat) { c.feat._named = false; c.feat._dailyTarget = false; c.feat._kidsTarget = false; }
   });
-  clearAllHighlights();  // wipe any previous round's MapLibre feature-state
-  prevKidsTargetAdmin = null;
+  mapAdapter.clear();  // wipe any previous round's MapLibre feature-state
   namedList = []; namedTs = [];
   lastJumpTarget = null;
   stopBlink();
@@ -1651,13 +1678,14 @@ function startGame() {
   if (currentMode === 'daily') {
     dailyTarget = getDailyCountries();
     modeTotal = dailyTarget.length;
+    const dailyAdmins = [];
     dailyTarget.forEach(c => {
       if (!c.feat) return;
       c.feat._dailyTarget = true;
-      if (c.feat.properties && c.feat.properties.ADMIN) {
-        setCountryHighlight(c.feat.properties.ADMIN, 'dailyTarget');
-      }
+      const admin = c.feat.properties && c.feat.properties.ADMIN;
+      if (admin) dailyAdmins.push(admin);
     });
+    mapAdapter.paintDailyTargets(dailyAdmins);
     autoNext = true;
   } else if (currentMode === 'sprint') {
     dailyTarget = [];
@@ -2011,17 +2039,9 @@ function kidsStartRound() {
   // Highlight on globe
   geoFeatures.forEach(f => f._kidsTarget = false);
   if (kidsTarget.feat) { kidsTarget.feat._kidsTarget = true; refreshGlobe(); flyToFeature(kidsTarget.feat); }
-  // MapLibre port: clear previous round's amber, paint this round's target.
-  if (mapLibreMap) {
-    if (prevKidsTargetAdmin) setCountryHighlight(prevKidsTargetAdmin, null);
-    const admin = kidsTarget.feat && kidsTarget.feat.properties && kidsTarget.feat.properties.ADMIN;
-    if (admin) {
-      setCountryHighlight(admin, 'kidsTarget');
-      prevKidsTargetAdmin = admin;
-    } else {
-      prevKidsTargetAdmin = null;
-    }
-  }
+  // MapLibre port: adapter clears the previous round's target and paints this one.
+  const newKidsAdmin = kidsTarget.feat && kidsTarget.feat.properties && kidsTarget.feat.properties.ADMIN;
+  mapAdapter.paintKidsTarget(newKidsAdmin || null);
   // Update UI
   const cont = CONTINENT[kidsTarget.canonical] || '';
   document.getElementById('kids-progress').textContent =
@@ -2051,12 +2071,8 @@ function kidsAnswer(idx) {
     kidsTarget.named = true;
     namedList.push(kidsTarget.canonical);
     if (kidsTarget.feat) { kidsTarget.feat._named = true; kidsTarget.feat._kidsTarget = false; refreshGlobe(); }
-    if (mapLibreMap && kidsTarget.feat && kidsTarget.feat.properties) {
-      const admin = kidsTarget.feat.properties.ADMIN;
-      if (admin) {
-        setCountryHighlight(admin, 'named');
-        if (prevKidsTargetAdmin === admin) prevKidsTargetAdmin = null;
-      }
+    if (kidsTarget.feat && kidsTarget.feat.properties) {
+      mapAdapter.markNamed(kidsTarget.feat.properties.ADMIN);
     }
     toast(`✓ ${kidsTarget.canonical.toUpperCase()}`);
   } else {
@@ -2108,8 +2124,8 @@ document.getElementById('cinput').addEventListener('input', function() {
     // MapLibre port: paint via feature-state. The legacy assignments above
     // are harmless (no globe.gl running) and stay until Phase 5 cleanup so
     // diffs remain reviewable phase-by-phase.
-    if (mapLibreMap && c.feat.properties && c.feat.properties.ADMIN) {
-      setCountryHighlight(c.feat.properties.ADMIN, 'named');
+    if (c.feat.properties && c.feat.properties.ADMIN) {
+      mapAdapter.markNamed(c.feat.properties.ADMIN);
     }
   }
   if (c === lastJumpTarget) maybeUpdateBlink();  // target named → stop blinking
