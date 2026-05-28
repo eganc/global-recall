@@ -503,6 +503,7 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="menu-item" id="mode-kids-btn" onclick="setMode('kids')">🎮 EASY MODE</button>
     <button class="menu-item" id="menu-install-btn" onclick="menuInstall()">📲 INSTALL APP</button>
     <button class="menu-item" onclick="toggleMenu()">CLOSE</button>
+    <div class="menu-divider" id="menu-build-tag">BUILD —</div>
   </div>
   <div id="globe-wrap">
     <div id="globe-el"></div>
@@ -982,6 +983,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
+const BUILD_VERSION = 'v35';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -2283,15 +2285,15 @@ function kidsStartRound() {
     const j = Math.floor(Math.random() * (i + 1));
     const tmp = kidsChoices[i]; kidsChoices[i] = kidsChoices[j]; kidsChoices[j] = tmp;
   }
-  // Highlight on globe (camera fly + amber target paint)
+  // Highlight on globe (camera move + amber target paint)
   if (kidsTarget.feat) {
     lastJumpTarget = kidsTarget;
-    // First round needs the instant set (same layout-race reason as Daily).
-    // Subsequent rounds also use jumpToFeature for consistency — round
-    // transitions are already preceded by a 1.5s setTimeout, but a fresh
-    // canvas-resize sync before the camera move never hurts.
+    // Round 1 needs the instant set (layout-race reason — same as Daily).
+    // Subsequent rounds animate so the user sees the globe pan/zoom.
+    const isFirstRound = kidsRounds === 0;
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      jumpToFeature(kidsTarget.feat);
+      if (isFirstRound) jumpToFeature(kidsTarget.feat);
+      else flyToFeature(kidsTarget.feat);
     }));
   }
   // Adapter clears the previous round's target and paints this one.
@@ -2444,8 +2446,10 @@ async function boot() {
   if (liteBtn) liteBtn.textContent = liteMode ? '🗺 FLAT MODE' : '🌐 3D GLOBE';
   // Briefly surface the build version on first paint so mobile testers
   // (no devtools) can tell whether they're on the latest deploy or a
-  // stale service-worker cache. Remove after the mobile zoom shakes out.
-  toast('BUILD v34');
+  // stale service-worker cache. Also pinned in the menu footer.
+  toast('BUILD ' + BUILD_VERSION);
+  const tag = document.getElementById('menu-build-tag');
+  if (tag) tag.textContent = 'BUILD ' + BUILD_VERSION;
   showStartMenu();
   setTimeout(showInstallBanner, 2000);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
