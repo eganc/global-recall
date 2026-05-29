@@ -1003,7 +1003,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v37';
+const BUILD_VERSION = 'v38';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -1424,7 +1424,7 @@ function featureAltitude(feat) {
     const spanLat = Math.max(...lats) - Math.min(...lats);
     const spanLngAdj = _lngSpan(lngs);
     const span = Math.max(spanLngAdj, spanLat);
-    return Math.max(0.25, Math.min(2.5, span / 55));
+    return Math.max(0.45, Math.min(2.5, span / 55));
   } catch { return 1.5; }
 }
 
@@ -1432,10 +1432,13 @@ function featureAltitude(feat) {
 // less zoom than mathematically tight — user feedback says "further
 // out > too close" because surrounding context (is this near an
 // ocean? near other countries?) makes the country recognisable.
-//   alt 0.25 → z ~5.0;  alt 1.0 → z ~3.5;  alt 2.5 → z ~1.0
+// Curve pulled back again 2026-05: small/medium countries (Burundi,
+// Sudan, Venezuela) were all landing near z=4.5 — too tight to see
+// the silhouette in its neighbourhood.
+//   alt 0.45 → z ~3.6;  alt 1.0 → z ~2.7;  alt 2.5 → z ~0.5
 function altitudeToZoom(alt) {
-  const z = 5.0 - alt * 1.5;
-  return Math.max(1.0, Math.min(5.0, z));
+  const z = 4.3 - alt * 1.5;
+  return Math.max(0.5, Math.min(4.0, z));
 }
 
 // Compute flyTo padding so the destination country lands at the center
