@@ -1003,7 +1003,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v36';
+const BUILD_VERSION = 'v37';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -2366,18 +2366,33 @@ function kidsAnswer(idx) {
 // ═══════════════════════════════════════════════════════════════
 // INPUT HANDLER
 // ═══════════════════════════════════════════════════════════════
+// FT-011: findMatch() intentionally skips already-named countries, so we
+// can't lean on it to surface "you already got this one." Scan named
+// countries directly for an exact normalized hit.
+function findAlreadyNamed(raw) {
+  const inp = norm(raw);
+  if (inp.length < 3) return null;
+  for (const c of countries) {
+    if (!c.named) continue;
+    if (norm(c.canonical) === inp) return c;
+    for (const a of c.aliases) if (norm(a) === inp) return c;
+  }
+  return null;
+}
+
 document.getElementById('cinput').addEventListener('input', function() {
   if (!isRunning) return;
   const c = findMatch(this.value);
-  if (!c) return;
-  if (c.named) {
-    // FT-011: previously silent — clearing the input mid-type with no
-    // feedback felt like a bug. Shake + toast so the user knows why.
-    this.value = '';
-    this.classList.remove('shake');
-    void this.offsetWidth; // restart animation
-    this.classList.add('shake');
-    toast(`ALREADY NAMED: ${c.canonical.toUpperCase()}`);
+  if (!c) {
+    // No live match — but did they just retype something they already got?
+    const dupe = findAlreadyNamed(this.value);
+    if (dupe) {
+      this.value = '';
+      this.classList.remove('shake');
+      void this.offsetWidth;
+      this.classList.add('shake');
+      toast(`ALREADY NAMED: ${dupe.canonical.toUpperCase()}`);
+    }
     return;
   }
   if (currentMode === 'daily' && !dailyTarget.includes(c)) {
