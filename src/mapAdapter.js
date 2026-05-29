@@ -73,5 +73,29 @@ export function createMapAdapter(map) {
     );
   }
 
-  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed, setBlink };
+  // STRICT mode capital pin — drops a labeled marker on the capital city
+  // coords for the active target country when the player burns their
+  // first strike. Stored in its own 'capital-pin' GeoJSON source.
+  function showCapitalPin(lat, lng, label) {
+    if (!map || typeof map.getSource !== 'function') return;
+    const src = map.getSource('capital-pin');
+    if (!src) return;
+    src.setData({
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [lng, lat] },
+        properties: { label: label || '' },
+      }],
+    });
+  }
+
+  function clearCapitalPin() {
+    if (!map || typeof map.getSource !== 'function') return;
+    const src = map.getSource('capital-pin');
+    if (!src) return;
+    src.setData({ type: 'FeatureCollection', features: [] });
+  }
+
+  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed, setBlink, showCapitalPin, clearCapitalPin };
 }
