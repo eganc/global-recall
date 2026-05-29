@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
 <title>Global Recall</title>
 <meta name="description" content="Name all 195 countries from memory. Watch them light up on the globe.">
-<meta name="theme-color" content="#0038ca">
+<meta name="theme-color" content="#1e1b4b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Global Recall">
@@ -23,8 +23,10 @@ html, body { height: 100%; overflow: hidden; background: #0a0503; }
   --border:     #000;
   --text:       #ffdad4;
   --text-muted: #ebbbb4;
-  --blue:       #0038ca;
-  --blue-light: #b9c3ff;
+  --blue:       #4f46e5;
+  --blue-light: #c7d2fe;
+  --header-bg:  #1e1b4b;
+  --header-accent: #4f46e5;
   --amber:      #f59e0b;
   --red:        #ff5540;
   --mint:       #22c55e;
@@ -89,7 +91,8 @@ body { font-family: var(--font-body); color: var(--text); }
 /* ── HEADER ── */
 #header {
   flex-shrink: 0;
-  background: var(--blue); border-bottom: 3px solid #000;
+  background: var(--header-bg);
+  border-bottom: 3px solid var(--header-accent);
   box-shadow: 0 4px 0 #000;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 16px; height: 52px; z-index: 10;
@@ -146,46 +149,6 @@ body { font-family: var(--font-body); color: var(--text); }
 #globe-el { width: 100%; height: 100%; }
 #globe-el canvas { display: block; }
 
-/* ── GLOBE STYLE SWITCHER ── */
-#style-switcher {
-  position: absolute; bottom: 12px; right: 12px; z-index: 20;
-  display: flex; gap: 6px;
-}
-.style-btn {
-  font-family: var(--font-head); font-weight: 700; font-size: 10px;
-  letter-spacing: 1px; cursor: pointer;
-  background: #000; color: var(--text-muted);
-  border: 2px solid rgba(255,255,255,0.2);
-  padding: 5px 9px; transition: all 0.1s;
-}
-.style-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
-@media (hover: hover) {
-  .style-btn:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
-}
-
-/* ── NEXT / AUTO-NEXT CONTROLS ── */
-#next-controls {
-  position: absolute; top: 12px; right: 12px; z-index: 20;
-  display: flex; gap: 6px; align-items: center;
-}
-#next-btn {
-  font-family: var(--font-head); font-weight: 700; font-size: 11px;
-  letter-spacing: 1px; cursor: pointer;
-  background: #000; color: var(--amber);
-  border: 2px solid var(--amber); box-shadow: var(--shadow-sm);
-  padding: 7px 12px;
-}
-@media (hover: hover) {
-  #next-btn:hover { background: var(--amber); color: #000; }
-}
-#autonext-btn {
-  font-family: var(--font-head); font-weight: 700; font-size: 11px;
-  letter-spacing: 1px; cursor: pointer;
-  background: #000; color: var(--text-muted);
-  border: 2px solid rgba(255,255,255,0.2); box-shadow: var(--shadow-sm);
-  padding: 7px 12px;
-}
-#autonext-btn.on { background: var(--amber); color: #000; border-color: var(--amber); }
 
 /* ── BOTTOM INPUT BAR ── */
 #bottom {
@@ -231,7 +194,7 @@ body { font-family: var(--font-body); color: var(--text); }
 .chip {
   font-family: var(--font-head); font-weight: 700; font-size: 10px;
   letter-spacing: 1px;
-  background: #0038ca; color: #fff;
+  background: var(--blue); color: #fff;
   border: 2px solid #000; box-shadow: 2px 2px 0 #000;
   padding: 3px 8px; white-space: nowrap;
   flex-shrink: 0;
@@ -273,7 +236,9 @@ body { font-family: var(--font-body); color: var(--text); }
   color: var(--text-muted); padding: 8px 14px 4px;
   border-top: 1px solid rgba(255,255,255,0.08);
 }
-.menu-item.mode-active { background: rgba(0,56,202,0.35); color: #fff; }
+.menu-item.mode-active { background: rgba(79,70,229,0.32); color: #fff; }
+.menu-item.style-active { background: rgba(245,158,11,0.22); color: var(--text); }
+.menu-item.style-active::after { content: ' ●'; color: var(--amber); }
 #timer-display.danger { color: var(--red); }
 
 /* ── PORTRAIT MODE ── */
@@ -415,7 +380,7 @@ body { font-family: var(--font-body); color: var(--text); }
 /* ── INSTALL BANNER ── */
 #install-banner {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
-  background: var(--blue); border-top: 3px solid #000;
+  background: var(--header-bg); border-top: 3px solid var(--header-accent);
   box-shadow: 0 -4px 0 #000;
   display: flex; align-items: center; gap: 12px;
   padding: 12px 16px;
@@ -516,6 +481,9 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="menu-item" onclick="menuEndNow()">■ END GAME</button>
     <button class="menu-item" onclick="menuJumpNext()">⊕ JUMP TO NEXT</button>
     <button class="menu-item" id="menu-lite-btn" onclick="toggleRenderMode()">🌐 3D GLOBE</button>
+    <div class="menu-divider">MAP STYLE</div>
+    <button class="menu-item" id="menu-style-atlas" onclick="menuSetStyle('atlas')">📜 ATLAS</button>
+    <button class="menu-item" id="menu-style-blue" onclick="menuSetStyle('blue')">🌍 CLASSIC</button>
     <div class="menu-divider">MODES</div>
     <button class="menu-item mode-active" id="mode-nameall-btn" onclick="setMode('name-all')">◎ NAME ALL</button>
     <button class="menu-item" id="mode-sprint-btn" onclick="setMode('sprint')">⏱ SPRINT · 5 MIN</button>
@@ -527,16 +495,6 @@ body { font-family: var(--font-body); color: var(--text); }
   </div>
   <div id="globe-wrap">
     <div id="globe-el"></div>
-    <div id="style-switcher">
-      <button class="style-btn" data-style="atlas" onclick="setStyle('atlas')" title="Political atlas — light & low-distraction">📜 ATLAS</button>
-      <button class="style-btn" data-style="blue" onclick="setStyle('blue')" title="Blue Marble">🌍 CLASSIC</button>
-      <button class="style-btn" data-style="night" onclick="setStyle('night')" title="Night Lights">🌃 NIGHT</button>
-      <button class="style-btn" data-style="dark" onclick="setStyle('dark')" title="Dark Topo">🗺 TOPO</button>
-    </div>
-    <div id="next-controls">
-      <button id="next-btn" onclick="jumpToNext()" title="Jump to nearest unnamed country">⊕ NEXT</button>
-      <button id="autonext-btn" onclick="toggleAutoNext()" title="Auto-jump to next country after each correct answer">AUTO</button>
-    </div>
   </div>
   <div id="bottom">
     <div id="input-row">
@@ -1003,7 +961,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v38';
+const BUILD_VERSION = 'v39';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -1322,10 +1280,13 @@ function setStyle(key) {
   if (mapLibreMap && isChange) {
     applyMapStyle(key);
   }
-  document.querySelectorAll('.style-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.style === key);
+  // Menu-item style-active markers (the floating switcher is gone).
+  ['atlas','blue'].forEach(k => {
+    const el = document.getElementById('menu-style-' + k);
+    if (el) el.classList.toggle('style-active', k === key);
   });
 }
+function menuSetStyle(key) { setStyle(key); toggleMenu(); }
 
 // "Next target" blink — when auto-next is on, the country jumpToNext flew to
 // pulses its outline to signal "this is the one to name next". Daily mode
@@ -1409,36 +1370,64 @@ function _lngSpan(lngs) {
   return Math.min(naive, Math.max(...shifted) - Math.min(...shifted));
 }
 
-function featureAltitude(feat) {
-  try {
-    const geo = feat && feat.geometry;
-    if (!geo) return 1.5;
-    let allPts = [];
-    if (geo.type === 'Polygon') allPts = geo.coordinates[0];
-    else if (geo.type === 'MultiPolygon') {
-      for (const poly of geo.coordinates) allPts = allPts.concat(poly[0]);
+// Span from the LARGEST polygon only, not the full multi-polygon bbox.
+// Why: the US's MultiPolygon includes Alaska + Hawaii + Puerto Rico, so
+// the naive bbox is ~120° wide and forces an absurd "see the whole
+// hemisphere" zoom even though the user is really looking for the
+// contiguous mainland. Same problem for Canada (Arctic islands), France
+// (French Guiana), Netherlands (Caribbean), etc. By using only the
+// largest polygon we get the silhouette the user is actually trying to
+// learn.
+function featureSpan(feat) {
+  const geo = feat && feat.geometry;
+  if (!geo) return 8;
+  let pts = [];
+  if (geo.type === 'Polygon') pts = geo.coordinates[0];
+  else if (geo.type === 'MultiPolygon') {
+    let bestArea = -1;
+    for (const poly of geo.coordinates) {
+      const ring = poly[0];
+      if (!ring || !ring.length) continue;
+      let lo = Infinity, hi = -Infinity, lo2 = Infinity, hi2 = -Infinity;
+      for (const [x, y] of ring) {
+        if (x < lo) lo = x; if (x > hi) hi = x;
+        if (y < lo2) lo2 = y; if (y > hi2) hi2 = y;
+      }
+      const a = (hi - lo) * (hi2 - lo2);
+      if (a > bestArea) { bestArea = a; pts = ring; }
     }
-    if (!allPts.length) return 1.5;
-    const lats = allPts.map(p => p[1]);
-    const lngs = allPts.map(p => p[0]);
-    const spanLat = Math.max(...lats) - Math.min(...lats);
-    const spanLngAdj = _lngSpan(lngs);
-    const span = Math.max(spanLngAdj, spanLat);
-    return Math.max(0.45, Math.min(2.5, span / 55));
-  } catch { return 1.5; }
+  }
+  if (!pts.length) return 8;
+  const lats = pts.map(p => p[1]);
+  const lngs = pts.map(p => p[0]);
+  const spanLat = Math.max(...lats) - Math.min(...lats);
+  const spanLngAdj = _lngSpan(lngs);
+  return Math.max(spanLngAdj, spanLat);
 }
 
-// Map an altitude estimate to a MapLibre zoom level. Biased toward
-// less zoom than mathematically tight — user feedback says "further
-// out > too close" because surrounding context (is this near an
-// ocean? near other countries?) makes the country recognisable.
-// Curve pulled back again 2026-05: small/medium countries (Burundi,
-// Sudan, Venezuela) were all landing near z=4.5 — too tight to see
-// the silhouette in its neighbourhood.
-//   alt 0.45 → z ~3.6;  alt 1.0 → z ~2.7;  alt 2.5 → z ~0.5
-function altitudeToZoom(alt) {
-  const z = 4.3 - alt * 1.5;
-  return Math.max(0.5, Math.min(4.0, z));
+// Span (in degrees of the longer axis) → MapLibre zoom level. Tiered
+// because a single linear curve can't serve both Singapore (~0.3°,
+// invisible without a 9-level zoom) and Russia (~170°, needs zoom 1).
+// Numbers tuned by hand on mobile portrait — country should fill ~40-60%
+// of the viewport for medium sizes, and still be _visible_ for the
+// microstates.
+function spanToZoom(span) {
+  if (span < 0.4)  return 9.0;  // Vatican, Monaco, San Marino
+  if (span < 1.2)  return 7.8;  // Singapore, Liechtenstein, Andorra
+  if (span < 2.5)  return 6.2;  // Burundi, Luxembourg, Eswatini
+  if (span < 5)    return 5.0;  // Belgium, Switzerland, Sri Lanka
+  if (span < 9)    return 4.0;  // UK, Bangladesh, Nepal
+  if (span < 16)   return 3.4;  // Sudan, Spain, Egypt, Turkey
+  if (span < 28)   return 2.8;  // Argentina, India, Brazil-edge
+  if (span < 45)   return 2.3;  // Australia, contiguous US, China
+  return 1.6;                   // Russia (largest poly), Antarctica
+}
+
+// Back-compat wrapper for the few call sites that still want altitude
+// (some callers use it for the 3D Three.js globe path). Returns the
+// inverse of the zoom mapping, in the same approximate range as before.
+function featureAltitude(feat) {
+  return Math.max(0.25, Math.min(2.5, (5.0 - spanToZoom(featureSpan(feat))) / 1.5));
 }
 
 // Compute flyTo padding so the destination country lands at the center
@@ -1493,7 +1482,7 @@ function jumpToFeature(feat) {
   if (typeof mapLibreMap.resize === 'function') mapLibreMap.resize();
   const opts = {
     center: [center.lng, center.lat],
-    zoom: altitudeToZoom(featureAltitude(feat)),
+    zoom: spanToZoom(featureSpan(feat)),
   };
   const pad = flyPadding();
   if (pad) opts.padding = pad;
@@ -1511,7 +1500,7 @@ function flyToFeature(feat) {
   // where a straight interpolation would skim over irrelevant terrain.
   const opts = {
     center: [center.lng, center.lat],
-    zoom: altitudeToZoom(featureAltitude(feat)),
+    zoom: spanToZoom(featureSpan(feat)),
     speed: 1.4,
     curve: 1.8,
     essential: true,
@@ -1929,8 +1918,9 @@ function startGame() {
   isRunning = true;
   sessionStart = Date.now();
 
-  // Mode setup
-  autoNext = false;
+  // Mode setup. Auto-next is now always on — the floating manual NEXT
+  // button is gone and there's no toggle for it.
+  autoNext = true;
   if (currentMode === 'daily') {
     dailyTarget = getDailyCountries();
     modeTotal = dailyTarget.length;
@@ -1940,12 +1930,10 @@ function startGame() {
       if (admin) dailyAdmins.push(admin);
     });
     mapAdapter.paintDailyTargets(dailyAdmins);
-    autoNext = true;
   } else if (currentMode === 'sprint') {
     dailyTarget = [];
     modeTotal = TOTAL;
     sprintEnd = Date.now() + 300000;
-    autoNext = true;
   } else if (currentMode === 'kids') {
     dailyTarget = [];
     modeTotal = KIDS_ROUNDS;
@@ -1956,7 +1944,6 @@ function startGame() {
     dailyTarget = [];
     modeTotal = TOTAL;
   }
-  document.getElementById('autonext-btn').classList.toggle('on', autoNext);
 
   // Mode-specific kickoff. Independent of which render layer is active so
   // the MapLibre port doesn't silently skip them.
@@ -2110,12 +2097,6 @@ function menuRestart() {
   startGame();
 }
 function menuJumpNext() { toggleMenu(); jumpToNext(); }
-function toggleAutoNext() {
-  autoNext = !autoNext;
-  document.getElementById('autonext-btn').classList.toggle('on', autoNext);
-  toast(autoNext ? 'AUTO-NEXT ON' : 'AUTO-NEXT OFF');
-  maybeUpdateBlink();
-}
 function menuEndNow() {
   toggleMenu();
   if (isRunning) endGame();
