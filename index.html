@@ -52,7 +52,7 @@ body { font-family: var(--font-body); color: var(--text); }
 .cursor {
   display: inline-block; width: 10px; height: 20px;
   background: var(--amber);
-  animation: blink 0.8s step-end infinite;
+  animation: blink 0.5s step-end infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
 #load-bar-wrap {
@@ -100,13 +100,15 @@ body { font-family: var(--font-body); color: var(--text); }
 }
 #menu-btn {
   font-size: 22px; line-height: 1;
-  background: rgba(0,0,0,0.4); color: #fff;
+  background: #000; color: #fff;
   border: 2px solid rgba(255,255,255,0.3);
   width: 36px; height: 36px;
   cursor: pointer; padding: 0;
   font-family: var(--font-head);
 }
-#menu-btn:hover { background: rgba(0,0,0,0.7); }
+@media (hover: hover) {
+  #menu-btn:hover { background: #1a1a1a; }
+}
 #menu-panel {
   position: fixed; top: 56px; left: 12px; z-index: 30;
   background: var(--surface);
@@ -121,7 +123,9 @@ body { font-family: var(--font-body); color: var(--text); }
   border: none; border-bottom: 1px solid #000;
   padding: 10px 14px; cursor: pointer;
 }
-.menu-item:hover { background: var(--blue); color: #fff; }
+@media (hover: hover) {
+  .menu-item:hover { background: var(--blue); color: #fff; }
+}
 .menu-item:last-child { border-bottom: none; }
 #hud { display: flex; align-items: center; gap: 12px; }
 .hud-chip {
@@ -150,11 +154,14 @@ body { font-family: var(--font-body); color: var(--text); }
 .style-btn {
   font-family: var(--font-head); font-weight: 700; font-size: 10px;
   letter-spacing: 1px; cursor: pointer;
-  background: rgba(0,0,0,0.7); color: var(--text-muted);
+  background: #000; color: var(--text-muted);
   border: 2px solid rgba(255,255,255,0.2);
   padding: 5px 9px; transition: all 0.1s;
 }
-.style-btn:hover, .style-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.style-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+@media (hover: hover) {
+  .style-btn:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+}
 
 /* ── NEXT / AUTO-NEXT CONTROLS ── */
 #next-controls {
@@ -164,15 +171,17 @@ body { font-family: var(--font-body); color: var(--text); }
 #next-btn {
   font-family: var(--font-head); font-weight: 700; font-size: 11px;
   letter-spacing: 1px; cursor: pointer;
-  background: rgba(0,0,0,0.75); color: var(--amber);
+  background: #000; color: var(--amber);
   border: 2px solid var(--amber); box-shadow: var(--shadow-sm);
   padding: 7px 12px;
 }
-#next-btn:hover { background: var(--amber); color: #000; }
+@media (hover: hover) {
+  #next-btn:hover { background: var(--amber); color: #000; }
+}
 #autonext-btn {
   font-family: var(--font-head); font-weight: 700; font-size: 11px;
   letter-spacing: 1px; cursor: pointer;
-  background: rgba(0,0,0,0.75); color: var(--text-muted);
+  background: #000; color: var(--text-muted);
   border: 2px solid rgba(255,255,255,0.2); box-shadow: var(--shadow-sm);
   padding: 7px 12px;
 }
@@ -199,6 +208,13 @@ body { font-family: var(--font-body); color: var(--text); }
 }
 #cinput::placeholder { color: #8a6e69; font-weight: 400; text-transform: none; letter-spacing: 0; }
 #cinput:focus { border-color: var(--blue); box-shadow: 4px 4px 0 var(--blue-light); }
+#cinput.shake { animation: cinputShake 0.35s cubic-bezier(.36,.07,.19,.97); }
+@keyframes cinputShake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
 #remaining-badge {
   font-family: var(--font-head); font-weight: 700; font-size: 13px;
   color: var(--text-muted); white-space: nowrap;
@@ -329,7 +345,9 @@ body { font-family: var(--font-body); color: var(--text); }
   transition: transform 0.08s, box-shadow 0.08s;
   position: relative;
 }
-.mode-tile:hover { transform: translate(2px,2px); box-shadow: 3px 3px 0 rgba(0,0,0,0.55); }
+@media (hover: hover) {
+  .mode-tile:hover { transform: translate(2px,2px); box-shadow: 3px 3px 0 rgba(0,0,0,0.55); }
+}
 .mode-tile.selected {
   transform: translate(5px,5px); box-shadow: none;
   outline: 3px solid rgba(255,255,255,0.7); outline-offset: -3px;
@@ -364,7 +382,9 @@ body { font-family: var(--font-body); color: var(--text); }
   padding: 15px; width: 100%;
   transition: transform 0.1s, box-shadow 0.1s;
 }
-#start-game-btn:hover { background: #1db954; }
+@media (hover: hover) {
+  #start-game-btn:hover { background: #1db954; }
+}
 #start-game-btn:active { transform: translate(4px,4px); box-shadow: 4px 4px 0 #000; }
 #start-hint {
   font-family: var(--font-head); font-size: 10px; letter-spacing: 2px;
@@ -983,7 +1003,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v35';
+const BUILD_VERSION = 'v36';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -2333,6 +2353,10 @@ function kidsAnswer(idx) {
     toast(`✓ ${kidsTarget.canonical.toUpperCase()}`);
   } else {
     toast(`✗ ${kidsTarget.canonical.toUpperCase()}`);
+    // FT-004: on a wrong answer, fly to the correct country during the
+    // 1.5s pause so the learner sees where it actually is — the
+    // memory-palace point of the mode.
+    if (kidsTarget.feat) flyToFeature(kidsTarget.feat);
   }
   kidsRounds++;
   updateHUD();
@@ -2346,7 +2370,16 @@ document.getElementById('cinput').addEventListener('input', function() {
   if (!isRunning) return;
   const c = findMatch(this.value);
   if (!c) return;
-  if (c.named) { this.value = ''; return; }
+  if (c.named) {
+    // FT-011: previously silent — clearing the input mid-type with no
+    // feedback felt like a bug. Shake + toast so the user knows why.
+    this.value = '';
+    this.classList.remove('shake');
+    void this.offsetWidth; // restart animation
+    this.classList.add('shake');
+    toast(`ALREADY NAMED: ${c.canonical.toUpperCase()}`);
+    return;
+  }
   if (currentMode === 'daily' && !dailyTarget.includes(c)) {
     // If the user could still be mid-way through typing a longer daily target
     // (e.g. typing "Nigeria" passes through "Niger"; "Guinea-Bissau" passes through
@@ -2410,7 +2443,17 @@ document.getElementById('cinput').addEventListener('input', function() {
 // ═══════════════════════════════════════════════════════════════
 async function boot() {
   const fact = FACTS[Math.floor(Math.random() * FACTS.length)];
-  document.getElementById('intel-text').textContent = fact;
+  const intelEl = document.getElementById('intel-text');
+  intelEl.textContent = '';
+  // Typewriter effect — printed character-by-character during the boot
+  // sequence so the loading screen feels alive instead of pre-rendered.
+  let _typeI = 0;
+  const _typeTick = () => {
+    if (_typeI >= fact.length) return;
+    intelEl.textContent += fact.charAt(_typeI++);
+    setTimeout(_typeTick, 22);
+  };
+  _typeTick();
 
   const bar = document.getElementById('load-bar');
   const msg = document.getElementById('load-msg');
