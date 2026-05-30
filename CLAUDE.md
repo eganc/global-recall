@@ -11,7 +11,7 @@ A daily-practice geography app that turns adults who feel mild shame about their
 - **Frontend:** Single `index.html`, vanilla JS, no framework, no build step.
 - **Map rendering:** `globe.gl` (built on three-globe / Three.js), loaded from unpkg CDN. **Actively being replaced with MapLibre GL JS** — read `docs/maplibre-migration-plan.md` before touching the map layer.
 - **Backend:** None. Pure client-side game. No accounts, no sync.
-- **Persistence:** `localStorage`, wrapped behind `src/storage.js` (mirrored inline in `index.html`). Schema v2 with migration runner.
+- **Persistence:** `localStorage`, wrapped behind `src/storage.js` (mirrored inline in `index.html`). Schema v3 with migration runner.
 - **Hosting:** Vercel, auto-deploys from `main`. Service worker (`sw.js`) for offline + cache invalidation.
 - **Tests:** Vitest. ES modules in `src/` for testable helpers, mirrored inline in `index.html` (no build step).
 - **App-store wrapper:** Capacitor (not yet integrated; planned after the MapLibre migration lands).
@@ -43,7 +43,8 @@ All keys under the `gr_` prefix. Read/write only through the `Storage` module �
 
 ### Architectural decisions (locked — do not revisit mid-build)
 
-- **Per-device storage only.** No backend, no auth, no cloud sync, no leaderboard. All "streak" / "longest" / "records" are per-device. Will revisit only when real users ask for sync.
+- **Per-device storage for personal records.** No accounts, no auth, no cloud sync of streaks / ghosts / PBs. All "streak" / "longest" / "records" are per-device.
+- **Arcade-cabinet leaderboard, per-device for now.** Local top-100 board per mode (Sprint, Strict) with 3-letter initials in `gr_leaderboard`. v42 ships the local board. A hybrid global board (Vercel function + KV) is planned next — local stays the truth, global is opportunistic best-effort sync. Server stores only `{initials, score, mode, ts}` — zero PII. This is a deliberate deviation from the prior "no leaderboard" decision.
 - **Storage abstraction is the migration path.** The day cloud sync becomes a real ask, only `src/storage.js` + its inline mirror change. Every feature reads/writes through it.
 - **Schema versioning is load-bearing.** Returning users must walk through every migration cleanly. Never rewrite an existing migration; only add new ones.
 - **Daily seeding depends on stable country order + launch date constant** (`Date.UTC(2026, 4, 12)` in `getDailyNumber`). Changing either breaks streaks for existing users.

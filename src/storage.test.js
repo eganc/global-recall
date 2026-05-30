@@ -288,3 +288,57 @@ describe('ghost', () => {
     expect(s.getGhost()).toBe(null);
   });
 });
+
+describe('leaderboard', () => {
+  it('starts empty, qualifies any positive score, ranks #1 first', () => {
+    const s = createStorage(makeStore());
+    expect(s.getLeaderboard('sprint')).toEqual([]);
+    expect(s.qualifiesForLeaderboard('sprint', 5)).toBe(true);
+    expect(s.leaderboardRankFor('sprint', 5)).toBe(1);
+  });
+
+  it('sorts descending by score, ties broken by older-first', () => {
+    const s = createStorage(makeStore());
+    s.saveLeaderboardEntry('sprint', 'AAA', 10, 1000);
+    s.saveLeaderboardEntry('sprint', 'BBB', 20, 2000);
+    s.saveLeaderboardEntry('sprint', 'CCC', 20, 3000);
+    const list = s.getLeaderboard('sprint');
+    expect(list.map(e => e.initials)).toEqual(['BBB', 'CCC', 'AAA']);
+  });
+
+  it('normalizes initials to 3 uppercase A-Z, padding shorts', () => {
+    const s = createStorage(makeStore());
+    s.saveLeaderboardEntry('sprint', 'xy!', 5, 100);
+    expect(s.getLeaderboard('sprint')[0].initials).toBe('XYA');
+  });
+
+  it('caps the list at 100 entries, evicts lowest', () => {
+    const s = createStorage(makeStore());
+    for (let i = 0; i < 105; i++) {
+      s.saveLeaderboardEntry('sprint', 'AAA', i + 1, 1000 + i);
+    }
+    const list = s.getLeaderboard('sprint');
+    expect(list.length).toBe(100);
+    expect(list[0].score).toBe(105);
+    expect(list[99].score).toBe(6);
+  });
+
+  it('disqualifies a score that does not beat the lowest of a full board', () => {
+    const s = createStorage(makeStore());
+    for (let i = 0; i < 100; i++) {
+      s.saveLeaderboardEntry('sprint', 'AAA', 50 + i, 1000 + i);
+    }
+    // Lowest entry is 50; 50 ties (not greater than) → disqualify.
+    expect(s.qualifiesForLeaderboard('sprint', 50)).toBe(false);
+    expect(s.qualifiesForLeaderboard('sprint', 51)).toBe(true);
+  });
+
+  it('separates leaderboards per mode', () => {
+    const s = createStorage(makeStore());
+    s.saveLeaderboardEntry('sprint', 'AAA', 10, 1000);
+    s.saveLeaderboardEntry('strict', 'BBB', 5, 1000);
+    expect(s.getLeaderboard('sprint').length).toBe(1);
+    expect(s.getLeaderboard('strict').length).toBe(1);
+    expect(s.getLeaderboard('strict')[0].initials).toBe('BBB');
+  });
+});

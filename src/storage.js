@@ -18,7 +18,7 @@
 // migration runner is in place so v2 (when we change the daily blob shape or
 // add per-country miss counts for spaced repetition) doesn't strand anyone.
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const STORAGE_KEYS = Object.freeze({
   schemaVersion:    'gr_schema_version',
@@ -29,7 +29,13 @@ export const STORAGE_KEYS = Object.freeze({
   style:            'gr_style',
   installDismissed: 'gr_install_dismissed',
   liteMode:         'gr_lite_mode',
+  leaderboard:      'gr_leaderboard',
 });
+
+// Per-mode leaderboard: { sprint: Entry[], strict: Entry[] }
+// Entry: { initials: 'AAA', score: number, ts: number }
+// Cap at 100 per mode (oldest-lowest evicted), shared across the device.
+export const LEADERBOARD_CAP = 100;
 
 // Migrations are keyed by the version they UPGRADE TO. To go from v(N-1) to
 // vN, run migrations[N]. Add new entries here when the schema changes; never
@@ -55,6 +61,14 @@ const MIGRATIONS = {
         store.setItem(STORAGE_KEYS.daily, JSON.stringify(d));
       }
     } catch { /* corrupt blob — leave it; readJSON will fall back later */ }
+  },
+  3: (store) => {
+    // Initialize the empty per-mode leaderboard. v2 users had no concept
+    // of one; seeding it now means qualifiesForLeaderboard short-circuits
+    // to true for the first 100 runs of each mode without any guard.
+    if (!store.getItem(STORAGE_KEYS.leaderboard)) {
+      store.setItem(STORAGE_KEYS.leaderboard, JSON.stringify({ sprint: [], strict: [] }));
+    }
   },
 };
 
@@ -193,6 +207,46 @@ export function createStorage(store) {
     },
     saveLiteMode(on) {
       store.setItem(STORAGE_KEYS.liteMode, on ? 'true' : 'false');
+    },
+
+    // ── Leaderboard (arcade-cabinet style, per-device) ─────────────────
+    // Shape: { sprint: Entry[], strict: Entry[] } where Entry is
+    // { initials: 'AAA', score: number, ts: epoch-ms }.
+    // Sorted desc by score. Cap of 100 per mode, lowest evicted on overflow.
+    getLeaderboard(mode) {
+      const lb = readJSON(store, STORAGE_KEYS.leaderboard, {});
+      return Array.isArray(lb[mode]) ? lb[mode] : [];
+    },
+    // Returns the rank (1-based) the new entry would land at, or null if
+    // it doesn't qualify for the top LEADERBOARD_CAP.
+    leaderboardRankFor(mode, score) {
+      const list = this.getLeaderboard(mode);
+      if (list.length < LEADERBOARD_CAP) {
+        // Always qualifies if there's room.
+        let rank = 1;
+        for (const e of list) { if (e.score >= score) rank++; else break; }
+        return rank;
+      }
+      const lowest = list[list.length - 1].score;
+      if (score <= lowest) return null;
+      let rank = 1;
+      for (const e of list) { if (e.score >= score) rank++; else break; }
+      return rank;
+    },
+    qualifiesForLeaderboard(mode, score) {
+      return this.leaderboardRankFor(mode, score) !== null;
+    },
+    saveLeaderboardEntry(mode, initials, score, nowMs = Date.now()) {
+      const lb = readJSON(store, STORAGE_KEYS.leaderboard, {});
+      const list = Array.isArray(lb[mode]) ? lb[mode] : [];
+      // Normalize initials: 3 uppercase A-Z chars, padded if short.
+      const clean = String(initials || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'A');
+      list.push({ initials: clean, score: Number(score) | 0, ts: nowMs });
+      list.sort((a, b) => b.score - a.score || a.ts - b.ts);
+      if (list.length > LEADERBOARD_CAP) list.length = LEADERBOARD_CAP;
+      lb[mode] = list;
+      writeJSON(store, STORAGE_KEYS.leaderboard, lb);
+      return list.findIndex(e => e.ts === nowMs && e.initials === clean && e.score === (Number(score) | 0)) + 1;
     },
 
     // ── Install-banner snooze ──────────────────────────────────────────

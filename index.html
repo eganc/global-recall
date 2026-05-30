@@ -373,6 +373,85 @@ body { font-family: var(--font-body); color: var(--text); }
   font-family: 'Inter', system-ui, sans-serif; font-size: 12px;
   color: var(--text-muted); line-height: 1.5;
 }
+
+/* ── LEADERBOARD + INITIALS ── */
+#initials-prompt {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  margin: 8px 0 12px;
+  padding: 12px;
+  background: var(--surface);
+  border: 3px solid var(--amber); box-shadow: var(--shadow);
+}
+.initials-label {
+  font-family: var(--font-head); font-weight: 900; font-size: 18px;
+  color: var(--amber); letter-spacing: 3px;
+}
+.initials-sub {
+  font-family: var(--font-head); font-size: 10px;
+  color: var(--text-muted); letter-spacing: 2px;
+}
+#initials-input {
+  font-family: var(--font-head); font-weight: 900; font-size: 32px;
+  letter-spacing: 18px; text-align: center; text-transform: uppercase;
+  background: #000; color: var(--amber);
+  border: 3px solid var(--amber); box-shadow: var(--shadow);
+  padding: 8px 14px 8px 32px; width: 180px; outline: none;
+  caret-color: var(--amber);
+}
+#leaderboard-screen {
+  position: fixed; inset: 0; z-index: 70;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+#leaderboard-inner {
+  width: 100%; max-width: 460px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+#leaderboard-title {
+  font-family: var(--font-head); font-weight: 900; font-size: 22px;
+  letter-spacing: 3px; color: var(--amber); text-align: center;
+}
+#leaderboard-mode-tabs, #leaderboard-range-tabs {
+  display: flex; gap: 6px;
+}
+.lb-tab {
+  flex: 1;
+  font-family: var(--font-head); font-weight: 700; font-size: 11px;
+  letter-spacing: 1.5px; cursor: pointer;
+  background: var(--surface); color: var(--text-muted);
+  border: 2px solid #000; box-shadow: 2px 2px 0 #000;
+  padding: 7px 8px;
+}
+.lb-tab.lb-tab-active { background: var(--blue); color: #fff; border-color: #000; }
+#leaderboard-list {
+  background: var(--surface);
+  border: 3px solid #000; box-shadow: var(--shadow);
+  padding: 8px;
+  min-height: 200px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.lb-row {
+  display: grid;
+  grid-template-columns: 38px 1fr 70px 80px;
+  gap: 8px; align-items: center;
+  padding: 6px 8px;
+  font-family: var(--font-head); font-size: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.lb-row.lb-row-empty {
+  font-style: italic; color: var(--text-muted);
+  grid-template-columns: 1fr; text-align: center;
+}
+.lb-rank   { color: var(--amber); font-weight: 900; }
+.lb-initials { font-weight: 700; letter-spacing: 3px; color: var(--text); }
+.lb-score  { color: var(--mint); font-weight: 900; text-align: right; }
+.lb-date   { color: var(--text-muted); font-size: 11px; text-align: right; }
+.lb-row.lb-row-top1 { background: rgba(245,158,11,0.12); }
+.lb-row.lb-row-top1 .lb-rank { color: #fff; background: var(--amber); border-radius: 2px; text-align: center; }
+
 #start-game-btn {
   font-family: var(--font-head); font-weight: 900; font-size: 20px;
   letter-spacing: 3px; cursor: pointer;
@@ -524,6 +603,7 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="menu-item" id="mode-daily-btn" onclick="setMode('daily')">📅 DAILY CHALLENGE</button>
     <button class="menu-item" id="mode-kids-btn" onclick="setMode('kids')">🎮 EASY MODE</button>
     <button class="menu-item" id="mode-strict-btn" onclick="setMode('strict')">🎯 STRICT</button>
+    <button class="menu-item" onclick="openLeaderboardFromMenu()">🏆 LEADERBOARD</button>
     <button class="menu-item" id="menu-install-btn" onclick="menuInstall()">📲 INSTALL APP</button>
     <button class="menu-item" onclick="toggleMenu()">CLOSE</button>
     <div class="menu-divider" id="menu-build-tag">BUILD —</div>
@@ -576,12 +656,38 @@ body { font-family: var(--font-body); color: var(--text); }
     </div>
   </div>
   <div id="pb-banner" style="display:none">NEW PERSONAL BEST!</div>
+  <div id="initials-prompt" style="display:none">
+    <div class="initials-label" id="initials-rank">RANK #—</div>
+    <div class="initials-sub">ENTER YOUR INITIALS</div>
+    <input id="initials-input" type="text" maxlength="3" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
+    <button class="end-btn primary" onclick="submitInitials()">SAVE</button>
+  </div>
   <div class="end-btns">
     <button class="end-btn primary" onclick="resetGame()">PLAY AGAIN</button>
     <button class="end-btn share" onclick="shareResultCard()">📸 SHARE CARD</button>
     <button class="end-btn secondary" onclick="goToMenu()">↩ MENU</button>
+    <button class="end-btn secondary" id="end-leaderboard-btn" onclick="openLeaderboardFromEnd()">🏆 LEADERBOARD</button>
     <button class="end-btn secondary" id="share-ghost-btn" onclick="shareGhost()">SHARE GHOST</button>
     <button class="end-btn secondary" id="share-daily-btn" style="display:none">SHARE RESULT</button>
+  </div>
+</div>
+
+<!-- Leaderboard Screen -->
+<div id="leaderboard-screen" style="display:none">
+  <div id="leaderboard-inner">
+    <div id="leaderboard-title">🏆 HIGH SCORES</div>
+    <div id="leaderboard-mode-tabs">
+      <button class="lb-tab lb-tab-active" data-lbmode="sprint" onclick="leaderboardSetMode('sprint')">⚡ SPRINT</button>
+      <button class="lb-tab" data-lbmode="strict" onclick="leaderboardSetMode('strict')">🎯 STRICT</button>
+    </div>
+    <div id="leaderboard-range-tabs">
+      <button class="lb-tab lb-tab-active" data-lbrange="all" onclick="leaderboardSetRange('all')">ALL TIME</button>
+      <button class="lb-tab" data-lbrange="week" onclick="leaderboardSetRange('week')">LAST 7 DAYS</button>
+    </div>
+    <div id="leaderboard-list"></div>
+    <div class="end-btns">
+      <button class="end-btn primary" onclick="closeLeaderboard()">↩ BACK</button>
+    </div>
   </div>
 </div>
 
@@ -640,6 +746,7 @@ body { font-family: var(--font-body); color: var(--text); }
       </button>
     </div>
     <button id="start-game-btn" onclick="launchFromMenu()">START GAME</button>
+    <button id="start-leaderboard-btn" class="end-btn secondary" onclick="openLeaderboardFromStart()">🏆 HIGH SCORES</button>
     <div id="start-hint">SELECT A MODE TO BEGIN YOUR EXPEDITION</div>
     <div id="menu-intel-card">
       <div class="intel-label">// INTEL</div>
@@ -1227,7 +1334,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v41';
+const BUILD_VERSION = 'v42';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -1260,7 +1367,8 @@ const STRICT_IDLE_MS = 10000;
 // the day we want cloud sync, only this block has to change.
 // ═══════════════════════════════════════════════════════════════
 const Storage = (function() {
-  const SCHEMA_VERSION = 2;
+  const SCHEMA_VERSION = 3;
+  const LEADERBOARD_CAP = 100;
   const K = {
     schemaVersion:    'gr_schema_version',
     ghost:            'gr_ghost',
@@ -1270,6 +1378,7 @@ const Storage = (function() {
     style:            'gr_style',
     installDismissed: 'gr_install_dismissed',
     liteMode:         'gr_lite_mode',
+    leaderboard:      'gr_leaderboard',
   };
   const MIGRATIONS = {
     1: (_s) => { /* v1 is the initial stamped schema — no-op */ },
@@ -1285,6 +1394,13 @@ const Storage = (function() {
           localStorage.setItem(K.daily, JSON.stringify(d));
         }
       } catch {}
+    },
+    3: (_s) => {
+      // Initialize the empty per-mode leaderboard. Without this seed the
+      // qualifies-check has to handle "no key" as a special case.
+      if (!localStorage.getItem(K.leaderboard)) {
+        localStorage.setItem(K.leaderboard, JSON.stringify({ sprint: [], strict: [] }));
+      }
     },
   };
   const readJSON = (k, fb) => {
@@ -1354,6 +1470,38 @@ const Storage = (function() {
     getInstallDismissedAt: () => readInt(K.installDismissed),
     snoozeInstall:    (nowMs = Date.now()) => localStorage.setItem(K.installDismissed, String(nowMs)),
     clearInstallSnooze: () => localStorage.removeItem(K.installDismissed),
+    // ── Leaderboard (arcade cabinet, per-device) ─────────────────────
+    getLeaderboard(mode) {
+      const lb = readJSON(K.leaderboard, {});
+      return Array.isArray(lb[mode]) ? lb[mode] : [];
+    },
+    leaderboardRankFor(mode, score) {
+      const list = this.getLeaderboard(mode);
+      if (list.length < LEADERBOARD_CAP) {
+        let rank = 1;
+        for (const e of list) { if (e.score >= score) rank++; else break; }
+        return rank;
+      }
+      const lowest = list[list.length - 1].score;
+      if (score <= lowest) return null;
+      let rank = 1;
+      for (const e of list) { if (e.score >= score) rank++; else break; }
+      return rank;
+    },
+    qualifiesForLeaderboard(mode, score) {
+      return this.leaderboardRankFor(mode, score) !== null;
+    },
+    saveLeaderboardEntry(mode, initials, score, nowMs = Date.now()) {
+      const lb = readJSON(K.leaderboard, {});
+      const list = Array.isArray(lb[mode]) ? lb[mode] : [];
+      const clean = String(initials || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'A');
+      list.push({ initials: clean, score: Number(score) | 0, ts: nowMs });
+      list.sort((a, b) => b.score - a.score || a.ts - b.ts);
+      if (list.length > LEADERBOARD_CAP) list.length = LEADERBOARD_CAP;
+      lb[mode] = list;
+      writeJSON(K.leaderboard, lb);
+      return list.findIndex(e => e.ts === nowMs && e.initials === clean && e.score === (Number(score) | 0)) + 1;
+    },
   };
 })();
 
@@ -2407,6 +2555,7 @@ function endGame() {
     } else pb.style.display = 'none';
     shareGhostBtn.style.display = 'none';
     shareDailyBtn.style.display = 'none';
+    pendingLeaderboardEntry = { mode: 'sprint', score: count };
 
   } else if (currentMode === 'daily') {
     const elapsed = (Date.now() - sessionStart) / 1000;
@@ -2453,6 +2602,7 @@ function endGame() {
       `${strictPerfect} on sight · ${strictHinted} with hints · ${strictMissed} missed`;
     shareGhostBtn.style.display = 'none';
     shareDailyBtn.style.display = 'none';
+    pendingLeaderboardEntry = { mode: 'strict', score: strictPerfect };
 
   } else {
     const elapsed = (Date.now() - sessionStart) / 1000;
@@ -2472,11 +2622,136 @@ function endGame() {
   document.getElementById('end-headline').textContent = headline;
   document.getElementById('end-count').textContent = countText;
   document.getElementById('end-time').textContent = timeText;
+
+  // Arcade leaderboard: surface the initials prompt only when the score
+  // would actually land on the board. Below 1 we never bother — typing
+  // "AAA" for a zero would just feel mean.
+  const lbScreen = document.getElementById('initials-prompt');
+  const lbBtn = document.getElementById('end-leaderboard-btn');
+  if (pendingLeaderboardEntry && pendingLeaderboardEntry.score >= 1) {
+    const rank = Storage.leaderboardRankFor(pendingLeaderboardEntry.mode, pendingLeaderboardEntry.score);
+    if (rank) {
+      lbScreen.style.display = 'flex';
+      document.getElementById('initials-rank').textContent = `RANK #${rank}`;
+      document.getElementById('initials-input').value = '';
+      // Focus delay — without it the keyboard pops over the headline
+      // before the user even sees they got on the board.
+      setTimeout(() => document.getElementById('initials-input').focus(), 400);
+    } else {
+      lbScreen.style.display = 'none';
+    }
+  } else {
+    lbScreen.style.display = 'none';
+  }
+  if (lbBtn) lbBtn.style.display = (pendingLeaderboardEntry ? '' : 'none');
+
   document.getElementById('end-screen').style.display = 'flex';
 }
 
+// Captured at endGame time, consumed by submitInitials. Cleared on
+// resetGame / goToMenu / submit so the prompt never lingers across runs.
+let pendingLeaderboardEntry = null;
+
+function submitInitials() {
+  if (!pendingLeaderboardEntry) return;
+  const raw = document.getElementById('initials-input').value || '';
+  // Empty / unfilled → bail without saving. The board only deserves
+  // entries the player chose to commit.
+  if (!raw.replace(/[^A-Za-z]/g, '').length) {
+    document.getElementById('initials-prompt').style.display = 'none';
+    pendingLeaderboardEntry = null;
+    return;
+  }
+  Storage.saveLeaderboardEntry(pendingLeaderboardEntry.mode, raw, pendingLeaderboardEntry.score);
+  pendingLeaderboardEntry = null;
+  document.getElementById('initials-prompt').style.display = 'none';
+  // Slide straight into the leaderboard so they see their entry.
+  openLeaderboard(currentMode === 'strict' ? 'strict' : 'sprint', 'all');
+}
+
+let leaderboardCurMode = 'sprint';
+let leaderboardCurRange = 'all';
+let leaderboardReturnTo = 'menu';  // where the BACK button should land
+
+function openLeaderboardFromEnd()   { leaderboardReturnTo = 'end';   openLeaderboard(currentMode === 'strict' ? 'strict' : 'sprint', 'all'); }
+function openLeaderboardFromMenu()  { toggleMenu(); leaderboardReturnTo = 'app'; openLeaderboard(leaderboardCurMode, leaderboardCurRange); }
+function openLeaderboardFromStart() { leaderboardReturnTo = 'start'; openLeaderboard(leaderboardCurMode, leaderboardCurRange); }
+
+function openLeaderboard(mode, range) {
+  leaderboardCurMode = mode;
+  leaderboardCurRange = range;
+  document.getElementById('leaderboard-screen').style.display = 'flex';
+  document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('lb-tab-active'));
+  const mt = document.querySelector(`.lb-tab[data-lbmode="${mode}"]`);
+  const rt = document.querySelector(`.lb-tab[data-lbrange="${range}"]`);
+  if (mt) mt.classList.add('lb-tab-active');
+  if (rt) rt.classList.add('lb-tab-active');
+  renderLeaderboard();
+}
+function leaderboardSetMode(m)  { leaderboardCurMode = m;  openLeaderboard(m, leaderboardCurRange); }
+function leaderboardSetRange(r) { leaderboardCurRange = r; openLeaderboard(leaderboardCurMode, r); }
+
+function renderLeaderboard() {
+  const list = Storage.getLeaderboard(leaderboardCurMode);
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const filtered = leaderboardCurRange === 'week'
+    ? list.filter(e => e.ts >= cutoff)
+    : list;
+  const el = document.getElementById('leaderboard-list');
+  el.innerHTML = '';
+  if (!filtered.length) {
+    const row = document.createElement('div');
+    row.className = 'lb-row lb-row-empty';
+    row.textContent = leaderboardCurRange === 'week'
+      ? 'NO SCORES THIS WEEK · BE THE FIRST'
+      : 'NO SCORES YET · PLAY A ROUND';
+    el.appendChild(row);
+    return;
+  }
+  filtered.slice(0, 50).forEach((e, i) => {
+    const row = document.createElement('div');
+    row.className = 'lb-row' + (i === 0 ? ' lb-row-top1' : '');
+    const d = new Date(e.ts);
+    const dateStr = `${d.getFullYear().toString().slice(-2)}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    row.innerHTML = `
+      <div class="lb-rank">#${i + 1}</div>
+      <div class="lb-initials">${e.initials}</div>
+      <div class="lb-score">${e.score}</div>
+      <div class="lb-date">${dateStr}</div>
+    `;
+    el.appendChild(row);
+  });
+}
+
+function closeLeaderboard() {
+  document.getElementById('leaderboard-screen').style.display = 'none';
+  // Return to where we came from.
+  if (leaderboardReturnTo === 'end') {
+    document.getElementById('end-screen').style.display = 'flex';
+  } else if (leaderboardReturnTo === 'start') {
+    document.getElementById('start-menu').style.display = 'flex';
+  }
+  // 'menu' / 'app' just close back to the live game underneath.
+}
+
+// Initials input — keep it normalized to A-Z, max 3, uppercase, as the
+// user types. classic arcade input feel.
+document.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('initials-input');
+  if (!el) return;
+  el.addEventListener('input', () => {
+    const clean = el.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+    if (el.value !== clean) el.value = clean;
+  });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && el.value.length >= 1) { e.preventDefault(); submitInitials(); }
+  });
+});
+
 function resetGame() {
   document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('initials-prompt').style.display = 'none';
+  pendingLeaderboardEntry = null;
   document.getElementById('chip-strip').innerHTML = '';
   startGame(); // restart same mode, skip menu
 }
@@ -3156,6 +3431,8 @@ function launchFromMenu() {
 
 function goToMenu() {
   document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('initials-prompt').style.display = 'none';
+  pendingLeaderboardEntry = null;
   document.getElementById('chip-strip').innerHTML = '';
   showStartMenu();
 }
