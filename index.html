@@ -676,6 +676,10 @@ body { font-family: var(--font-body); color: var(--text); }
 <div id="leaderboard-screen" style="display:none">
   <div id="leaderboard-inner">
     <div id="leaderboard-title">🏆 HIGH SCORES</div>
+    <div id="leaderboard-scope-tabs">
+      <button class="lb-tab lb-tab-active" data-lbscope="local" onclick="leaderboardSetScope('local')">🏠 LOCAL</button>
+      <button class="lb-tab" data-lbscope="global" onclick="leaderboardSetScope('global')">🌍 GLOBAL</button>
+    </div>
     <div id="leaderboard-mode-tabs">
       <button class="lb-tab lb-tab-active" data-lbmode="sprint" onclick="leaderboardSetMode('sprint')">⚡ SPRINT</button>
       <button class="lb-tab" data-lbmode="strict" onclick="leaderboardSetMode('strict')">🎯 STRICT</button>
@@ -1334,7 +1338,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v43';
+const BUILD_VERSION = 'v44';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -2671,53 +2675,89 @@ function submitInitials() {
     pendingLeaderboardEntry = null;
     return;
   }
-  Storage.saveLeaderboardEntry(pendingLeaderboardEntry.mode, raw, pendingLeaderboardEntry.score);
+  const { mode, score } = pendingLeaderboardEntry;
+  Storage.saveLeaderboardEntry(mode, raw, score);
+  // Fire-and-forget global sync. The local board is the player's truth;
+  // the server is best-effort. If it fails (offline, KV unprovisioned,
+  // 503), the player still sees their local high score with no error.
+  syncToGlobalLeaderboard(mode, raw, score).catch(() => {});
+  // Bust the global cache for this mode so the next GLOBAL tab open
+  // shows the freshly-submitted entry without a stale window.
+  globalCache[mode] = null;
   pendingLeaderboardEntry = null;
   document.getElementById('initials-prompt').style.display = 'none';
   // Slide straight into the leaderboard so they see their entry.
-  openLeaderboard(currentMode === 'strict' ? 'strict' : 'sprint', 'all');
+  openLeaderboard(currentMode === 'strict' ? 'strict' : 'sprint', leaderboardCurRange, 'local');
 }
 
-let leaderboardCurMode = 'sprint';
+let leaderboardCurMode  = 'sprint';
 let leaderboardCurRange = 'all';
-let leaderboardReturnTo = 'menu';  // where the BACK button should land
+let leaderboardCurScope = 'local';
+let leaderboardReturnTo = 'menu';   // where the BACK button should land
+let globalCache = {};                // { mode: { entries, fetchedAt } | null }
+const GLOBAL_CACHE_MS = 30 * 1000;   // 30s — enough to flip tabs cheaply
 
-function openLeaderboardFromEnd()   { leaderboardReturnTo = 'end';   openLeaderboard(currentMode === 'strict' ? 'strict' : 'sprint', 'all'); }
-function openLeaderboardFromMenu()  { toggleMenu(); leaderboardReturnTo = 'app'; openLeaderboard(leaderboardCurMode, leaderboardCurRange); }
-function openLeaderboardFromStart() { leaderboardReturnTo = 'start'; openLeaderboard(leaderboardCurMode, leaderboardCurRange); }
+async function syncToGlobalLeaderboard(mode, initials, score) {
+  try {
+    const res = await fetch('/api/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, initials, score }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
 
-function openLeaderboard(mode, range) {
-  leaderboardCurMode = mode;
+async function fetchGlobalLeaderboard(mode) {
+  try {
+    const res = await fetch(`/api/leaderboard?mode=${encodeURIComponent(mode)}`);
+    if (!res.ok) return { ok: false, status: res.status, entries: [] };
+    const data = await res.json();
+    return { ok: true, entries: Array.isArray(data.entries) ? data.entries : [] };
+  } catch { return { ok: false, status: 0, entries: [] }; }
+}
+
+function openLeaderboardFromEnd()   { leaderboardReturnTo = 'end';   openLeaderboard(currentMode === 'strict' ? 'strict' : 'sprint', 'all', leaderboardCurScope); }
+function openLeaderboardFromMenu()  { toggleMenu(); leaderboardReturnTo = 'app';   openLeaderboard(leaderboardCurMode, leaderboardCurRange, leaderboardCurScope); }
+function openLeaderboardFromStart() { leaderboardReturnTo = 'start'; openLeaderboard(leaderboardCurMode, leaderboardCurRange, leaderboardCurScope); }
+
+function openLeaderboard(mode, range, scope) {
+  leaderboardCurMode  = mode;
   leaderboardCurRange = range;
+  if (scope) leaderboardCurScope = scope;
   document.getElementById('leaderboard-screen').style.display = 'flex';
   document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('lb-tab-active'));
-  const mt = document.querySelector(`.lb-tab[data-lbmode="${mode}"]`);
-  const rt = document.querySelector(`.lb-tab[data-lbrange="${range}"]`);
+  const mt = document.querySelector(`.lb-tab[data-lbmode="${leaderboardCurMode}"]`);
+  const rt = document.querySelector(`.lb-tab[data-lbrange="${leaderboardCurRange}"]`);
+  const st = document.querySelector(`.lb-tab[data-lbscope="${leaderboardCurScope}"]`);
   if (mt) mt.classList.add('lb-tab-active');
   if (rt) rt.classList.add('lb-tab-active');
+  if (st) st.classList.add('lb-tab-active');
   renderLeaderboard();
 }
-function leaderboardSetMode(m)  { leaderboardCurMode = m;  openLeaderboard(m, leaderboardCurRange); }
-function leaderboardSetRange(r) { leaderboardCurRange = r; openLeaderboard(leaderboardCurMode, r); }
+function leaderboardSetMode(m)  { openLeaderboard(m, leaderboardCurRange, leaderboardCurScope); }
+function leaderboardSetRange(r) { openLeaderboard(leaderboardCurMode, r, leaderboardCurScope); }
+function leaderboardSetScope(s) { openLeaderboard(leaderboardCurMode, leaderboardCurRange, s); }
 
-function renderLeaderboard() {
-  const list = Storage.getLeaderboard(leaderboardCurMode);
-  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const filtered = leaderboardCurRange === 'week'
-    ? list.filter(e => e.ts >= cutoff)
-    : list;
+function renderLeaderboardRows(entries, emptyMsg, errorMsg) {
   const el = document.getElementById('leaderboard-list');
   el.innerHTML = '';
-  if (!filtered.length) {
+  if (errorMsg) {
     const row = document.createElement('div');
     row.className = 'lb-row lb-row-empty';
-    row.textContent = leaderboardCurRange === 'week'
-      ? 'NO SCORES THIS WEEK · BE THE FIRST'
-      : 'NO SCORES YET · PLAY A ROUND';
+    row.textContent = errorMsg;
     el.appendChild(row);
     return;
   }
-  filtered.slice(0, 50).forEach((e, i) => {
+  if (!entries.length) {
+    const row = document.createElement('div');
+    row.className = 'lb-row lb-row-empty';
+    row.textContent = emptyMsg;
+    el.appendChild(row);
+    return;
+  }
+  entries.slice(0, 50).forEach((e, i) => {
     const row = document.createElement('div');
     row.className = 'lb-row' + (i === 0 ? ' lb-row-top1' : '');
     const d = new Date(e.ts);
@@ -2730,6 +2770,47 @@ function renderLeaderboard() {
     `;
     el.appendChild(row);
   });
+}
+
+async function renderLeaderboard() {
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  if (leaderboardCurScope === 'local') {
+    const list = Storage.getLeaderboard(leaderboardCurMode);
+    const filtered = leaderboardCurRange === 'week' ? list.filter(e => e.ts >= cutoff) : list;
+    renderLeaderboardRows(
+      filtered,
+      leaderboardCurRange === 'week' ? 'NO LOCAL SCORES THIS WEEK · PLAY A ROUND' : 'NO LOCAL SCORES YET · PLAY A ROUND'
+    );
+    return;
+  }
+
+  // Global. Show a loading state, then resolve.
+  renderLeaderboardRows([], 'LOADING…', null);
+  const cached = globalCache[leaderboardCurMode];
+  let result;
+  if (cached && Date.now() - cached.fetchedAt < GLOBAL_CACHE_MS) {
+    result = { ok: true, entries: cached.entries };
+  } else {
+    result = await fetchGlobalLeaderboard(leaderboardCurMode);
+    if (result.ok) globalCache[leaderboardCurMode] = { entries: result.entries, fetchedAt: Date.now() };
+  }
+  // If the user flipped tabs while the fetch was in flight, bail.
+  if (leaderboardCurScope !== 'global') return;
+  if (!result.ok) {
+    const msg = result.status === 503
+      ? 'GLOBAL BOARD NOT YET LIVE'
+      : 'GLOBAL BOARD UNAVAILABLE · OFFLINE?';
+    renderLeaderboardRows([], '', msg);
+    return;
+  }
+  const filtered = leaderboardCurRange === 'week'
+    ? result.entries.filter(e => e.ts >= cutoff)
+    : result.entries;
+  renderLeaderboardRows(
+    filtered,
+    leaderboardCurRange === 'week' ? 'NO GLOBAL SCORES THIS WEEK · BE THE FIRST' : 'NO GLOBAL SCORES YET · BE THE FIRST'
+  );
 }
 
 function closeLeaderboard() {

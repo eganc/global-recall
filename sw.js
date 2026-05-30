@@ -1,4 +1,4 @@
-const CACHE = 'global-recall-v43';
+const CACHE = 'global-recall-v44';
 
 // CACHE CHECKLIST: when adding new JS module files, add their paths here AND
 // bump the CACHE version string above. Silent stale-cache failures on deploy
@@ -35,6 +35,14 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // /api/* is the leaderboard — always live, never cached. Otherwise a
+  // GET /api/leaderboard?mode=sprint result would freeze on whatever
+  // snapshot landed first.
+  const url = new URL(e.request.url);
+  if (url.pathname.startsWith('/api/')) {
+    e.respondWith(fetch(e.request).catch(() => new Response('{"error":"offline"}', { status: 503 })));
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
