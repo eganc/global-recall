@@ -599,7 +599,7 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="menu-item" id="menu-style-blue" onclick="menuSetStyle('blue')">🌍 CLASSIC</button>
     <div class="menu-divider">MODES</div>
     <button class="menu-item mode-active" id="mode-nameall-btn" onclick="setMode('name-all')">◎ NAME ALL</button>
-    <button class="menu-item" id="mode-sprint-btn" onclick="setMode('sprint')">⏱ SPRINT · 5 MIN</button>
+    <button class="menu-item" id="mode-sprint-btn" onclick="setMode('sprint')">⏱ SPRINT · 1 MIN</button>
     <button class="menu-item" id="mode-daily-btn" onclick="setMode('daily')">📅 DAILY CHALLENGE</button>
     <button class="menu-item" id="mode-kids-btn" onclick="setMode('kids')">🎮 EASY MODE</button>
     <button class="menu-item" id="mode-strict-btn" onclick="setMode('strict')">🎯 STRICT</button>
@@ -721,7 +721,7 @@ body { font-family: var(--font-body); color: var(--text); }
           <span class="mode-tile-icon">⚡</span>
           <span class="mode-tile-num">MODE 02</span>
         </div>
-        <div class="mode-tile-name">SPRINT · 5 MIN</div>
+        <div class="mode-tile-name">SPRINT · 1 MIN</div>
         <div class="mode-tile-stat" id="stat-sprint">BEST: — COUNTRIES</div>
       </button>
       <button class="mode-tile" id="tile-daily" onclick="selectMenuMode('daily')">
@@ -1338,7 +1338,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v44';
+const BUILD_VERSION = 'v45';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -2455,7 +2455,7 @@ function startGame() {
   } else if (currentMode === 'sprint') {
     dailyTarget = [];
     modeTotal = TOTAL;
-    sprintEnd = Date.now() + 300000;
+    sprintEnd = Date.now() + 60000;
   } else if (currentMode === 'kids') {
     dailyTarget = [];
     modeTotal = KIDS_ROUNDS;
@@ -2513,7 +2513,7 @@ function startGame() {
         const remaining = Math.max(0, (sprintEnd - now) / 1000);
         const el = document.getElementById('timer-display');
         el.textContent = fmt(remaining);
-        el.classList.toggle('danger', remaining <= 30);
+        el.classList.toggle('danger', remaining <= 10);
         if (remaining <= 0) { isRunning = false; endGame(); return; }
       } else {
         document.getElementById('timer-display').textContent = fmt(elapsed);
@@ -2555,11 +2555,11 @@ function endGame() {
   let headline, countText, timeText;
 
   if (currentMode === 'sprint') {
-    const elapsed = 300;
+    const elapsed = 60;
     const { isNewPB, prev } = Storage.saveSprintResult(count);
     headline = "TIME'S UP!";
     countText = `${count}/${TOTAL}`;
-    timeText = '5:00';
+    timeText = '1:00';
     if (isNewPB) {
       pb.style.display = ''; pb.textContent = 'NEW SPRINT RECORD!';
     } else if (prev > 0) {
