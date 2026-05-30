@@ -1227,7 +1227,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v40';
+const BUILD_VERSION = 'v41';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -1242,13 +1242,17 @@ let kidsChoices = [];
 //   strike 1 → capital city (+ local script, if non-Latin)
 //   strike 2 → first letter and length (e.g. "STARTS WITH P · 4 LETTERS")
 //   strike 3 → reveal the name, counts as a miss
-let strictQueue   = [];   // shuffled pool of country objs
-let strictIdx     = 0;
-let strictAttempt = 0;
-let strictTarget  = null;
-let strictPerfect = 0;
-let strictHinted  = 0;
-let strictMissed  = 0;
+// Plus a 10-second idle auto-hint: drawing a blank shouldn't force you
+// to type a wrong country to get the next clue.
+let strictQueue     = [];   // shuffled pool of country objs
+let strictIdx       = 0;
+let strictAttempt   = 0;
+let strictTarget    = null;
+let strictPerfect   = 0;
+let strictHinted    = 0;
+let strictMissed    = 0;
+let strictIdleTimer = null;
+const STRICT_IDLE_MS = 10000;
 
 // ═══════════════════════════════════════════════════════════════
 // STORAGE — mirror of src/storage.js (which has the tests).
@@ -2378,6 +2382,7 @@ function updateGhostProgress(elapsed) {
 function endGame() {
   isRunning = false;
   stopBlink();
+  strictClearIdleTimer();
   cancelAnimationFrame(animRaf);
   const count = namedList.length;
   const pb = document.getElementById('pb-banner');
@@ -2786,8 +2791,28 @@ function strictShowHint(level, target) {
     l.textContent = '';
   }
 }
+// Idle auto-hint — if the player hasn't typed anything in 10s, burn a
+// strike for them so the next hint surfaces without having to type a
+// country they already know is wrong.
+function strictClearIdleTimer() {
+  if (strictIdleTimer) { clearTimeout(strictIdleTimer); strictIdleTimer = null; }
+}
+function strictResetIdleTimer() {
+  strictClearIdleTimer();
+  if (currentMode !== 'strict' || !isRunning || !strictTarget) return;
+  strictIdleTimer = setTimeout(() => {
+    if (currentMode !== 'strict' || !isRunning || !strictTarget) return;
+    // Drain whatever's in the input so the next hint isn't shouted on
+    // top of a half-typed word.
+    document.getElementById('cinput').value = '';
+    toast('STUCK? HERE\'S A HINT');
+    strictWrong();
+  }, STRICT_IDLE_MS);
+}
+
 function strictAdvance() {
   strictClearHint();
+  strictClearIdleTimer();
   strictAttempt = 0;
   if (strictIdx >= strictQueue.length) { endGame(); return; }
   strictTarget = strictQueue[strictIdx];
@@ -2809,6 +2834,7 @@ function strictAdvance() {
   strictUpdateProgress();
   document.getElementById('cinput').value = '';
   document.getElementById('cinput').focus();
+  strictResetIdleTimer();
 }
 function strictAdvanceAfterReveal() {
   // 2s pause after reveal so the user can read the country name.
@@ -2837,6 +2863,7 @@ function strictCorrect() {
   strictAdvance();
 }
 function strictWrong() {
+  strictClearIdleTimer();
   strictAttempt++;
   strictUpdateStrikes();
   if (strictAttempt >= 3) {
@@ -2847,6 +2874,7 @@ function strictWrong() {
     strictAdvanceAfterReveal();
   } else {
     strictShowHint(strictAttempt, strictTarget);
+    strictResetIdleTimer();
   }
 }
 
@@ -2872,18 +2900,18 @@ document.getElementById('cinput').addEventListener('input', function() {
 
   // STRICT mode runs through its own one-target-at-a-time matcher so that
   // (a) the target country must be named, and (b) any other typed
-  // country burns a strike. We still rely on findMatch for fuzzy + alias
-  // matching against the active target, plus a structural check against
-  // named/unnamed countries to detect a wrong-but-valid guess.
-  if (currentMode === 'strict' && strictTarget) {
+  // country burns a strike. We DON'T fall through to findMatch — that
+  // would let a wrong guess fly the camera, defeating the mode.
+  if (currentMode === 'strict') {
+    strictResetIdleTimer();
+    if (!strictTarget) return;
     const inp = norm(this.value);
     if (inp.length < 3) return;
     const tgtNames = [norm(strictTarget.canonical), ...strictTarget.aliases.map(norm)];
-    // Exact / fuzzy match against the target — accept the answer.
     let isTarget = tgtNames.includes(inp);
     if (!isTarget) {
       for (const n of tgtNames) {
-        if (n.length >= 8 && inp.length >= n.length && inp.length <= n.length + 1 && lev(inp, n) === 1) { isTarget = true; break; }
+        if (n.length >= 8  && inp.length >= n.length && inp.length <= n.length + 1 && lev(inp, n) === 1) { isTarget = true; break; }
         if (n.length >= 12 && inp.length >= n.length && inp.length <= n.length + 1 && lev(inp, n) <= 2) { isTarget = true; break; }
       }
     }
@@ -2892,20 +2920,28 @@ document.getElementById('cinput').addEventListener('input', function() {
       strictCorrect();
       return;
     }
-    // Did they type some OTHER country exactly? That burns a strike.
-    // Prefix-tolerant: don't burn while they're still typing a longer
-    // country name that hasn't completed yet.
+    // Did they type some OTHER country (with fuzzy/typo tolerance)?
+    // Also tolerates a prefix that hasn't been completed yet — we only
+    // burn a strike when the typed input could plausibly be a finished
+    // country name, not when they're mid-word.
+    let other = null;
     for (const c of countries) {
       if (c === strictTarget) continue;
       const names = [norm(c.canonical), ...c.aliases.map(norm)];
       for (const n of names) {
-        if (n === inp) {
-          this.value = '';
-          toast(`✗ ${c.canonical.toUpperCase()}`);
-          strictWrong();
-          return;
+        if (n === inp) { other = c; break; }
+        if (n.length >= 7 && inp.length >= n.length && inp.length <= n.length + 1) {
+          const d = lev(inp, n);
+          if (n.length >= 8  && d === 1) { other = c; break; }
+          if (n.length >= 12 && d <= 2)  { other = c; break; }
         }
       }
+      if (other) break;
+    }
+    if (other) {
+      this.value = '';
+      toast(`✗ ${other.canonical.toUpperCase()}`);
+      strictWrong();
     }
     return;
   }
