@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createStorage, SCHEMA_VERSION, STORAGE_KEYS } from './storage.js';
+import { createStorage, SCHEMA_VERSION, STORAGE_KEYS, localDayNumber } from './storage.js';
 
 // Build a fresh in-memory store, optionally pre-seeded with raw key/value pairs
 // to simulate a returning user with v0 (unstamped) data.
@@ -137,10 +137,15 @@ describe('sprint best', () => {
 
 describe('daily', () => {
   const DAY = 86400000;
+  // Noon UTC of day N — falls on the same LOCAL calendar day for every
+  // timezone between UTC-12 and UTC+12, which covers anywhere a human
+  // actually plays from. saveDailyResult uses local-day math now, so
+  // tests that just want to express "day N" should anchor at noon UTC.
+  const noonOf = (n) => n * DAY + 12 * 3600 * 1000;
 
   it('first ever play sets streak=1', () => {
     const s = createStorage(makeStore());
-    const next = s.saveDailyResult(8, 10, 100 * DAY);
+    const next = s.saveDailyResult(8, 10, noonOf(100));
     expect(next.streak).toBe(1);
     expect(next.lastScore).toBe(8);
     expect(next.lastTotal).toBe(10);
@@ -148,23 +153,23 @@ describe('daily', () => {
 
   it('consecutive day increments streak', () => {
     const s = createStorage(makeStore());
-    s.saveDailyResult(8, 10, 100 * DAY);
-    const next = s.saveDailyResult(9, 10, 101 * DAY);
+    s.saveDailyResult(8, 10, noonOf(100));
+    const next = s.saveDailyResult(9, 10, noonOf(101));
     expect(next.streak).toBe(2);
   });
 
   it('gap of more than one day resets streak to 1', () => {
     const s = createStorage(makeStore());
-    s.saveDailyResult(8, 10, 100 * DAY);
-    s.saveDailyResult(9, 10, 101 * DAY);
-    const next = s.saveDailyResult(5, 10, 105 * DAY);
+    s.saveDailyResult(8, 10, noonOf(100));
+    s.saveDailyResult(9, 10, noonOf(101));
+    const next = s.saveDailyResult(5, 10, noonOf(105));
     expect(next.streak).toBe(1);
   });
 
   it('second save on the same day is a no-op', () => {
     const s = createStorage(makeStore());
-    s.saveDailyResult(8, 10, 100 * DAY);
-    const next = s.saveDailyResult(10, 10, 100 * DAY);
+    s.saveDailyResult(8, 10, noonOf(100));
+    const next = s.saveDailyResult(10, 10, noonOf(100));
     expect(next.streak).toBe(1);
     expect(next.lastScore).toBe(8);  // not overwritten
     expect(next.isNewBest).toBe(false);
@@ -172,13 +177,13 @@ describe('daily', () => {
 
   it('tracks longestStreak as a high-water mark', () => {
     const s = createStorage(makeStore());
-    s.saveDailyResult(5, 10, 100 * DAY);
-    s.saveDailyResult(6, 10, 101 * DAY);
-    s.saveDailyResult(7, 10, 102 * DAY);
+    s.saveDailyResult(5, 10, noonOf(100));
+    s.saveDailyResult(6, 10, noonOf(101));
+    s.saveDailyResult(7, 10, noonOf(102));
     expect(s.getDaily().streak).toBe(3);
     expect(s.getDaily().longestStreak).toBe(3);
     // Break the streak — longestStreak stays at 3.
-    const broken = s.saveDailyResult(4, 10, 110 * DAY);
+    const broken = s.saveDailyResult(4, 10, noonOf(110));
     expect(broken.streak).toBe(1);
     expect(broken.longestStreak).toBe(3);
   });
@@ -186,22 +191,43 @@ describe('daily', () => {
   it('reports isNewBest only when current crosses longest AND streak > 1', () => {
     const s = createStorage(makeStore());
     // Day 1 — streak goes 0→1. Not "new best" — first daily is not a milestone.
-    const first = s.saveDailyResult(5, 10, 100 * DAY);
+    const first = s.saveDailyResult(5, 10, noonOf(100));
     expect(first.isNewBest).toBe(false);
     // Day 2 — streak 1→2. Crosses prior longest (1). NEW BEST.
-    const second = s.saveDailyResult(6, 10, 101 * DAY);
+    const second = s.saveDailyResult(6, 10, noonOf(101));
     expect(second.isNewBest).toBe(true);
     expect(second.longestStreak).toBe(2);
     // Day 3 — streak 2→3. Crosses prior longest (2). NEW BEST.
-    const third = s.saveDailyResult(7, 10, 102 * DAY);
+    const third = s.saveDailyResult(7, 10, noonOf(102));
     expect(third.isNewBest).toBe(true);
     // Break streak then rebuild — equal to but not exceeding longest = NOT a new best.
-    s.saveDailyResult(4, 10, 110 * DAY);  // streak resets to 1
-    s.saveDailyResult(5, 10, 111 * DAY);  // streak 1→2 — longest is 3
-    const equal = s.saveDailyResult(6, 10, 112 * DAY);  // streak 2→3 — ties longest
+    s.saveDailyResult(4, 10, noonOf(110));  // streak resets to 1
+    s.saveDailyResult(5, 10, noonOf(111));  // streak 1→2 — longest is 3
+    const equal = s.saveDailyResult(6, 10, noonOf(112));  // streak 2→3 — ties longest
     expect(equal.streak).toBe(3);
     expect(equal.isNewBest).toBe(false);   // ties don't count as new best
     expect(equal.longestStreak).toBe(3);
+  });
+
+  it('uses local-day math: noon-UTC of day N falls on the same local day for every realistic TZ', () => {
+    // The streak compare relies on local day. Noon UTC is the safe anchor
+    // because UTC±12 still lands the same calendar date locally.
+    expect(localDayNumber(noonOf(100))).toBe(localDayNumber(noonOf(100) + 1000));
+    // A 36-hour gap MUST cross a local-day boundary (gap >= 1 local day),
+    // regardless of TZ. Used by the regression test below.
+    expect(localDayNumber(noonOf(100)) < localDayNumber(noonOf(100) + 36 * 3600 * 1000)).toBe(true);
+  });
+
+  it('regression: a skipped local day resets the streak even when UTC days look consecutive', () => {
+    // Reproduces the bug a real user hit. Play 1: noon UTC day 100 →
+    // every TZ between UTC-12 and UTC+12 reads this as local day 100.
+    // Play 2: noon UTC day 102 (36-hour gap → at least one local day
+    // skipped, regardless of TZ). Streak MUST reset.
+    const s = createStorage(makeStore());
+    s.saveDailyResult(5, 10, noonOf(100));
+    expect(s.getDaily().streak).toBe(1);
+    const next = s.saveDailyResult(5, 10, noonOf(102));
+    expect(next.streak).toBe(1);  // gap of 2 local days → reset
   });
 });
 

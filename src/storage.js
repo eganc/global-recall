@@ -72,6 +72,17 @@ const MIGRATIONS = {
   },
 };
 
+// Local-calendar day number. The streak comparison MUST use the player's
+// local day, not UTC — otherwise someone in EST playing Monday 11pm
+// (= Tuesday 4am UTC) and Tuesday 11pm (= Wednesday 4am UTC) looks
+// "consecutive" to UTC, even though locally they skipped Tuesday entirely.
+// Exported so the inline mirror in index.html stays a literal copy.
+export function localDayNumber(nowMs) {
+  const d = new Date(nowMs);
+  d.setHours(0, 0, 0, 0);
+  return Math.floor(d.getTime() / 86400000);
+}
+
 function readJSON(store, key, fallback) {
   try {
     const raw = store.getItem(key);
@@ -176,7 +187,7 @@ export function createStorage(store) {
     // blob with one extra ephemeral field — `isNewBest` — used by the UI
     // for "🔥 N DAY STREAK — NEW BEST!" treatment.
     saveDailyResult(count, total, nowMs = Date.now()) {
-      const today = Math.floor(nowMs / 86400000);
+      const today = localDayNumber(nowMs);
       const d = readJSON(store, STORAGE_KEYS.daily, {});
       if (d.lastDay === today) return { ...d, isNewBest: false };
       const streak = d.lastDay === today - 1 ? (d.streak || 0) + 1 : 1;

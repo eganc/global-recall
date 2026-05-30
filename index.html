@@ -1334,7 +1334,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v42';
+const BUILD_VERSION = 'v43';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -1403,6 +1403,15 @@ const Storage = (function() {
       }
     },
   };
+  // Local-calendar day number — see src/storage.js localDayNumber comment.
+  // The streak compare must use LOCAL day, not UTC. EST players who play
+  // late at night straddle the UTC date boundary and would otherwise
+  // get "consecutive" credit for a skipped local day.
+  const localDayNumber = (nowMs) => {
+    const d = new Date(nowMs);
+    d.setHours(0, 0, 0, 0);
+    return Math.floor(d.getTime() / 86400000);
+  };
   const readJSON = (k, fb) => {
     try { const raw = localStorage.getItem(k); return raw == null ? fb : JSON.parse(raw); }
     catch { return fb; }
@@ -1447,7 +1456,7 @@ const Storage = (function() {
     },
     getDaily: () => readJSON(K.daily, {}),
     saveDailyResult(count, total, nowMs = Date.now()) {
-      const today = Math.floor(nowMs / 86400000);
+      const today = localDayNumber(nowMs);
       const d = readJSON(K.daily, {});
       if (d.lastDay === today) return { ...d, isNewBest: false };
       const streak = d.lastDay === today - 1 ? (d.streak || 0) + 1 : 1;
