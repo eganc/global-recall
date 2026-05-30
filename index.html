@@ -399,7 +399,7 @@ body { font-family: var(--font-body); color: var(--text); }
   caret-color: var(--amber);
 }
 #leaderboard-screen {
-  position: fixed; inset: 0; z-index: 70;
+  position: fixed; inset: 0; z-index: 95;
   background: var(--bg);
   display: flex; align-items: center; justify-content: center;
   padding: 24px 16px;
@@ -593,10 +593,10 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="menu-item" onclick="menuRestart()">↻ RESTART</button>
     <button class="menu-item" onclick="menuEndNow()">■ END GAME</button>
     <button class="menu-item" onclick="menuJumpNext()">⊕ JUMP TO NEXT</button>
-    <button class="menu-item" id="menu-lite-btn" onclick="toggleRenderMode()">🌐 3D GLOBE</button>
     <div class="menu-divider">MAP STYLE</div>
     <button class="menu-item" id="menu-style-atlas" onclick="menuSetStyle('atlas')">📜 ATLAS</button>
     <button class="menu-item" id="menu-style-blue" onclick="menuSetStyle('blue')">🌍 CLASSIC</button>
+    <button class="menu-item" id="menu-lite-btn" onclick="toggleRenderMode()">🗺 FLAT MAP</button>
     <div class="menu-divider">MODES</div>
     <button class="menu-item mode-active" id="mode-nameall-btn" onclick="setMode('name-all')">◎ NAME ALL</button>
     <button class="menu-item" id="mode-sprint-btn" onclick="setMode('sprint')">⏱ SPRINT · 1 MIN</button>
@@ -1338,7 +1338,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v45';
+const BUILD_VERSION = 'v46';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -1586,12 +1586,12 @@ function applyMode(mode) {
     if (btn) btn.classList.toggle('mode-active', m === mode);
   });
   document.getElementById('timer-display').classList.remove('danger');
-  const isKids   = mode === 'kids';
-  const isStrict = mode === 'strict';
-  document.getElementById('kids-panel').style.display   = isKids   ? 'block' : 'none';
-  document.getElementById('strict-panel').style.display = isStrict ? 'block' : 'none';
-  document.getElementById('input-row').style.display    = isKids   ? 'none'  : 'flex';
-  document.getElementById('chip-strip').style.display   = (isKids || isStrict) ? 'none' : 'flex';
+  const isKids       = mode === 'kids';
+  const isStrictLike = mode === 'strict' || mode === 'sprint';
+  document.getElementById('kids-panel').style.display   = isKids       ? 'block' : 'none';
+  document.getElementById('strict-panel').style.display = isStrictLike ? 'block' : 'none';
+  document.getElementById('input-row').style.display    = isKids       ? 'none'  : 'flex';
+  document.getElementById('chip-strip').style.display   = (isKids || isStrictLike) ? 'none' : 'flex';
   document.getElementById('chip-strip').innerHTML = '';
   document.getElementById('end-screen').style.display = 'none';
 }
@@ -2406,11 +2406,16 @@ function updateHUD() {
     const elapsed = isRunning ? (Date.now() - sessionStart) / 1000 : 0;
     document.getElementById('timer-display').textContent = fmt(elapsed);
   }
-  if (currentMode === 'strict') {
+  if (currentMode === 'strict' || currentMode === 'sprint') {
     document.getElementById('score-display').textContent =
       `★${strictPerfect} ◐${strictHinted} ✗${strictMissed}`;
-    document.getElementById('remaining-badge').textContent =
-      `${modeTotal - (strictPerfect + strictHinted + strictMissed)} left`;
+    if (currentMode === 'sprint') {
+      // Sprint is timer-driven; the "remaining" badge isn't meaningful.
+      document.getElementById('remaining-badge').textContent = '';
+    } else {
+      document.getElementById('remaining-badge').textContent =
+        `${modeTotal - (strictPerfect + strictHinted + strictMissed)} left`;
+    }
     return;
   }
   document.getElementById('score-display').textContent = `${count} / ${modeTotal}`;
@@ -2456,6 +2461,16 @@ function startGame() {
     dailyTarget = [];
     modeTotal = TOTAL;
     sprintEnd = Date.now() + 60000;
+    // Sprint now runs on strict mechanics: one country at a time, must
+    // name the highlighted target. Different score axis (race the clock)
+    // than strict (race the queue), same input model.
+    strictQueue = seededShuffle(countries.filter(c => c.feat), Math.floor(Math.random() * 1e9));
+    strictIdx = 0;
+    strictAttempt = 0;
+    strictPerfect = 0;
+    strictHinted = 0;
+    strictMissed = 0;
+    strictTarget = null;
   } else if (currentMode === 'kids') {
     dailyTarget = [];
     modeTotal = KIDS_ROUNDS;
@@ -2483,7 +2498,7 @@ function startGame() {
   // the MapLibre port doesn't silently skip them.
   if (currentMode === 'kids') {
     kidsStartRound();
-  } else if (currentMode === 'strict') {
+  } else if (currentMode === 'strict' || currentMode === 'sprint') {
     strictAdvance();
   } else if (currentMode === 'daily') {
     const first = dailyTarget.find(c => c.feat);
@@ -2871,9 +2886,16 @@ function toggleRenderMode() {
   liteMode = !liteMode;
   Storage.saveLiteMode(liteMode);
   applyRenderMode();
+  refreshRenderModeLabel();
+  toast(liteMode ? 'FLAT MAP' : '3D GLOBE');
+}
+
+// Label says what tapping it would do, not what the map currently is.
+// You're in 3D → button says "🗺 FLAT MAP" (the action). You're in flat
+// → button says "🌐 3D GLOBE" (the action).
+function refreshRenderModeLabel() {
   const liteBtn = document.getElementById('menu-lite-btn');
-  if (liteBtn) liteBtn.textContent = liteMode ? '🗺 FLAT MODE' : '🌐 3D GLOBE';
-  toast(liteMode ? 'FLAT MODE' : '3D GLOBE MODE');
+  if (liteBtn) liteBtn.textContent = liteMode ? '🌐 3D GLOBE' : '🗺 FLAT MAP';
 }
 
 // Re-applies the projection that matches the current liteMode flag.
@@ -3164,16 +3186,18 @@ function strictClearIdleTimer() {
 }
 function strictResetIdleTimer() {
   strictClearIdleTimer();
-  if (currentMode !== 'strict' || !isRunning || !strictTarget) return;
+  if (!isStrictLikeMode() || !isRunning || !strictTarget) return;
+  // Sprint runs hot — 60s total — so 5s idle is enough headroom; in
+  // strict mode (no clock) 10s gives the player room to actually think.
+  const delay = currentMode === 'sprint' ? 5000 : STRICT_IDLE_MS;
   strictIdleTimer = setTimeout(() => {
-    if (currentMode !== 'strict' || !isRunning || !strictTarget) return;
-    // Drain whatever's in the input so the next hint isn't shouted on
-    // top of a half-typed word.
+    if (!isStrictLikeMode() || !isRunning || !strictTarget) return;
     document.getElementById('cinput').value = '';
     toast('STUCK? HERE\'S A HINT');
     strictWrong();
-  }, STRICT_IDLE_MS);
+  }, delay);
 }
+function isStrictLikeMode() { return currentMode === 'strict' || currentMode === 'sprint'; }
 
 function strictAdvance() {
   strictClearHint();
@@ -3203,11 +3227,13 @@ function strictAdvance() {
 }
 function strictAdvanceAfterReveal() {
   // 2s pause after reveal so the user can read the country name.
+  // In sprint the clock may have already expired by the time we fire;
+  // the isRunning check prevents a post-game camera flight.
   setTimeout(() => {
+    if (!isRunning) return;
     if (strictTarget && strictTarget.feat && strictTarget.feat.properties) {
       // Even on a miss, paint the country green so the silhouette joins
-      // the "world map" the player is building. Discoverable on close
-      // inspection rather than an actively-spoken correction.
+      // the "world map" the player is building.
       mapAdapter.markNamed(strictTarget.feat.properties.ADMIN);
     }
     strictIdx++;
@@ -3267,7 +3293,7 @@ document.getElementById('cinput').addEventListener('input', function() {
   // (a) the target country must be named, and (b) any other typed
   // country burns a strike. We DON'T fall through to findMatch — that
   // would let a wrong guess fly the camera, defeating the mode.
-  if (currentMode === 'strict') {
+  if (currentMode === 'strict' || currentMode === 'sprint') {
     strictResetIdleTimer();
     if (!strictTarget) return;
     const inp = norm(this.value);
@@ -3420,9 +3446,7 @@ async function boot() {
   // One more frame for globe to attach its canvas
   await new Promise(r => requestAnimationFrame(r));
 
-  // Reflect current render-mode state in the menu button label.
-  const liteBtn = document.getElementById('menu-lite-btn');
-  if (liteBtn) liteBtn.textContent = liteMode ? '🗺 FLAT MODE' : '🌐 3D GLOBE';
+  refreshRenderModeLabel();
   // Briefly surface the build version on first paint so mobile testers
   // (no devtools) can tell whether they're on the latest deploy or a
   // stale service-worker cache. Also pinned in the menu footer.
