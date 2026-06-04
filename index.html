@@ -85,7 +85,8 @@ body { font-family: var(--font-body); color: var(--text); }
 /* ── MAIN APP ── */
 #app {
   display: flex; flex-direction: column;
-  height: 100vh; height: 100dvh;
+  position: fixed; top: 0; left: 0; width: 100%;
+  height: 100vh; height: 100dvh;  /* JS (syncAppViewport) overrides with the live visualViewport height */
 }
 
 /* ── HEADER ── */
@@ -246,6 +247,18 @@ body { font-family: var(--font-body); color: var(--text); }
   color: var(--text-muted); margin-top: 2px; min-height: 18px;
 }
 #strict-hint.reveal { color: var(--red); }
+#strict-actions { display: flex; gap: 8px; margin-top: 8px; }
+.strict-action-btn {
+  flex: 1;
+  font-family: var(--font-head); font-weight: 700; font-size: 12px;
+  letter-spacing: 1.5px; cursor: pointer;
+  background: var(--amber); color: #000;
+  border: 2px solid #000; box-shadow: 2px 2px 0 #000;
+  padding: 8px 6px;
+}
+.strict-action-btn.skip { background: var(--surface); color: var(--text); }
+.strict-action-btn:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 #000; }
+.strict-action-btn:disabled { opacity: 0.4; pointer-events: none; }
 
 /* ── MODE BADGE + MENU ── */
 #mode-badge {
@@ -581,7 +594,7 @@ body { font-family: var(--font-body); color: var(--text); }
 <div id="app" style="display:none">
   <div id="header">
     <button id="menu-btn" title="Menu" onclick="toggleMenu()">☰</button>
-    <div id="logo">GLOBAL RECALL</div>
+    <div id="logo" onclick="goHome()" title="Main menu" style="cursor:pointer">GLOBAL RECALL</div>
     <div id="hud">
       <div id="mode-badge" style="display:none"></div>
       <div id="ghost-display" class="hud-chip ghost-chip" style="display:none">👻 0</div>
@@ -590,6 +603,7 @@ body { font-family: var(--font-body); color: var(--text); }
     </div>
   </div>
   <div id="menu-panel" style="display:none">
+    <button class="menu-item" onclick="goHome()">⌂ MAIN MENU</button>
     <button class="menu-item" onclick="menuRestart()">↻ RESTART</button>
     <button class="menu-item" onclick="menuEndNow()">■ END GAME</button>
     <button class="menu-item" onclick="menuJumpNext()">⊕ JUMP TO NEXT</button>
@@ -619,6 +633,10 @@ body { font-family: var(--font-body); color: var(--text); }
       </div>
       <div id="strict-hint"></div>
       <div id="strict-hint-local"></div>
+      <div id="strict-actions">
+        <button id="strict-hint-btn" class="strict-action-btn" onclick="strictHintBtn()">💡 HINT</button>
+        <button id="strict-skip-btn" class="strict-action-btn skip" onclick="strictSkipBtn()">SKIP ▸</button>
+      </div>
     </div>
     <div id="input-row">
       <input id="cinput" type="text" placeholder="Type a country name..."
@@ -708,7 +726,7 @@ body { font-family: var(--font-body); color: var(--text); }
     </div>
     <div id="start-streak-row"></div>
     <div id="mode-grid">
-      <button class="mode-tile selected" id="tile-name-all" onclick="selectMenuMode('name-all')">
+      <button class="mode-tile selected" id="tile-name-all" onclick="launchMode('name-all')">
         <div class="mode-tile-header">
           <span class="mode-tile-icon">◎</span>
           <span class="mode-tile-num">MODE 01</span>
@@ -716,7 +734,7 @@ body { font-family: var(--font-body); color: var(--text); }
         <div class="mode-tile-name">NAME ALL</div>
         <div class="mode-tile-stat" id="stat-name-all">— / 195 COUNTRIES</div>
       </button>
-      <button class="mode-tile" id="tile-sprint" onclick="selectMenuMode('sprint')">
+      <button class="mode-tile" id="tile-sprint" onclick="launchMode('sprint')">
         <div class="mode-tile-header">
           <span class="mode-tile-icon">⚡</span>
           <span class="mode-tile-num">MODE 02</span>
@@ -724,7 +742,7 @@ body { font-family: var(--font-body); color: var(--text); }
         <div class="mode-tile-name">SPRINT · 1 MIN</div>
         <div class="mode-tile-stat" id="stat-sprint">BEST: — COUNTRIES</div>
       </button>
-      <button class="mode-tile" id="tile-daily" onclick="selectMenuMode('daily')">
+      <button class="mode-tile" id="tile-daily" onclick="launchMode('daily')">
         <div class="mode-tile-header">
           <span class="mode-tile-icon">📅</span>
           <span class="mode-tile-num">MODE 03</span>
@@ -732,7 +750,7 @@ body { font-family: var(--font-body); color: var(--text); }
         <div class="mode-tile-name">DAILY</div>
         <div class="mode-tile-stat" id="stat-daily">TODAY'S 10 COUNTRIES</div>
       </button>
-      <button class="mode-tile" id="tile-kids" onclick="selectMenuMode('kids')">
+      <button class="mode-tile" id="tile-kids" onclick="launchMode('kids')">
         <div class="mode-tile-header">
           <span class="mode-tile-icon">🎮</span>
           <span class="mode-tile-num">MODE 04</span>
@@ -740,7 +758,7 @@ body { font-family: var(--font-body); color: var(--text); }
         <div class="mode-tile-name">EASY MODE</div>
         <div class="mode-tile-stat" id="stat-kids">10 ROUNDS · MULTIPLE CHOICE</div>
       </button>
-      <button class="mode-tile mode-tile-wide" id="tile-strict" onclick="selectMenuMode('strict')">
+      <button class="mode-tile mode-tile-wide" id="tile-strict" onclick="launchMode('strict')">
         <div class="mode-tile-header">
           <span class="mode-tile-icon">🎯</span>
           <span class="mode-tile-num">MODE 05</span>
@@ -1338,7 +1356,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v46';
+const BUILD_VERSION = 'v47';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -1353,8 +1371,9 @@ let kidsChoices = [];
 //   strike 1 → capital city (+ local script, if non-Latin)
 //   strike 2 → first letter and length (e.g. "STARTS WITH P · 4 LETTERS")
 //   strike 3 → reveal the name, counts as a miss
-// Plus a 10-second idle auto-hint: drawing a blank shouldn't force you
-// to type a wrong country to get the next clue.
+// Hints are now player-driven via the HINT button (tap to escalate) and a
+// SKIP button — the old idle auto-hint fired a strike on its own, which felt
+// like the clue jumped the gun in Sprint before the player was ready.
 let strictQueue     = [];   // shuffled pool of country objs
 let strictIdx       = 0;
 let strictAttempt   = 0;
@@ -1363,6 +1382,7 @@ let strictPerfect   = 0;
 let strictHinted    = 0;
 let strictMissed    = 0;
 let strictIdleTimer = null;
+let strictRevealing = false; // true during the 2s reveal pause; gates HINT/SKIP
 const STRICT_IDLE_MS = 10000;
 
 // ═══════════════════════════════════════════════════════════════
@@ -1963,18 +1983,39 @@ function flyToFeature(feat) {
   mapLibreMap.flyTo(opts);
 }
 
+// FT-012: keep #app pinned to the *visible* viewport on both platforms.
+// Android Chrome honours `interactive-widget=resizes-content` (the meta tag)
+// and shrinks the layout when the keyboard opens — header stays put. iOS
+// Safari ignores that directive entirely and instead scrolls the page up to
+// lift the focused input, which shoved our fixed-height app (header + globe)
+// off the top of the screen. Driving #app's box straight from visualViewport
+// fixes iOS without regressing Android: we size to the visible band and
+// translate down by however far iOS scrolled, so the layout never leaves the
+// screen. Desktop: offsetTop is 0 and height == window, so this is a no-op.
+function syncAppViewport() {
+  const vv = window.visualViewport;
+  const app = document.getElementById('app');
+  if (!vv || !app || app.style.display === 'none') return;
+  app.style.height = vv.height + 'px';
+  app.style.transform = vv.offsetTop ? `translateY(${vv.offsetTop}px)` : '';
+}
+
 // Re-fly the last centered country when the visualViewport changes
 // (keyboard open/close). Without this, France stays at the geometric
 // canvas center but the visible center shifts, putting France out of
 // frame the moment the user taps the input.
 if (typeof window !== 'undefined' && window.visualViewport) {
   let rcTimer = null;
-  window.visualViewport.addEventListener('resize', () => {
+  const onVV = () => {
+    syncAppViewport();
     clearTimeout(rcTimer);
     rcTimer = setTimeout(() => {
       if (lastJumpTarget && lastJumpTarget.feat) flyToFeature(lastJumpTarget.feat);
     }, 150);
-  });
+  };
+  window.visualViewport.addEventListener('resize', onVV);
+  window.visualViewport.addEventListener('scroll', syncAppViewport);
+  window.addEventListener('orientationchange', () => setTimeout(syncAppViewport, 200));
 }
 
 // Great-circle distance between two lat/lng points (degrees)
@@ -2149,7 +2190,7 @@ function addCountryLayers() {
         'case',
         ['boolean', ['feature-state', 'named'], false],       'rgba(34,197,94,0.92)',
         ['boolean', ['feature-state', 'kidsTarget'], false],  'rgba(245,158,11,0.85)',
-        ['boolean', ['feature-state', 'dailyTarget'], false], 'rgba(245,158,11,0.55)',
+        ['boolean', ['feature-state', 'dailyTarget'], false], 'rgba(245,158,11,0.85)',
         spec.fillDefault,
       ],
     },
@@ -2166,15 +2207,23 @@ function addCountryLayers() {
       // useful for island clusters (Caribbean, Pacific).
       'line-color': [
         'case',
-        ['==', ['feature-state', 'blink'], 'cyan'],     'rgba(56,189,248,0.95)',
-        ['==', ['feature-state', 'blink'], 'amber'],    'rgba(245,158,11,0.95)',
-        ['boolean', ['feature-state', 'named'], false], 'rgba(13,90,46,0.85)',
+        ['==', ['feature-state', 'blink'], 'cyan'],          'rgba(56,189,248,0.95)',
+        ['==', ['feature-state', 'blink'], 'amber'],         'rgba(245,158,11,0.95)',
+        ['boolean', ['feature-state', 'kidsTarget'], false], 'rgba(245,158,11,0.95)',
+        ['boolean', ['feature-state', 'dailyTarget'], false],'rgba(245,158,11,0.95)',
+        ['boolean', ['feature-state', 'named'], false],      'rgba(13,90,46,0.85)',
         spec.borderDefault,
       ],
+      // Targets (kids/daily) get a 2px outline so they stay legible even when
+      // foreshortened near the globe's limb — without it, a target tilted away
+      // from the camera collapsed to its thin default border and read as
+      // "outline only" while head-on targets showed a solid fill.
       'line-width': [
         'case',
-        ['!=', ['feature-state', 'blink'], null],       2,
-        ['boolean', ['feature-state', 'named'], false], 1.2,
+        ['!=', ['feature-state', 'blink'], null],            2,
+        ['boolean', ['feature-state', 'kidsTarget'], false], 2,
+        ['boolean', ['feature-state', 'dailyTarget'], false],2,
+        ['boolean', ['feature-state', 'named'], false],      1.2,
         0.5,
       ],
     },
@@ -2876,6 +2925,21 @@ function menuEndNow() {
   toggleMenu();
   if (isRunning) endGame();
 }
+// Abandon the current run and return to the start menu. Reachable from the
+// hamburger and by tapping the logo — players kept getting stranded in a
+// game with no obvious way back home.
+function goHome() {
+  isRunning = false;
+  cancelAnimationFrame(animRaf);
+  clearTimeout(autoNextTimer);
+  strictClearIdleTimer();
+  document.getElementById('menu-panel').style.display = 'none';
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('initials-prompt').style.display = 'none';
+  document.getElementById('leaderboard-screen').style.display = 'none';
+  document.getElementById('chip-strip').innerHTML = '';
+  showStartMenu();
+}
 // Toggle between 3D Globe and Flat (Mercator) projection. The boolean
 // is still called `liteMode` and persists in `gr_lite_mode` — historical
 // name, kept so saved preferences survive. Auto-detection still defaults
@@ -3178,30 +3242,56 @@ function strictShowHint(level, target) {
     l.textContent = '';
   }
 }
-// Idle auto-hint — if the player hasn't typed anything in 10s, burn a
-// strike for them so the next hint surfaces without having to type a
-// country they already know is wrong.
+// Idle auto-hint retired — hints are now player-driven (HINT/SKIP buttons).
+// The timer helpers stay as no-ops so the existing call sites don't need to
+// be unwound; strictIdleTimer is never armed anymore.
 function strictClearIdleTimer() {
   if (strictIdleTimer) { clearTimeout(strictIdleTimer); strictIdleTimer = null; }
 }
 function strictResetIdleTimer() {
   strictClearIdleTimer();
-  if (!isStrictLikeMode() || !isRunning || !strictTarget) return;
-  // Sprint runs hot — 60s total — so 5s idle is enough headroom; in
-  // strict mode (no clock) 10s gives the player room to actually think.
-  const delay = currentMode === 'sprint' ? 5000 : STRICT_IDLE_MS;
-  strictIdleTimer = setTimeout(() => {
-    if (!isStrictLikeMode() || !isRunning || !strictTarget) return;
-    document.getElementById('cinput').value = '';
-    toast('STUCK? HERE\'S A HINT');
-    strictWrong();
-  }, delay);
 }
 function isStrictLikeMode() { return currentMode === 'strict' || currentMode === 'sprint'; }
+
+// Enable/disable the HINT and SKIP buttons. Disabled during the 2s reveal
+// pause so a stray tap can't double-count a miss or skip the next country.
+function strictSetActionsEnabled(on) {
+  const hb = document.getElementById('strict-hint-btn');
+  const sb = document.getElementById('strict-skip-btn');
+  if (hb) hb.disabled = !on;
+  if (sb) sb.disabled = !on;
+}
+
+// HINT: spend a strike to surface the next clue (capital → first letter +
+// length → reveal). Tapping it three times reveals the answer, same as
+// running out of guesses.
+function strictHintBtn() {
+  if (!isStrictLikeMode() || !isRunning || !strictTarget || strictRevealing) return;
+  const inp = document.getElementById('cinput');
+  inp.value = '';
+  strictWrong();
+  if (!strictRevealing) inp.focus();  // keep the keyboard up unless we just revealed
+}
+
+// SKIP: give up on this country now — counts as a miss, reveals it, advances.
+function strictSkipBtn() {
+  if (!isStrictLikeMode() || !isRunning || !strictTarget || strictRevealing) return;
+  strictClearIdleTimer();
+  document.getElementById('cinput').value = '';
+  strictAttempt = 3;
+  strictMissed++;
+  strictUpdateStrikes();
+  strictShowHint(3, strictTarget);
+  strictUpdateProgress();
+  updateHUD();
+  strictAdvanceAfterReveal();
+}
 
 function strictAdvance() {
   strictClearHint();
   strictClearIdleTimer();
+  strictRevealing = false;
+  strictSetActionsEnabled(true);
   strictAttempt = 0;
   if (strictIdx >= strictQueue.length) { endGame(); return; }
   strictTarget = strictQueue[strictIdx];
@@ -3226,6 +3316,8 @@ function strictAdvance() {
   strictResetIdleTimer();
 }
 function strictAdvanceAfterReveal() {
+  strictRevealing = true;
+  strictSetActionsEnabled(false);
   // 2s pause after reveal so the user can read the country name.
   // In sprint the clock may have already expired by the time we fire;
   // the isRunning check prevents a post-game camera flight.
@@ -3436,6 +3528,7 @@ async function boot() {
   // Show app FIRST so globe-el has real dimensions
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
+  syncAppViewport();
 
   // One frame for layout to settle, then init globe
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -3541,6 +3634,14 @@ function launchFromMenu() {
   applyMode(selectedMenuMode);
   hideStartMenu();
   startGame();
+}
+
+// Tapping a mode tile now starts that mode immediately — watching real
+// players, everyone treated the tiles as buttons and never reached for the
+// separate START GAME control. The big START button stays as a fallback.
+function launchMode(mode) {
+  selectMenuMode(mode);
+  launchFromMenu();
 }
 
 function goToMenu() {
