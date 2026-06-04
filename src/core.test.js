@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { norm, lev, fmt, buildCountries, findMatch, seededShuffle } from './core.js';
+import { norm, lev, fmt, buildCountries, findMatch, seededShuffle,
+         DAILY_LAUNCH, getDailySeed, getDailyNumber, getDailyCountries } from './core.js';
 
 describe('norm', () => {
   it('lowercases and trims', () => {
@@ -148,5 +149,45 @@ describe('seededShuffle', () => {
 
   it('handles single-element arrays', () => {
     expect(seededShuffle([7], 42)).toEqual([7]);
+  });
+});
+
+describe('daily seeding (load-bearing — streaks depend on these)', () => {
+  it('seed is the UTC date as YYYYMMDD', () => {
+    expect(getDailySeed(new Date(Date.UTC(2026, 4, 12, 0, 0, 0)))).toBe(20260512);
+    expect(getDailySeed(new Date(Date.UTC(2026, 11, 1, 0, 0, 0)))).toBe(20261201);
+  });
+
+  it('seed is UTC-based, not local (stable across the same UTC day)', () => {
+    const early = new Date(Date.UTC(2026, 4, 12, 0, 30));
+    const late  = new Date(Date.UTC(2026, 4, 12, 23, 30));
+    expect(getDailySeed(early)).toBe(getDailySeed(late));
+  });
+
+  it('numbers the launch day as Daily #1', () => {
+    expect(getDailyNumber(DAILY_LAUNCH)).toBe(1);
+    expect(getDailyNumber(DAILY_LAUNCH + 86400000)).toBe(2);
+    expect(getDailyNumber(DAILY_LAUNCH + 9 * 86400000)).toBe(10);
+  });
+
+  it('clamps pre-launch dates to #1 (never zero/negative)', () => {
+    expect(getDailyNumber(DAILY_LAUNCH - 5 * 86400000)).toBe(1);
+  });
+
+  it('picks a deterministic set of N for a given day', () => {
+    const list = Array.from({ length: 50 }, (_, i) => ({ canonical: `C${i}` }));
+    const date = new Date(Date.UTC(2026, 5, 4));
+    const a = getDailyCountries(list, date);
+    const b = getDailyCountries(list, date);
+    expect(a).toHaveLength(10);
+    expect(a).toEqual(b);
+  });
+
+  it('different days yield different sets; every pick is from the source list', () => {
+    const list = Array.from({ length: 50 }, (_, i) => ({ canonical: `C${i}` }));
+    const d1 = getDailyCountries(list, new Date(Date.UTC(2026, 5, 4)));
+    const d2 = getDailyCountries(list, new Date(Date.UTC(2026, 5, 5)));
+    expect(d1).not.toEqual(d2);
+    for (const c of d1) expect(list).toContain(c);
   });
 });

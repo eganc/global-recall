@@ -51,6 +51,32 @@ export function seededShuffle(arr, seed) {
   return a;
 }
 
+// ── Daily Challenge seeding ──────────────────────────────────────────────
+// LOAD-BEARING: returning users walk a streak that depends on these being
+// stable forever. The launch constant and the seed math must never change —
+// changing either reseeds the daily set / renumbers the challenge and breaks
+// every existing streak. Extracted here only so the algorithm is pinned by
+// tests; the values are identical to the original inline implementation.
+
+// Anchor date for "Daily #N" numbering. Locked. Do not touch.
+export const DAILY_LAUNCH = Date.UTC(2026, 4, 12); // 2026-05-12 UTC
+
+// Integer seed for a given calendar day, keyed on the UTC date so everyone
+// worldwide gets the same set on the same UTC day (YYYYMMDD as a number).
+export function getDailySeed(date = new Date()) {
+  return (date.getUTCFullYear() * 10000 + (date.getUTCMonth() + 1) * 100 + date.getUTCDate()) >>> 0;
+}
+
+// 1-based day index since launch (Daily #1 on launch day).
+export function getDailyNumber(now = Date.now()) {
+  return Math.max(1, Math.floor((now - DAILY_LAUNCH) / 86400000) + 1);
+}
+
+// The day's set: a deterministic shuffle of the full country list, sliced.
+export function getDailyCountries(countries, date = new Date(), n = 10) {
+  return seededShuffle(countries, getDailySeed(date)).slice(0, n);
+}
+
 export function findMatch(raw, countries) {
   const inp = norm(raw);
   if (inp.length < 3) return null;
