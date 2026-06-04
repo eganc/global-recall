@@ -67,7 +67,7 @@ body { font-family: var(--font-body); color: var(--text); }
 #load-bar {
   height: 100%; width: 0;
   background: var(--mint);
-  transition: width 0.3s steps(8, end);  /* chunky, stepped fill — arcade feel */
+  transition: width 0.18s linear;  /* segmented look comes from the ::after overlay */
 }
 /* Segment dividers painted over the bar so the fill reads as discrete blocks */
 #load-bar-wrap::after {
@@ -1384,7 +1384,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v47';
+const BUILD_VERSION = 'v48';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -3580,7 +3580,13 @@ function startBootGlobe() {
   frame();
 }
 
+// Minimum time the loading screen stays up. On fast/cached loads boot
+// finished in a few hundred ms and the NES globe just flashed past — hold it
+// long enough to actually watch.
+const MIN_BOOT_MS = 5000;
+
 async function boot() {
+  const bootStart = Date.now();
   startBootGlobe();
   // Intel cards moved to the start menu — boot was too brief to read
   // them. The loading screen card stays hidden to avoid an empty box.
@@ -3594,14 +3600,20 @@ async function boot() {
   msg.textContent = 'FETCHING COUNTRY DATA...';
 
   await loadGeoJSON();
-  bar.style.width = '70%';
-
   msg.textContent = 'RENDERING GLOBE...';
-  await new Promise(r => setTimeout(r, 200));
+
+  // Pace the bar across whatever time is left to reach MIN_BOOT_MS so it reads
+  // as genuine progress, not a snap-to-100% then a stall. The globe keeps
+  // spinning the whole time.
+  let elapsed = Date.now() - bootStart;
+  while (elapsed < MIN_BOOT_MS - 400) {
+    bar.style.width = Math.min(95, 10 + Math.round(85 * (elapsed / MIN_BOOT_MS))) + '%';
+    await new Promise(r => setTimeout(r, 150));
+    elapsed = Date.now() - bootStart;
+  }
   bar.style.width = '100%';
-  await new Promise(r => setTimeout(r, 200));
   msg.textContent = 'READY.';
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 400));
 
   // Show app FIRST so globe-el has real dimensions
   document.getElementById('loading-screen').style.display = 'none';
