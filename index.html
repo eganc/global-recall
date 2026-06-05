@@ -256,9 +256,9 @@ body { font-family: var(--font-body); color: var(--text); }
    the bar stays as short as possible (it was eating too much map). */
 #strict-panel {
   margin-bottom: 6px;
-  background: rgba(31,12,9,0.6);
-  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
-  border: 2px solid rgba(0,0,0,0.8); box-shadow: 2px 2px 0 rgba(0,0,0,0.45);
+  background: rgba(20,8,6,0.34);
+  -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+  border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 2px 8px rgba(0,0,0,0.35);
   padding: 5px 10px;
 }
 #strict-progress-row {
@@ -452,7 +452,46 @@ body { font-family: var(--font-body); color: var(--text); }
 #leaderboard-inner {
   width: 100%; max-width: 460px;
   display: flex; flex-direction: column; gap: 12px;
+  position: relative;  /* anchor for the arcade chase overlay */
 }
+/* ── ARCADE CHASE (Pac-Man-style loop around the board) ── */
+#lb-arcade { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.lb-pac, .lb-ghost {
+  position: absolute; width: 16px; height: 16px;
+  left: 0; top: 0; margin: -8px;       /* center the sprite on the path point */
+  animation: lbLap 11s linear infinite;
+}
+.lb-pac {
+  background: #ffe100; border-radius: 50%;
+  animation: lbLap 11s linear infinite, lbChomp 0.28s steps(1) infinite;
+  animation-delay: -2.4s, 0s;          /* head start so the ghosts trail it */
+}
+@keyframes lbChomp {
+  0%   { clip-path: polygon(100% 35%, 45% 50%, 100% 65%, 100% 100%, 0 100%, 0 0, 100% 0); }
+  50%  { clip-path: polygon(100% 48%, 45% 50%, 100% 52%, 100% 100%, 0 100%, 0 0, 100% 0); }
+  100% { clip-path: polygon(100% 35%, 45% 50%, 100% 65%, 100% 100%, 0 100%, 0 0, 100% 0); }
+}
+.lb-ghost { border-radius: 8px 8px 3px 3px; }
+.lb-ghost::before {  /* eye whites */
+  content: ''; position: absolute; top: 5px; left: 3px;
+  width: 4px; height: 4px; border-radius: 50%; background: #fff; box-shadow: 6px 0 0 #fff;
+}
+.lb-ghost::after {   /* pupils */
+  content: ''; position: absolute; top: 6px; left: 4px;
+  width: 2px; height: 2px; border-radius: 50%; background: #1e1b4b; box-shadow: 6px 0 0 #1e1b4b;
+}
+.lb-ghost.g1 { background: #ff5540; animation-delay: -1.6s; }
+.lb-ghost.g2 { background: #22d3ee; animation-delay: -0.8s; }
+.lb-ghost.g3 { background: #f59e0b; animation-delay: 0s; }
+/* Run the rectangle perimeter: top edge → right → bottom → left → back. */
+@keyframes lbLap {
+  0%   { left: 0;    top: 0; }
+  25%  { left: 100%; top: 0; }
+  50%  { left: 100%; top: 100%; }
+  75%  { left: 0;    top: 100%; }
+  100% { left: 0;    top: 0; }
+}
+@media (prefers-reduced-motion: reduce) { #lb-arcade { display: none; } }
 #leaderboard-title {
   font-family: var(--font-head); font-weight: 900; font-size: 22px;
   letter-spacing: 3px; color: var(--amber); text-align: center;
@@ -495,6 +534,15 @@ body { font-family: var(--font-body); color: var(--text); }
 .lb-date   { color: var(--text-muted); font-size: 11px; text-align: right; }
 .lb-row.lb-row-top1 { background: rgba(245,158,11,0.12); }
 .lb-row.lb-row-top1 .lb-rank { color: #fff; background: var(--amber); border-radius: 2px; text-align: center; }
+/* Your own rows — recognised across different initials, fully client-side. */
+.lb-row.lb-row-mine { background: rgba(34,197,94,0.16); box-shadow: inset 3px 0 0 var(--mint); }
+.lb-row.lb-row-mine.lb-row-top1 { background: rgba(34,197,94,0.2); }
+.lb-row.lb-row-mine .lb-initials { color: var(--mint); }
+.lb-you {
+  font-family: var(--font-head); font-weight: 900; font-size: 8px;
+  letter-spacing: 1px; color: #000; background: var(--mint);
+  border-radius: 2px; padding: 1px 3px; margin-left: 6px; vertical-align: middle;
+}
 
 #start-game-btn {
   font-family: var(--font-head); font-weight: 900; font-size: 20px;
@@ -614,7 +662,7 @@ body { font-family: var(--font-body); color: var(--text); }
   <div style="font-family:'Space Grotesk',sans-serif;font-weight:900;font-size:28px;letter-spacing:4px;color:#fff;text-shadow:4px 4px 0 #000">
     GLOBAL RECALL
   </div>
-  <canvas id="boot-globe" width="176" height="176"></canvas>
+  <canvas id="boot-globe" width="144" height="144"></canvas>
   <div id="boot-loading">NOW LOADING<span id="boot-dots"></span></div>
   <div class="terminal-line">
     <span class="terminal-prompt">&gt;</span>
@@ -757,6 +805,13 @@ body { font-family: var(--font-body); color: var(--text); }
     <div id="leaderboard-list"></div>
     <div class="end-btns">
       <button class="end-btn primary" onclick="closeLeaderboard()">↩ BACK</button>
+    </div>
+    <!-- Pac-Man-style chase looping the board perimeter (decorative, non-blocking) -->
+    <div id="lb-arcade" aria-hidden="true">
+      <div class="lb-pac"></div>
+      <div class="lb-ghost g1"></div>
+      <div class="lb-ghost g2"></div>
+      <div class="lb-ghost g3"></div>
     </div>
   </div>
 </div>
@@ -1394,7 +1449,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v49';
+const BUILD_VERSION = 'v50';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -1441,6 +1496,7 @@ const Storage = (function() {
     installDismissed: 'gr_install_dismissed',
     liteMode:         'gr_lite_mode',
     leaderboard:      'gr_leaderboard',
+    myScores:         'gr_my_scores',
   };
   const MIGRATIONS = {
     1: (_s) => { /* v1 is the initial stamped schema — no-op */ },
@@ -1572,6 +1628,23 @@ const Storage = (function() {
       lb[mode] = list;
       writeJSON(K.leaderboard, lb);
       return list.findIndex(e => e.ts === nowMs && e.initials === clean && e.score === (Number(score) | 0)) + 1;
+    },
+    // Mirror of src/storage.js "my scores" — private self-identification.
+    getMyScores() {
+      const list = readJSON(K.myScores, []);
+      return Array.isArray(list) ? list : [];
+    },
+    recordMyScore(mode, initials, score, ts) {
+      const list = this.getMyScores();
+      const clean = String(initials || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'A');
+      list.push({ mode, initials: clean, score: Number(score) | 0, ts });
+      if (list.length > 300) list.splice(0, list.length - 300);
+      writeJSON(K.myScores, list);
+    },
+    isMyScore(mode, initials, score, ts) {
+      const s = Number(score) | 0;
+      return this.getMyScores().some(m =>
+        m.mode === mode && m.initials === initials && m.score === s && m.ts === ts);
     },
   };
 })();
@@ -2769,11 +2842,16 @@ function submitInitials() {
     return;
   }
   const { mode, score } = pendingLeaderboardEntry;
-  Storage.saveLeaderboardEntry(mode, raw, score);
+  // One ts shared across local save, the "my scores" fingerprint, and the
+  // global sync so the same row can be recognised as yours on every board.
+  const ts = Date.now();
+  const initials = String(raw).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'A');
+  Storage.saveLeaderboardEntry(mode, initials, score, ts);
+  Storage.recordMyScore(mode, initials, score, ts);
   // Fire-and-forget global sync. The local board is the player's truth;
   // the server is best-effort. If it fails (offline, KV unprovisioned,
   // 503), the player still sees their local high score with no error.
-  syncToGlobalLeaderboard(mode, raw, score).catch(() => {});
+  syncToGlobalLeaderboard(mode, initials, score, ts).catch(() => {});
   // Bust the global cache for this mode so the next GLOBAL tab open
   // shows the freshly-submitted entry without a stale window.
   globalCache[mode] = null;
@@ -2785,17 +2863,17 @@ function submitInitials() {
 
 let leaderboardCurMode  = 'sprint';
 let leaderboardCurRange = 'all';
-let leaderboardCurScope = 'local';
+let leaderboardCurScope = 'global';  // default to the cross-player board — people missed it
 let leaderboardReturnTo = 'menu';   // where the BACK button should land
 let globalCache = {};                // { mode: { entries, fetchedAt } | null }
 const GLOBAL_CACHE_MS = 30 * 1000;   // 30s — enough to flip tabs cheaply
 
-async function syncToGlobalLeaderboard(mode, initials, score) {
+async function syncToGlobalLeaderboard(mode, initials, score, ts) {
   try {
     const res = await fetch('/api/leaderboard', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode, initials, score }),
+      body: JSON.stringify({ mode, initials, score, ts }),
     });
     if (!res.ok) return null;
     return await res.json();
@@ -2811,9 +2889,11 @@ async function fetchGlobalLeaderboard(mode) {
   } catch { return { ok: false, status: 0, entries: [] }; }
 }
 
-function openLeaderboardFromEnd()   { leaderboardReturnTo = 'end';   openLeaderboard(currentMode === 'strict' ? 'strict' : 'sprint', 'all', leaderboardCurScope); }
-function openLeaderboardFromMenu()  { toggleMenu(); leaderboardReturnTo = 'app';   openLeaderboard(leaderboardCurMode, leaderboardCurRange, leaderboardCurScope); }
-function openLeaderboardFromStart() { leaderboardReturnTo = 'start'; openLeaderboard(leaderboardCurMode, leaderboardCurRange, leaderboardCurScope); }
+// Explicit opens land on GLOBAL by default so the cross-player board gets seen;
+// renderLeaderboard falls back to local if global is unreachable.
+function openLeaderboardFromEnd()   { leaderboardReturnTo = 'end';   openLeaderboard(currentMode === 'strict' ? 'strict' : 'sprint', 'all', 'global'); }
+function openLeaderboardFromMenu()  { toggleMenu(); leaderboardReturnTo = 'app';   openLeaderboard(leaderboardCurMode, leaderboardCurRange, 'global'); }
+function openLeaderboardFromStart() { leaderboardReturnTo = 'start'; openLeaderboard(leaderboardCurMode, leaderboardCurRange, 'global'); }
 
 function openLeaderboard(mode, range, scope) {
   leaderboardCurMode  = mode;
@@ -2852,12 +2932,15 @@ function renderLeaderboardRows(entries, emptyMsg, errorMsg) {
   }
   entries.slice(0, 50).forEach((e, i) => {
     const row = document.createElement('div');
-    row.className = 'lb-row' + (i === 0 ? ' lb-row-top1' : '');
+    // Highlight rows this device submitted — works across different initials,
+    // and on the global board too (matched by {mode, initials, score, ts}).
+    const mine = Storage.isMyScore(leaderboardCurMode, e.initials, e.score, e.ts);
+    row.className = 'lb-row' + (i === 0 ? ' lb-row-top1' : '') + (mine ? ' lb-row-mine' : '');
     const d = new Date(e.ts);
     const dateStr = `${d.getFullYear().toString().slice(-2)}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     row.innerHTML = `
       <div class="lb-rank">#${i + 1}</div>
-      <div class="lb-initials">${e.initials}</div>
+      <div class="lb-initials">${e.initials}${mine ? '<span class="lb-you">YOU</span>' : ''}</div>
       <div class="lb-score">${e.score}</div>
       <div class="lb-date">${dateStr}</div>
     `;
@@ -2891,6 +2974,16 @@ async function renderLeaderboard() {
   // If the user flipped tabs while the fetch was in flight, bail.
   if (leaderboardCurScope !== 'global') return;
   if (!result.ok) {
+    // "Default to global where possible" — if it isn't, fall back to the local
+    // board (which always works offline) rather than showing an error wall.
+    if (Storage.getLeaderboard(leaderboardCurMode).length) {
+      leaderboardCurScope = 'local';
+      document.querySelectorAll('.lb-tab[data-lbscope]').forEach(t =>
+        t.classList.toggle('lb-tab-active', t.dataset.lbscope === 'local'));
+      toast('GLOBAL OFFLINE · SHOWING LOCAL');
+      renderLeaderboard();
+      return;
+    }
     const msg = result.status === 503
       ? 'GLOBAL BOARD NOT YET LIVE'
       : 'GLOBAL BOARD UNAVAILABLE · OFFLINE?';
@@ -3523,13 +3616,13 @@ document.getElementById('cinput').addEventListener('input', function() {
 // ═══════════════════════════════════════════════════════════════
 // BOOT SEQUENCE
 // ═══════════════════════════════════════════════════════════════
-// Boot animation: a globe that morphs from a chunky NES render into a shaded
-// high-res Earth over ~7s — pixels flake off and fall away as the detail
-// resolves. It previews the real game's look and mirrors how a fuzzy mental
-// map of the world sharpens into actually knowing where things are. Pure canvas
-// + an embedded 1-bit equirectangular land mask (rasterized from the country
-// geometry by scripts/gen-land-mask.mjs); no deps, no downloads, offline-safe.
-// Self-terminates when the loading screen hides.
+// Boot animation: a chunky NES-era globe — accurate green continents on a
+// dark ocean with a faint graticule — spinning while assets load, with gold
+// country "blips" lighting up as it scans. Cheap by design (a ~48x48 block
+// grid, a fixed palette, no per-pixel colour math) so it never costs frames on
+// weak devices. Continents come from an embedded 1-bit equirectangular land
+// mask (rasterized from the country geometry by scripts/gen-land-mask.mjs); no
+// deps, no downloads, offline-safe. Self-terminates when the loader hides.
 const LAND_W = 240, LAND_H = 120;
 const LAND_B64 = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//+f///8YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP9/n/////gAAASAAZYAAAeAAAAAAAAAAAAAAAAAGj/8f////8AAAPwAAAAAAAAcAAAAAAAAAAAAAADgAAOAP/////AAADAAAAAAABAMAAAAAAAAAAAAAAA9zhjAAH///+AAAAAAAAHgAAP/8AAvAAAAAAAAAAdAAAAAAD///+AAAAAAAAYAAD//gAAAAAAAAAAAAAf8xq3AAA///YAAAAAAABgDA///7/wCAAAAwAEAAAI/wMb/gAf//sAAAAAAAAgHb/////z/+AABAB//wPI/+sEn4Bv//wAAAA/8AADHf////////+C8wH/////gQ3mF4AP/8AAAAB//xjf/v///////////7A////////+B/gf/gAAAAH/94//9f///////////GH////////0P5Af4AH4AAHx+H///////////////AAf//////9NA+AP4ADAAA/3////////////////+AD///////8COMAHwAAAQD/P////////////////4AB/7/////4APwABwAAAAH/P//////////////wfAAA+AH////4APzAAAAAAAH/D////////////+RhgAAAFAB////8AH/gAAAAAIAOj////////////4AHgAAAQAAP////gX/gAAAAAMBmP////////////wAPgAACAAAX////+f/4AAAAAyAwf////////////AAPAAAAAAAD////+f/+AAAAA3D//////////////8AOAAAAAAAB/////f/8AAAABHn//////////////9AIAAAAAAAB//////8QAAAAAMf//////////////9AQAAAAAAAAf/////2HAAAAAB///////////////4AAAAAAAAAAf/////+AgAAAAB///////////////4AAAAAAAAAAf//////AAAAAAB///yfx/////////wAAAAAAAAAAf/////yAAAAAAB/z/gPj/////////jAAAAAAAAAAf/////gAAAAAA/wY/gDx////////8HAAAAAAAAAAf////+AAAAAAA/gGfnn4////////wAAAAAAAAAAAf////+AAAAAAA/AAZ//4///////1gGAAAAAAAAAAP////8AAAAAAA/ACM//4///////hwEAAAAAAAAAAH////4AAAAAAAILgA3/9///////4wcAAAAAAAAAAH////4AAAAAAAN/gDC/////////wz8AAAAAAAAAAB////gAAAAAAAf/gAA/////////wLgAAAAAAAAAAA////AAAAAAAA//8YB/////////4EAAAAAAAAAAAAX///AAAAAAAB///f//////////4AAAAAAAAAAAAAf/5hAAAAAAAB//////z///////4AAAAAAAAAAAAAb/gBAAAAAAAH////8/5///////wAAAAAAAAAAAAAF/gBgAAAAAAP////+/4P//////wAAAAAAAAAAAAAE/gAAAAAAAAP////+f8wH/////gAAAAAAAAAAAAAAfgAAAAAAAAf/////P/4D/////IAAAAAAAAAAAAAAPgAQAAAAAAf/////v/8D//f/4AAAAAAAAAAAAAAAPgwOAAAAAAf/////n/4Af8P+AAAAAAAAAAAAAAAAHxwAwAAAAAf/////n/wAfwH8wAAAAAAAAAAAAAAAB/gAAAAAAAf/////z/gAfgH+AMAAAAAAAAAAAAAAAT8AAAAAAAf/////z+AAfAB/AIAAAAAAAAAAAAAAAB+AAAAAAAf/////94AAOAB/gIAAAAAAAAAAAAAAAAMAAAAAAAf//////AAAOAA/gAAAAAAAAAAAAAAAAAEBQAAAAAf/////+MAAGAAHgHAAAAAAAAAAAAAAAACDfgAAAAH//////8AAHAACAAAAAAAAAAAAAAAAAABP/wAAAAH//////4AAFAAgADAAAAAAAAAAAAAAAAAP/4AAAAD//////4AABgAQABAAAAAAAAAAAAAAAAAP//gAAAA+D////wAAAAGYBwAAAAAAAAAAAAAAAAAH//wAAAAAA////wAAAADYDAAAAAAAAAAAAAAAAAAP//wAAAAAAf///AAAAABoPgQAAAAAAAAAAAAAAAAf//wAAAAAA///+AAAAAAwfuQAAAAAAAAAAAAAAAA///+AAAAAA///8AAAAAAYfASgAAAAAAAAAAAAAAA////AAAAAA///4AAAAAA8fYCYAAAAAAAAAAAAAAA////8AAAAAf//4AAAAAAODEh/AAAAAAAAAAAAAAA/////AAAAAP//4AAAAAAGAAAPgAAAAAAAAAAAAAAf////gAAAAP//wAAAAAADAABHwAAAAAAAAAAAAAAf////gAAAAH//wAAAAAAAOCAPYAAAAAAAAAAAAAAP////AAAAAH//wAAAAAAAACAAMAAAAAAAAAAAAAAP///+AAAAAH//4AAAAAAAAAEAAAAAAAAAAAAAAAAH///+AAAAAH//4AAAAAAAAAHhAAAAAAAAAAAAAAAH///8AAAAAP//4IAAAAAAAAvjAAAAAAAAAAAAAAAD///8AAAAAP//4cAAAAAAAB/jgAAAAAAAAAAAAAAA///8AAAAAP//h4AAAAAAAH/7gAAAAAAAAAAAAAAAf//8AAAAAP//B4AAAAAAAH//wAAAAAAAAAAAAAAAf//4AAAAAH/+AwIAAAAAAf//4AAAAAAAAAAAAAAAf//4AAAAAH//BwAAAAAAB///8AIAAAAAAAAAAAAAf//AAAAAAD//BwAAAAAAD///+AAAAAAAAAAAAAAAf/8AAAAAAD/+BgAAAAAAD////AAAAAAAAAAAAAAAf/8AAAAAAD/8AAAAAAAAH////AAAAAAAAAAAAAAAf/8AAAAAAD/8AAAAAAAAD////AAAAAAAAAAAAAAA//4AAAAAAB/4AAAAAAAAB////AAAAAAAAAAAAAAA//wAAAAAAA/wAAAAAAAAB////AAAAAAAAAAAAAAA//gAAAAAAA/gAAAAAAAAB/h//AAAAAAAAAAAAAAA//AAAAAAAA+AAAAAAAAAB8Av+AAAAAAAAAAAAAAA/8AAAAAAAAAAAAAAAAAAAAAP8AAQAAAAAAAAAAAB/8AAAAAAAAAAAAAAAAAAAAAH8AAIAAAAAAAAAAAB/4AAAAAAAAAAAAAAAAAAAAADQAAOAAAAAAAAAAAB/gAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAB+AAAAAAAAAAAAAAAAAAAAAAA4AAIAAAAAAAAAAAB/AAAAAAAAAAAAAAAAAAAAAAAYAAwAAAAAAAAAAAB8AAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAAAB4AAAAAAAAAAAAAAAAAAAAAAAAAHAAAAAAAAAAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAALwAAA//eDv8AAAAAAAAAAAAAAAAGAAAAAAAAAAAD//+B///////wAAAAAAAAAAAAAAA/AAAAAAAAAADv//8H////////+AAAAAAAAAAAAAA3gAAAABQ///////8//////////8AAAAAAAAAEAAAHwAAAAP///////////////////+AAAAAAAIUD////gAAAAP///////////////////wAAAAA////////+AAAAP////////////////////AAAAGB///////4AAAAP/////////////////////gAABD///////8wIAPA//////////////////////gAAAAP///////4AQ/AD////////////////////8AAAAB/////////8AAP//////////////////////AAA8H//////////n////////////////////////8A/wP/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////';
 const _landBits = (() => {
@@ -3551,58 +3644,23 @@ function isLandLL(latRad, lonRad) {
   return (_landBits[idx >> 3] & (128 >> (idx & 7))) !== 0;
 }
 
-const BOOT_MORPH_MS = 7000;
-
 function startBootGlobe() {
   const cv = document.getElementById('boot-globe');
   if (!cv || !cv.getContext) return;
   const ctx = cv.getContext('2d');
   ctx.imageSmoothingEnabled = false;
   const W = cv.width, H = cv.height, cx = W / 2, cy = H / 2, R = W / 2 - 2;
-  const Lx = -0.55, Ly = 0.45, Lz = 0.70;          // light direction (screen space)
-  const PX_STEPS = [12, 9, 7, 5, 4, 3, 2, 1];       // block size shrinks as detail resolves
-  const start = performance.now();
-  let phi = 0, dotTick = 0, lastBucket = -1, prevTs = start, particles = [];
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const hash = (x, y) => (((x * 73856093) ^ (y * 19349663)) >>> 0) & 1;  // NES dither
-  const out = [0, 0, 0];
-
-  // Fill `out` with the surface colour, blending a flat NES palette (detail 0)
-  // toward a latitude-shaded high-res look (detail 1). `b` is the light term.
-  function surfaceColor(latRad, lonRad, b, detail) {
-    let hr, hg, hb, lr, lg, lb;
-    if (isLandLL(latRad, lonRad)) {
-      const al = Math.abs(latRad) * 57.2958;
-      if (al > 66)      { hr = 226; hg = 234; hb = 240; }   // ice cap
-      else if (al > 52) { hr = 70;  hg = 104; hb = 70;  }   // boreal
-      else if (al > 30) { hr = 58;  hg = 132; hb = 66;  }   // temperate
-      else if (al > 18) { hr = 150; hg = 134; hb = 84;  }   // arid band
-      else              { hr = 34;  hg = 124; hb = 52;  }   // tropics
-      const d = hash((lonRad * 40) | 0, (latRad * 40) | 0);
-      lr = d ? 34 : 21; lg = d ? 197 : 128; lb = d ? 94 : 61;
-    } else {
-      hr = 16; hg = 56; hb = 104;
-      const d = hash((lonRad * 30) | 0, (latRad * 30) | 0);
-      lr = d ? 18 : 11; lg = d ? 48 : 29; lb = d ? 94 : 58;
-    }
-    const sh = lerp(1, b, detail);                  // shading ramps in with detail
-    out[0] = lerp(lr, hr, detail) * sh;
-    out[1] = lerp(lg, hg, detail) * sh;
-    out[2] = lerp(lb, hb, detail) * sh;
-  }
+  const PX = 3;                                   // chunky NES blocks; cheap to draw
+  const OCEAN = ['#0b1d3a', '#12305e'], LAND = ['#15803d', '#22c55e'];
+  const GRID = '#1e3a6e', BG = '#050912';
+  const hash = (x, y) => (((x * 73856093) ^ (y * 19349663)) >>> 0) & 1;  // 2-tone dither
+  let phi = 0, dotTick = 0, prevTs = performance.now(), blips = [];
 
   function frame(ts) {
     const ls = document.getElementById('loading-screen');
     if (!cv.isConnected || !ls || ls.style.display === 'none') return;  // stop when loader hides
-    const t = Math.min(1, (ts - start) / BOOT_MORPH_MS);
-    const detail = t * t * (3 - 2 * t);             // smoothstep 0→1
-    const bucket = Math.min(PX_STEPS.length - 1, Math.floor(detail * PX_STEPS.length));
-    const PX = PX_STEPS[bucket];
-    if (detail > 0.55) cv.style.imageRendering = 'auto';  // smooth the high-res stage
     const dt = Math.min(2.5, (ts - prevTs) / 16.67); prevTs = ts;
-
-    ctx.fillStyle = '#050912';
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
 
     for (let sy = 0; sy < H; sy += PX) {
       for (let sx = 0; sx < W; sx += PX) {
@@ -3611,62 +3669,54 @@ function startBootGlobe() {
         if (d2 > 1) continue;
         const nz = Math.sqrt(1 - d2);
         const lat = Math.asin(-ny), lon = Math.atan2(nx, nz) + phi;
-        const b = Math.min(1, Math.max(0, nx * Lx + (-ny) * Ly + nz * Lz) * 0.9 + 0.3);
-        surfaceColor(lat, lon, b, detail);
-        let r = out[0], g = out[1], bl = out[2];
-        if (d2 > 0.82) {                            // atmosphere rim, fades in with detail
-          const rim = (d2 - 0.82) / 0.18 * detail * 0.6;
-          r += (60 - r) * rim; g += (120 - g) * rim; bl += (200 - bl) * rim;
+        let color;
+        if (isLandLL(lat, lon)) {
+          color = LAND[hash((lon * 30) | 0, (lat * 30) | 0)];
+        } else {
+          // faint 30° graticule over ocean for a wireframe-globe feel
+          const lonm = ((lon % (Math.PI / 6)) + Math.PI / 6) % (Math.PI / 6);
+          color = (lonm < 0.06 || Math.abs(lat % (Math.PI / 6)) < 0.045)
+            ? GRID : OCEAN[hash((lon * 22) | 0, (lat * 22) | 0)];
         }
-        ctx.fillStyle = `rgb(${r | 0},${g | 0},${bl | 0})`;
+        ctx.fillStyle = color;
         ctx.fillRect(sx, sy, PX, PX);
       }
     }
 
-    // "pixels fall away": each time the block size steps down, flake off a wave
-    // of the old chunky blocks so the finer globe seems to emerge beneath them.
-    if (bucket > lastBucket && lastBucket >= 0 && detail < 0.96) {
-      const oldPX = PX_STEPS[lastBucket];
-      for (let k = 0; k < 26; k++) {
-        const ang = Math.random() * Math.PI * 2, rad = Math.sqrt(Math.random()) * R;
-        const x = cx + Math.cos(ang) * rad, y = cy + Math.sin(ang) * rad;
-        const nx = (x - cx) / R, ny = (y - cy) / R, d2 = nx * nx + ny * ny;
-        if (d2 > 1) continue;
-        const nz = Math.sqrt(1 - d2);
-        surfaceColor(Math.asin(-ny), Math.atan2(nx, nz) + phi, 1, Math.max(0, detail - 0.15));
-        particles.push({ x, y, vx: (Math.random() - 0.5) * 0.4, vy: 0.4 + Math.random() * 0.8, s: oldPX, life: 1, c: [out[0], out[1], out[2]] });
-      }
+    // Gold "blips" light up on random land points and fade — scanning the globe.
+    if (Math.random() < 0.10) {
+      const lat = (Math.random() - 0.5) * 2.6, lon = Math.random() * Math.PI * 2;
+      if (isLandLL(lat, lon)) blips.push({ lat, lon, life: 1 });
     }
-    lastBucket = bucket;
-
-    if (particles.length) {
+    if (blips.length) {
       const next = [];
-      for (const p of particles) {
-        p.vy += 0.06 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= 0.02 * dt;
-        if (p.life > 0 && p.y < H + 10) {
-          ctx.globalAlpha = p.life;
-          ctx.fillStyle = `rgb(${p.c[0] | 0},${p.c[1] | 0},${p.c[2] | 0})`;
-          ctx.fillRect(p.x, p.y, p.s, p.s);
-          next.push(p);
+      for (const b of blips) {
+        const slon = b.lon - phi, z3 = Math.cos(b.lat) * Math.cos(slon);
+        if (z3 > 0) {
+          const x3 = Math.cos(b.lat) * Math.sin(slon), wy = Math.sin(b.lat);
+          ctx.fillStyle = b.life > 0.5 ? '#fde047' : '#fff7cc';
+          ctx.fillRect(cx + x3 * R - 1, cy - wy * R - 1, PX + 1, PX + 1);
         }
+        b.life -= 0.03 * dt;
+        if (b.life > 0) next.push(b);
       }
-      ctx.globalAlpha = 1;
-      particles = next;
+      blips = next;
     }
 
-    phi += 0.010 * dt;
-    if (++dotTick % 16 === 0) {
+    phi += 0.012 * dt;
+    if (++dotTick % 18 === 0) {
       const d = document.getElementById('boot-dots');
-      if (d) d.textContent = '.'.repeat((dotTick / 16) % 4);
+      if (d) d.textContent = '.'.repeat((dotTick / 18) % 4);
     }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 }
 
-// Minimum time the loading screen stays up — long enough to watch the globe
-// finish its NES→high-res morph (BOOT_MORPH_MS) plus a beat to admire it.
-const MIN_BOOT_MS = 7600;
+// Minimum time the loading screen stays up. On fast/cached loads boot finished
+// in a few hundred ms and the globe just flashed past — hold it long enough to
+// enjoy the spin.
+const MIN_BOOT_MS = 5000;
 
 async function boot() {
   const bootStart = Date.now();
