@@ -113,7 +113,15 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'invalid-score' });
       }
       const initials = cleanInitials(body.initials);
-      const ts = Date.now();
+      // Honour the client's timestamp when it sends a sane one. ts is not PII
+      // (it's already shown as the entry date); letting the client own it means
+      // the client can recognise its *own* rows on the global board across
+      // different initials by matching {initials, score, ts} — without any
+      // account or device id ever reaching the server. Falls back to now.
+      const clientTs = Number(body.ts);
+      const now = Date.now();
+      const ts = (Number.isFinite(clientTs) && clientTs > 1.5e12 && clientTs <= now + 86400000)
+        ? Math.floor(clientTs) : now;
       const member = encodeMember(initials, ts);
       await r.zadd(`lb:${mode}`, { score, member });
       // Trim to top TOP_N (Redis ranks ascending; -TOP_N-1 keeps the top N).
