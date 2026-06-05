@@ -454,33 +454,11 @@ body { font-family: var(--font-body); color: var(--text); }
   display: flex; flex-direction: column; gap: 12px;
   position: relative;  /* anchor for the conquest-ripple overlay */
 }
-/* ── CONQUEST RIPPLE ── country-tiles light up green in a travelling wave
-   around the board, echoing the core "name it → it lights up" mechanic. Tiles
-   are positioned by JS (buildLbRipple) to evenly hug the board perimeter. */
-#lb-arcade { position: absolute; inset: -5px; pointer-events: none; z-index: 5; }
-.lb-tile {
-  position: absolute; width: 7px; height: 7px; margin: -3.5px;
-  background: rgba(255,255,255,0.07);
-  animation: lbPulse 4.5s linear infinite;
-}
-@keyframes lbPulse {
-  0%, 22%, 100% { background: rgba(255,255,255,0.07); }   /* faint track */
-  4%            { background: var(--mint); }              /* bright head */
-  12%           { background: rgba(34,197,94,0.4); }      /* green tail */
-}
-/* A 🔥 rides the same loop, blinking on now and then as the wave passes. */
-.lb-fire {
-  position: absolute; left: 0; top: 0; margin: -9px; font-size: 13px;
-  animation: lbLap 4.5s linear infinite, lbFireBlink 2.4s ease-in-out infinite;
-}
-@keyframes lbLap {
-  0%   { left: 0;    top: 0; }
-  25%  { left: 100%; top: 0; }
-  50%  { left: 100%; top: 100%; }
-  75%  { left: 0;    top: 100%; }
-  100% { left: 0;    top: 0; }
-}
-@keyframes lbFireBlink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+/* ── CONQUEST RIPPLE ── a wave of green country-tiles travels the board
+   perimeter (the "name it → it lights up" mechanic). Drawn on ONE canvas via a
+   single rAF that hard-stops when the board closes — deliberately not 100+
+   animated DOM nodes, which paint-stormed weak GPUs. */
+#lb-arcade { position: absolute; inset: -5px; pointer-events: none; z-index: 5; width: calc(100% + 10px); height: calc(100% + 10px); }
 @media (prefers-reduced-motion: reduce) { #lb-arcade { display: none; } }
 #leaderboard-title {
   font-family: var(--font-head); font-weight: 900; font-size: 22px;
@@ -797,7 +775,7 @@ body { font-family: var(--font-body); color: var(--text); }
       <button class="end-btn primary" onclick="closeLeaderboard()">↩ BACK</button>
     </div>
     <!-- Conquest ripple: country-tiles light up around the perimeter (JS-built, non-blocking) -->
-    <div id="lb-arcade" aria-hidden="true"><div class="lb-fire">🔥</div></div>
+    <canvas id="lb-arcade" aria-hidden="true"></canvas>
   </div>
 </div>
 
@@ -1434,7 +1412,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v51';
+const BUILD_VERSION = 'v52';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -2892,41 +2870,54 @@ function openLeaderboard(mode, range, scope) {
   if (mt) mt.classList.add('lb-tab-active');
   if (rt) rt.classList.add('lb-tab-active');
   if (st) st.classList.add('lb-tab-active');
-  buildLbRipple();
+  startLbRipple();
   renderLeaderboard();
 }
 
-// Lay out the conquest-ripple tiles evenly around the board perimeter. Rebuilt
-// on each open so it adapts to the board's current size / orientation. The
-// per-tile animation-delay is its position along the loop, so a bright head
-// with a green tail travels the border (4.5s lap).
-function buildLbRipple() {
-  const host = document.getElementById('lb-arcade');
-  const inner = document.getElementById('leaderboard-inner');
-  if (!host || !inner) return;
-  const r = inner.getBoundingClientRect();
-  const W = r.width, H = r.height;
-  if (W < 10 || H < 10) return;  // not laid out yet
-  host.querySelectorAll('.lb-tile').forEach(t => t.remove());
-  const perim = 2 * (W + H);
-  const n = Math.max(20, Math.round(perim / 14));  // ~one tile every 14px
-  const DUR = 4.5;
-  const frag = document.createDocumentFragment();
+// Conquest ripple on a SINGLE canvas. One rAF, ~60 cheap fillRects/frame, and
+// it stops the moment the board is hidden — so it never runs in the background
+// and can't paint-storm the way 100+ animated DOM nodes did. Perimeter position
+// of each tile is fixed; only its brightness changes as the wave head sweeps by.
+let lbRaf = 0;
+function stopLbRipple() { if (lbRaf) { cancelAnimationFrame(lbRaf); lbRaf = 0; } }
+function startLbRipple() {
+  stopLbRipple();
+  const cv = document.getElementById('lb-arcade');
+  if (!cv || !cv.getContext) return;
+  const w = Math.round(cv.clientWidth), h = Math.round(cv.clientHeight);
+  if (w < 20 || h < 20) return;            // not laid out yet
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  const perim = 2 * (w + h);
+  const n = Math.min(80, Math.max(20, Math.round(perim / 18)));  // capped tile count
+  const DUR = 4500, TILE = 7;
+  const pts = [];
   for (let i = 0; i < n; i++) {
-    const f = i / n, d = f * perim;  // distance clockwise from top-left
-    let x, y;
-    if (d < W)            { x = d;                 y = 0; }
-    else if (d < W + H)   { x = W;                 y = d - W; }
-    else if (d < 2*W + H) { x = W - (d - (W + H)); y = H; }
-    else                  { x = 0;                 y = H - (d - (2*W + H)); }
-    const tile = document.createElement('div');
-    tile.className = 'lb-tile';
-    tile.style.left = (x / W * 100) + '%';
-    tile.style.top = (y / H * 100) + '%';
-    tile.style.animationDelay = (-f * DUR) + 's';
-    frag.appendChild(tile);
+    const d = (i / n) * perim; let x, y;
+    if (d < w)              { x = d;                 y = 0; }
+    else if (d < w + h)     { x = w;                 y = d - w; }
+    else if (d < 2*w + h)   { x = w - (d - (w + h)); y = h; }
+    else                    { x = 0;                 y = h - (d - (2*w + h)); }
+    pts.push([x, y, i / n]);
   }
-  host.appendChild(frag);
+  const start = performance.now();
+  function frame(ts) {
+    const scr = document.getElementById('leaderboard-screen');
+    if (!scr || scr.style.display === 'none') { lbRaf = 0; return; }  // hard stop on close
+    ctx.clearRect(0, 0, w, h);
+    const head = ((ts - start) / DUR) % 1;
+    for (const [x, y, f] of pts) {
+      let back = head - f; if (back < 0) back += 1;   // distance behind the head
+      let a;
+      if (back < 0.05)      a = 1;                     // bright head
+      else if (back < 0.18) a = 1 - (back - 0.05) / 0.13 * 0.85;  // fading tail
+      else                  a = 0.08;                  // faint track
+      ctx.fillStyle = a > 0.1 ? `rgba(34,197,94,${a.toFixed(2)})` : 'rgba(255,255,255,0.06)';
+      ctx.fillRect(x - TILE / 2, y - TILE / 2, TILE, TILE);
+    }
+    lbRaf = requestAnimationFrame(frame);
+  }
+  lbRaf = requestAnimationFrame(frame);
 }
 function leaderboardSetMode(m)  { openLeaderboard(m, leaderboardCurRange, leaderboardCurScope); }
 function leaderboardSetRange(r) { openLeaderboard(leaderboardCurMode, r, leaderboardCurScope); }
@@ -3019,6 +3010,7 @@ async function renderLeaderboard() {
 }
 
 function closeLeaderboard() {
+  stopLbRipple();
   document.getElementById('leaderboard-screen').style.display = 'none';
   // Return to where we came from.
   if (leaderboardReturnTo === 'end') {
@@ -3643,7 +3635,7 @@ document.getElementById('cinput').addEventListener('input', function() {
 // mask (rasterized from the country geometry by scripts/gen-land-mask.mjs); no
 // deps, no downloads, offline-safe. Self-terminates when the loader hides.
 const LAND_W = 240, LAND_H = 120;
-const LAND_B64 = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//+f///8YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP9/n/////gAAASAAZYAAAeAAAAAAAAAAAAAAAAAGj/8f////8AAAPwAAAAAAAAcAAAAAAAAAAAAAADgAAOAP/////AAADAAAAAAABAMAAAAAAAAAAAAAAA9zhjAAH///+AAAAAAAAHgAAP/8AAvAAAAAAAAAAdAAAAAAD///+AAAAAAAAYAAD//gAAAAAAAAAAAAAf8xq3AAA///YAAAAAAABgDA///7/wCAAAAwAEAAAI/wMb/gAf//sAAAAAAAAgHb/////z/+AABAB//wPI/+sEn4Bv//wAAAA/8AADHf////////+C8wH/////gQ3mF4AP/8AAAAB//xjf/v///////////7A////////+B/gf/gAAAAH/94//9f///////////GH////////0P5Af4AH4AAHx+H///////////////AAf//////9NA+AP4ADAAA/3////////////////+AD///////8COMAHwAAAQD/P////////////////4AB/7/////4APwABwAAAAH/P//////////////wfAAA+AH////4APzAAAAAAAH/D////////////+RhgAAAFAB////8AH/gAAAAAIAOj////////////4AHgAAAQAAP////gX/gAAAAAMBmP////////////wAPgAACAAAX////+f/4AAAAAyAwf////////////AAPAAAAAAAD////+f/+AAAAA3D//////////////8AOAAAAAAAB/////f/8AAAABHn//////////////9AIAAAAAAAB//////8QAAAAAMf//////////////9AQAAAAAAAAf/////2HAAAAAB///////////////4AAAAAAAAAAf/////+AgAAAAB///////////////4AAAAAAAAAAf//////AAAAAAB///yfx/////////wAAAAAAAAAAf/////yAAAAAAB/z/gPj/////////jAAAAAAAAAAf/////gAAAAAA/wY/gDx////////8HAAAAAAAAAAf////+AAAAAAA/gGfnn4////////wAAAAAAAAAAAf////+AAAAAAA/AAZ//4///////1gGAAAAAAAAAAP////8AAAAAAA/ACM//4///////hwEAAAAAAAAAAH////4AAAAAAAILgA3/9///////4wcAAAAAAAAAAH////4AAAAAAAN/gDC/////////wz8AAAAAAAAAAB////gAAAAAAAf/gAA/////////wLgAAAAAAAAAAA////AAAAAAAA//8YB/////////4EAAAAAAAAAAAAX///AAAAAAAB///f//////////4AAAAAAAAAAAAAf/5hAAAAAAAB//////z///////4AAAAAAAAAAAAAb/gBAAAAAAAH////8/5///////wAAAAAAAAAAAAAF/gBgAAAAAAP////+/4P//////wAAAAAAAAAAAAAE/gAAAAAAAAP////+f8wH/////gAAAAAAAAAAAAAAfgAAAAAAAAf/////P/4D/////IAAAAAAAAAAAAAAPgAQAAAAAAf/////v/8D//f/4AAAAAAAAAAAAAAAPgwOAAAAAAf/////n/4Af8P+AAAAAAAAAAAAAAAAHxwAwAAAAAf/////n/wAfwH8wAAAAAAAAAAAAAAAB/gAAAAAAAf/////z/gAfgH+AMAAAAAAAAAAAAAAAT8AAAAAAAf/////z+AAfAB/AIAAAAAAAAAAAAAAAB+AAAAAAAf/////94AAOAB/gIAAAAAAAAAAAAAAAAMAAAAAAAf//////AAAOAA/gAAAAAAAAAAAAAAAAAEBQAAAAAf/////+MAAGAAHgHAAAAAAAAAAAAAAAACDfgAAAAH//////8AAHAACAAAAAAAAAAAAAAAAAABP/wAAAAH//////4AAFAAgADAAAAAAAAAAAAAAAAAP/4AAAAD//////4AABgAQABAAAAAAAAAAAAAAAAAP//gAAAA+D////wAAAAGYBwAAAAAAAAAAAAAAAAAH//wAAAAAA////wAAAADYDAAAAAAAAAAAAAAAAAAP//wAAAAAAf///AAAAABoPgQAAAAAAAAAAAAAAAAf//wAAAAAA///+AAAAAAwfuQAAAAAAAAAAAAAAAA///+AAAAAA///8AAAAAAYfASgAAAAAAAAAAAAAAA////AAAAAA///4AAAAAA8fYCYAAAAAAAAAAAAAAA////8AAAAAf//4AAAAAAODEh/AAAAAAAAAAAAAAA/////AAAAAP//4AAAAAAGAAAPgAAAAAAAAAAAAAAf////gAAAAP//wAAAAAADAABHwAAAAAAAAAAAAAAf////gAAAAH//wAAAAAAAOCAPYAAAAAAAAAAAAAAP////AAAAAH//wAAAAAAAACAAMAAAAAAAAAAAAAAP///+AAAAAH//4AAAAAAAAAEAAAAAAAAAAAAAAAAH///+AAAAAH//4AAAAAAAAAHhAAAAAAAAAAAAAAAH///8AAAAAP//4IAAAAAAAAvjAAAAAAAAAAAAAAAD///8AAAAAP//4cAAAAAAAB/jgAAAAAAAAAAAAAAA///8AAAAAP//h4AAAAAAAH/7gAAAAAAAAAAAAAAAf//8AAAAAP//B4AAAAAAAH//wAAAAAAAAAAAAAAAf//4AAAAAH/+AwIAAAAAAf//4AAAAAAAAAAAAAAAf//4AAAAAH//BwAAAAAAB///8AIAAAAAAAAAAAAAf//AAAAAAD//BwAAAAAAD///+AAAAAAAAAAAAAAAf/8AAAAAAD/+BgAAAAAAD////AAAAAAAAAAAAAAAf/8AAAAAAD/8AAAAAAAAH////AAAAAAAAAAAAAAAf/8AAAAAAD/8AAAAAAAAD////AAAAAAAAAAAAAAA//4AAAAAAB/4AAAAAAAAB////AAAAAAAAAAAAAAA//wAAAAAAA/wAAAAAAAAB////AAAAAAAAAAAAAAA//gAAAAAAA/gAAAAAAAAB/h//AAAAAAAAAAAAAAA//AAAAAAAA+AAAAAAAAAB8Av+AAAAAAAAAAAAAAA/8AAAAAAAAAAAAAAAAAAAAAP8AAQAAAAAAAAAAAB/8AAAAAAAAAAAAAAAAAAAAAH8AAIAAAAAAAAAAAB/4AAAAAAAAAAAAAAAAAAAAADQAAOAAAAAAAAAAAB/gAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAB+AAAAAAAAAAAAAAAAAAAAAAA4AAIAAAAAAAAAAAB/AAAAAAAAAAAAAAAAAAAAAAAYAAwAAAAAAAAAAAB8AAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAAAB4AAAAAAAAAAAAAAAAAAAAAAAAAHAAAAAAAAAAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAALwAAA//eDv8AAAAAAAAAAAAAAAAGAAAAAAAAAAAD//+B///////wAAAAAAAAAAAAAAA/AAAAAAAAAADv//8H////////+AAAAAAAAAAAAAA3gAAAABQ///////8//////////8AAAAAAAAAEAAAHwAAAAP///////////////////+AAAAAAAIUD////gAAAAP///////////////////wAAAAA////////+AAAAP////////////////////AAAAGB///////4AAAAP/////////////////////gAABD///////8wIAPA//////////////////////gAAAAP///////4AQ/AD////////////////////8AAAAB/////////8AAP//////////////////////AAA8H//////////n////////////////////////8A/wP/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////';
+const LAND_B64 = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAX/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//+f///8YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP9/n/////gAAASAAZYAAAeAAAAAAAAAAAAAAAAAGj/8f////8AAAPwAAAAAAAAcAAAAAAAAAAAAAADgAAOAP/////AAADAAAAAAABAMAAAAAAAAAAAAAAA9zhjAAH///+AAAAAAAAHgAAP/8AAvAAAAAAAAAAdAAAAAAD///+AAAAAAAAYAAD//gAAAAAAAAAAAAAf8xq3AAA///YAAAAAAABgDA///7/wCAAAAwAEAAAI/wMb/gAf//sAAAAAAAAgHb/////z/+AABAB//wPI/+sEn4Bv//wAAAA/8AADHf////////+C8wH/////gQ3mF4AP/8AAAAB//xjf/v///////////7A////////+B/gf/gAAAAH/94//9f///////////GH////////0P5Af4AH4AAHx+H///////////////AAf//////9NA+AP4ADAAA/3////////////////+AD///////8COMAHwAAAQD/P////////////////4AB/7/////4APwABwAAAAH/P//////////////wfAAA+AH////4APzAAAAAAAH/D////////////+RhgAAAFAB////8AH/gAAAAAIAOj////////////4AHgAAAQAAP////gX/gAAAAAMBmP////////////wAPgAACAAAX////+f/4AAAAAyAwf////////////AAPAAAAAAAD////+f/+AAAAA3D//////////////8AOAAAAAAAB/////f/8AAAABHn//////////////9AIAAAAAAAB//////8QAAAAAMf//////////////9AQAAAAAAAAf/////2HAAAAAB///////////////4AAAAAAAAAAf/////+AgAAAAB///////////////4AAAAAAAAAAf//////AAAAAAB///yfx/////////wAAAAAAAAAAf/////yAAAAAAB/z/gPj/////////jAAAAAAAAAAf/////gAAAAAA/wY/gDx////////8HAAAAAAAAAAf////+AAAAAAA/gGfnn4////////wAAAAAAAAAAAf////+AAAAAAA/AAZ//4///////1gGAAAAAAAAAAP////8AAAAAAA/ACM//4///////hwEAAAAAAAAAAH////4AAAAAAAILgA3/9///////4wcAAAAAAAAAAH////4AAAAAAAN/gDC/////////wz8AAAAAAAAAAB////gAAAAAAAf/gAA/////////wLgAAAAAAAAAAA////AAAAAAAA//8YB/////////4EAAAAAAAAAAAAX///AAAAAAAB///f//////////4AAAAAAAAAAAAAf/5hAAAAAAAB//////z///////4AAAAAAAAAAAAAb/gBAAAAAAAH////8/5///////wAAAAAAAAAAAAAF/gBgAAAAAAP////+/4P//////wAAAAAAAAAAAAAE/gAAAAAAAAP////+f8wH/////gAAAAAAAAAAAAAAfgAAAAAAAAf/////P/4D/////IAAAAAAAAAAAAAAPgAQAAAAAAf/////v/8D//f/4AAAAAAAAAAAAAAAPgwOAAAAAAf/////n/4Af8P+AAAAAAAAAAAAAAAAHxwAwAAAAAf/////n/wAfwH8wAAAAAAAAAAAAAAAB/gAAAAAAAf/////z/gAfgH+AMAAAAAAAAAAAAAAAT8AAAAAAAf/////z+AAfAB/AIAAAAAAAAAAAAAAAB+AAAAAAAf/////94AAOAB/gIAAAAAAAAAAAAAAAAMAAAAAAAf//////AAAOAA/gAAAAAAAAAAAAAAAAAEBQAAAAAf/////+MAAGAAHgHAAAAAAAAAAAAAAAACDfgAAAAH//////8AAHAACAAAAAAAAAAAAAAAAAABP/wAAAAH//////4AAFAAgADAAAAAAAAAAAAAAAAAP/4AAAAD//////4AABgAQABAAAAAAAAAAAAAAAAAP//gAAAA+D////wAAAAGYBwAAAAAAAAAAAAAAAAAH//wAAAAAA////wAAAADYDAAAAAAAAAAAAAAAAAAP//wAAAAAAf///AAAAABoPgQAAAAAAAAAAAAAAAAf//wAAAAAA///+AAAAAAwfuQAAAAAAAAAAAAAAAA///+AAAAAA///8AAAAAAYfASgAAAAAAAAAAAAAAA////AAAAAA///4AAAAAA8fYCYAAAAAAAAAAAAAAA////8AAAAAf//4AAAAAAODEh/AAAAAAAAAAAAAAA/////AAAAAP//4AAAAAAGAAAPgAAAAAAAAAAAAAAf////gAAAAP//wAAAAAADAABHwAAAAAAAAAAAAAAf////gAAAAH//wAAAAAAAOCAPYAAAAAAAAAAAAAAP////AAAAAH//wAAAAAAAACAAMAAAAAAAAAAAAAAP///+AAAAAH//4AAAAAAAAAEAAAAAAAAAAAAAAAAH///+AAAAAH//4AAAAAAAAAHhAAAAAAAAAAAAAAAH///8AAAAAP//4IAAAAAAAAvjAAAAAAAAAAAAAAAD///8AAAAAP//4cAAAAAAAB/jgAAAAAAAAAAAAAAA///8AAAAAP//h4AAAAAAAH/7gAAAAAAAAAAAAAAAf//8AAAAAP//B4AAAAAAAH//wAAAAAAAAAAAAAAAf//4AAAAAH/+AwIAAAAAAf//4AAAAAAAAAAAAAAAf//4AAAAAH//BwAAAAAAB///8AIAAAAAAAAAAAAAf//AAAAAAD//BwAAAAAAD///+AAAAAAAAAAAAAAAf/8AAAAAAD/+BgAAAAAAD////AAAAAAAAAAAAAAAf/8AAAAAAD/8AAAAAAAAH////AAAAAAAAAAAAAAAf/8AAAAAAD/8AAAAAAAAD////AAAAAAAAAAAAAAA//4AAAAAAB/4AAAAAAAAB////AAAAAAAAAAAAAAA//wAAAAAAA/wAAAAAAAAB////AAAAAAAAAAAAAAA//gAAAAAAA/gAAAAAAAAB/h//AAAAAAAAAAAAAAA//AAAAAAAA+AAAAAAAAAB8Av+AAAAAAAAAAAAAAA/8AAAAAAAAAAAAAAAAAAAAAP8AAQAAAAAAAAAAAB/8AAAAAAAAAAAAAAAAAAAAAH8AAIAAAAAAAAAAAB/4AAAAAAAAAAAAAAAAAAAAADQAAOAAAAAAAAAAAB/gAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAB+AAAAAAAAAAAAAAAAAAAAAAA4AAIAAAAAAAAAAAB/AAAAAAAAAAAAAAAAAAAAAAAYAAwAAAAAAAAAAAB8AAAAAAAAAAAAAAAAAAAAAAAAADAAAAAAAAAAAAB4AAAAAAAAAAAAAAAAAAAAAAAAAHAAAAAAAAAAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAALwAAA//eDv8AAAAAAAAAAAAAAAAGAAAAAAAAAAAD//+B///////wAAAAAAAAAAAAAAA/AAAAAAAAAADv//8H////////+AAAAAAAAAAAAAA3gAAAABQ///////8//////////8AAAAAAAAAEAAAHwAAAAP///////////////////+AAAAAAAIUD////gAAAAP///////////////////wAAAAA////////+AAAAP////////////////////AAAAGB///////4AAAAP/////////////////////gAABD///////8wIAPA//////////////////////gAAAAP///////4AQ/AD////////////////////8AAAAB/////////8AAP//////////////////////AAA8H//////////n////////////////////////8A/wP/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////';
 const _landBits = (() => {
   try {
     const bin = atob(LAND_B64);
