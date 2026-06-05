@@ -719,8 +719,9 @@ body { font-family: var(--font-body); color: var(--text); }
     </div>
     <div id="autocomplete" style="display:none"></div>
     <div id="input-row">
-      <input id="cinput" type="text" placeholder="Type a country name..."
-        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input id="cinput" type="text" placeholder="Type a country, then Enter ↵"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+        enterkeyhint="go"/>
       <div id="remaining-badge">— left</div>
     </div>
     <div id="chip-strip"></div>
@@ -1428,7 +1429,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v53';
+const BUILD_VERSION = 'v54';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -1890,20 +1891,8 @@ function maybeUpdateBlink() {
 // edit both.
 
 function featureCentroid(feat) {
-  const geo = feat && feat.geometry;
-  if (!geo) return null;
-  let pts = [];
-  if (geo.type === 'Polygon') pts = geo.coordinates[0];
-  else if (geo.type === 'MultiPolygon') {
-    let max = 0;
-    for (const poly of geo.coordinates) {
-      if (poly[0] && poly[0].length > max) { max = poly[0].length; pts = poly[0]; }
-    }
-  }
-  if (!pts.length) return null;
-  let lng = 0, lat = 0;
-  for (const [x, y] of pts) { lng += x; lat += y; }
-  return { lat: lat / pts.length, lng: lng / pts.length };
+  const c = featureCluster(feat);
+  return c ? { lat: c.lat, lng: c.lng } : null;
 }
 
 // Antimeridian-aware longitude span. Naïve max-min reads ~352° for
@@ -1919,39 +1908,57 @@ function _lngSpan(lngs) {
   return Math.min(naive, Math.max(...shifted) - Math.min(...shifted));
 }
 
-// Span from the LARGEST polygon only, not the full multi-polygon bbox.
-// Why: the US's MultiPolygon includes Alaska + Hawaii + Puerto Rico, so
-// the naive bbox is ~120° wide and forces an absurd "see the whole
-// hemisphere" zoom even though the user is really looking for the
-// contiguous mainland. Same problem for Canada (Arctic islands), France
-// (French Guiana), Netherlands (Caribbean), etc. By using only the
-// largest polygon we get the silhouette the user is actually trying to
-// learn.
-function featureSpan(feat) {
+// Cluster of a feature's "main body": the largest polygon PLUS every other
+// polygon whose centroid sits within CLUSTER_DEG of it. Returns the cluster's
+// centroid and span (degrees of its longer axis).
+//
+// Why a cluster and not just the largest polygon: archipelago nations like the
+// Bahamas, Maldives, Marshall Islands have NO single dominant island — the
+// largest is ~1°, so largest-only zoomed to level ~8 and showed one speck in
+// open ocean. Why not the full multi-polygon bbox either: the US includes
+// Alaska + Hawaii + Guam, ~120° wide, which would force a hemisphere zoom. The
+// cluster keeps the Bahamas together (all within a few degrees) while dropping
+// the US's far-flung territories (>30° away) — best of both.
+const CLUSTER_DEG = 12;
+function featureCluster(feat) {
   const geo = feat && feat.geometry;
-  if (!geo) return 8;
-  let pts = [];
-  if (geo.type === 'Polygon') pts = geo.coordinates[0];
-  else if (geo.type === 'MultiPolygon') {
-    let bestArea = -1;
-    for (const poly of geo.coordinates) {
-      const ring = poly[0];
-      if (!ring || !ring.length) continue;
-      let lo = Infinity, hi = -Infinity, lo2 = Infinity, hi2 = -Infinity;
-      for (const [x, y] of ring) {
-        if (x < lo) lo = x; if (x > hi) hi = x;
-        if (y < lo2) lo2 = y; if (y > hi2) hi2 = y;
-      }
-      const a = (hi - lo) * (hi2 - lo2);
-      if (a > bestArea) { bestArea = a; pts = ring; }
+  if (!geo) return null;
+  let rings = [];
+  if (geo.type === 'Polygon') rings = [geo.coordinates[0]];
+  else if (geo.type === 'MultiPolygon') rings = geo.coordinates.map(p => p[0]).filter(r => r && r.length);
+  if (!rings.length) return null;
+  // Largest ring by bbox area + its centroid.
+  let main = rings[0], bestArea = -1;
+  for (const r of rings) {
+    let lo = Infinity, hi = -Infinity, lo2 = Infinity, hi2 = -Infinity;
+    for (const [x, y] of r) { if (x < lo) lo = x; if (x > hi) hi = x; if (y < lo2) lo2 = y; if (y > hi2) hi2 = y; }
+    const a = (hi - lo) * (hi2 - lo2);
+    if (a > bestArea) { bestArea = a; main = r; }
+  }
+  let mlng = 0, mlat = 0;
+  for (const [x, y] of main) { mlng += x; mlat += y; }
+  mlng /= main.length; mlat /= main.length;
+  // Gather points from rings within CLUSTER_DEG of the main body.
+  const lats = [], lngs = [];
+  for (const r of rings) {
+    let clng = 0, clat = 0;
+    for (const [x, y] of r) { clng += x; clat += y; }
+    clng /= r.length; clat /= r.length;
+    let dlng = Math.abs(clng - mlng); if (dlng > 180) dlng = 360 - dlng;
+    if (Math.hypot(dlng, clat - mlat) <= CLUSTER_DEG) {
+      for (const [x, y] of r) { lngs.push(x); lats.push(y); }
     }
   }
-  if (!pts.length) return 8;
-  const lats = pts.map(p => p[1]);
-  const lngs = pts.map(p => p[0]);
-  const spanLat = Math.max(...lats) - Math.min(...lats);
-  const spanLngAdj = _lngSpan(lngs);
-  return Math.max(spanLngAdj, spanLat);
+  if (!lats.length) for (const [x, y] of main) { lngs.push(x); lats.push(y); }
+  if (!lats.length) return null;  // malformed / empty geometry
+  let slng = 0, slat = 0;
+  for (let i = 0; i < lats.length; i++) { slng += lngs[i]; slat += lats[i]; }
+  const span = Math.max(Math.max(...lats) - Math.min(...lats), _lngSpan(lngs));
+  return { lat: slat / lats.length, lng: slng / lngs.length, span };
+}
+function featureSpan(feat) {
+  const c = featureCluster(feat);
+  return c ? c.span : 8;
 }
 
 // Span (in degrees of the longer axis) → MapLibre zoom level. Tiered
@@ -3585,90 +3592,84 @@ function renderAutocomplete(raw) {
   box.style.display = count ? 'flex' : 'none';
 }
 function pickAutocomplete(name) {
-  const inp = document.getElementById('cinput');
-  inp.value = name;
   hideAutocomplete();
-  inp.focus();
-  inp.dispatchEvent(new Event('input', { bubbles: true }));  // run the match logic
+  document.getElementById('cinput').focus();
+  submitGuess(name);  // tapping a suggestion is a deliberate submit
 }
 
-document.getElementById('cinput').addEventListener('input', function() {
-  if (!isRunning) return;
-  renderAutocomplete(this.value);
+function shakeInput() {
+  const el = document.getElementById('cinput');
+  el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+}
 
-  // Identify modes (Daily/Sprint/Strict): you must name the highlighted target.
-  // A correct entry advances; anything else does NOTHING — there are no strikes
-  // for wrong/incomplete guesses. The only way to miss is the SKIP button.
-  // (Autocomplete handles spelling, so the player isn't fighting the keyboard.)
+// Submission is now DELIBERATE: typing alone never commits a guess (that
+// auto-accepted partials — "dominica" before "dominican republic", short
+// aliases like "pak"). A guess is only checked on Enter or when a suggestion
+// chip is tapped. Autocomplete is the spelling aid; this is the commit.
+function submitGuess(raw) {
+  if (!isRunning) return;
+  const val = (raw || '').trim();
+  if (norm(val).length < 2) return;
+  const cin = document.getElementById('cinput');
+
+  // Identify modes: must name the highlighted target. Right → advance; wrong →
+  // just a shake, no penalty (the only way to miss is SKIP).
   if (isStrictLikeMode()) {
     if (!strictTarget) return;
-    const inp = norm(this.value);
-    if (inp.length < 3) return;
+    const inp = norm(val);
     const tgtNames = [norm(strictTarget.canonical), ...strictTarget.aliases.map(norm)];
     let isTarget = tgtNames.includes(inp);
     if (!isTarget) {
-      for (const n of tgtNames) {
-        if (n.length >= 8  && inp.length >= n.length && inp.length <= n.length + 1 && lev(inp, n) === 1) { isTarget = true; break; }
-        if (n.length >= 12 && inp.length >= n.length && inp.length <= n.length + 1 && lev(inp, n) <= 2) { isTarget = true; break; }
+      for (const n of tgtNames) {  // typo tolerance, length-gated so it can't swallow a shorter different country
+        if (n.length >= 8  && Math.abs(inp.length - n.length) <= 1 && lev(inp, n) <= 1) { isTarget = true; break; }
+        if (n.length >= 12 && Math.abs(inp.length - n.length) <= 2 && lev(inp, n) <= 2) { isTarget = true; break; }
       }
     }
-    if (isTarget) {
-      this.value = '';
-      hideAutocomplete();
-      strictCorrect();
-    }
+    if (isTarget) { cin.value = ''; hideAutocomplete(); strictCorrect(); }
+    else { shakeInput(); }
     return;
   }
 
-  const c = findMatch(this.value);
+  // Name All
+  const c = findMatch(val);
   if (!c) {
-    // No live match — but did they just retype something they already got?
-    const dupe = findAlreadyNamed(this.value);
-    if (dupe) {
-      this.value = '';
-      this.classList.remove('shake');
-      void this.offsetWidth;
-      this.classList.add('shake');
-      toast(`ALREADY NAMED: ${dupe.canonical.toUpperCase()}`);
-    }
+    const dupe = findAlreadyNamed(val);
+    if (dupe) { toast(`ALREADY NAMED: ${dupe.canonical.toUpperCase()}`); cin.value = ''; hideAutocomplete(); }
+    else shakeInput();
     return;
   }
-  // Only Name All reaches here now — Daily/Sprint/Strict are handled by the
-  // identify matcher above and return before this point.
-
   c.named = true;
   hideAutocomplete();
   namedList.push(c.canonical);
   namedTs.push((Date.now() - sessionStart) / 1000);
-
   if (c.feat) {
     flyToFeature(c.feat);
-    if (c.feat.properties && c.feat.properties.ADMIN) {
-      mapAdapter.markNamed(c.feat.properties.ADMIN);
-    }
+    if (c.feat.properties && c.feat.properties.ADMIN) mapAdapter.markNamed(c.feat.properties.ADMIN);
   }
-  if (c === lastJumpTarget) maybeUpdateBlink();  // target named → stop blinking
-  // Track the most recent camera target so the visualViewport-resize
-  // listener can re-fly here if the keyboard pops up after this.
+  if (c === lastJumpTarget) maybeUpdateBlink();
   lastJumpTarget = c;
-
   const continent = CONTINENT[c.canonical];
-  const toastMsg = namedList.length <= 3 && continent
+  toast(namedList.length <= 3 && continent
     ? `✓ ${c.canonical.toUpperCase()} · ${continent.toUpperCase()}`
-    : `✓ ${c.canonical.toUpperCase()}`;
-  toast(toastMsg);
+    : `✓ ${c.canonical.toUpperCase()}`);
   addChip(c.canonical);
   updateHUD();
   if (ghostData) {
-    // Player just gained a point — re-evaluate "ahead" state immediately
     document.getElementById('ghost-display').classList.toggle('ahead', ghostNamedCount > namedList.length);
   }
-  this.value = '';
+  cin.value = '';
   if (namedList.length === modeTotal) { endGame(); return; }
-  if (autoNext) {
-    clearTimeout(autoNextTimer);
-    autoNextTimer = setTimeout(jumpToNext, 1000);
-  }
+  if (autoNext) { clearTimeout(autoNextTimer); autoNextTimer = setTimeout(jumpToNext, 1000); }
+}
+
+// Typing only updates the suggestions — it never commits.
+document.getElementById('cinput').addEventListener('input', function() {
+  if (!isRunning) return;
+  renderAutocomplete(this.value);
+});
+// Enter commits the typed guess.
+document.getElementById('cinput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); submitGuess(this.value); }
 });
 
 // Hide the autocomplete suggestions when the field loses focus (small delay so

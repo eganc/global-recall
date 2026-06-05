@@ -5,24 +5,70 @@
 // 2.5 ≈ Russia-sized. We keep it as an intermediate so the camera-zoom
 // curve is tunable separately from the geometry-size estimate.
 
-// Centroid of the largest polygon in a GeoJSON feature.
-// MultiPolygon: picks the ring with the most vertices (usually the
-// mainland) so islands don't pull the centroid into the ocean.
-export function featureCentroid(feat) {
+// Cluster of a feature's "main body": the largest polygon PLUS every other
+// polygon whose centroid is within CLUSTER_DEG of it. Keeps archipelago
+// nations (Bahamas, Marshall Islands) together for a sensible zoom while
+// dropping far-flung dependencies (US Alaska/Hawaii, France's Guiana).
+const CLUSTER_DEG = 12;
+export function featureCluster(feat) {
   const geo = feat && feat.geometry;
   if (!geo) return null;
-  let pts = [];
-  if (geo.type === 'Polygon') pts = geo.coordinates[0];
-  else if (geo.type === 'MultiPolygon') {
-    let max = 0;
-    for (const poly of geo.coordinates) {
-      if (poly[0] && poly[0].length > max) { max = poly[0].length; pts = poly[0]; }
+  let rings = [];
+  if (geo.type === 'Polygon') rings = [geo.coordinates[0]];
+  else if (geo.type === 'MultiPolygon') rings = geo.coordinates.map(p => p[0]).filter(r => r && r.length);
+  if (!rings.length) return null;
+  let main = rings[0], bestArea = -1;
+  for (const r of rings) {
+    let lo = Infinity, hi = -Infinity, lo2 = Infinity, hi2 = -Infinity;
+    for (const [x, y] of r) { if (x < lo) lo = x; if (x > hi) hi = x; if (y < lo2) lo2 = y; if (y > hi2) hi2 = y; }
+    const a = (hi - lo) * (hi2 - lo2);
+    if (a > bestArea) { bestArea = a; main = r; }
+  }
+  let mlng = 0, mlat = 0;
+  for (const [x, y] of main) { mlng += x; mlat += y; }
+  mlng /= main.length; mlat /= main.length;
+  const lats = [], lngs = [];
+  for (const r of rings) {
+    let clng = 0, clat = 0;
+    for (const [x, y] of r) { clng += x; clat += y; }
+    clng /= r.length; clat /= r.length;
+    let dlng = Math.abs(clng - mlng); if (dlng > 180) dlng = 360 - dlng;
+    if (Math.hypot(dlng, clat - mlat) <= CLUSTER_DEG) {
+      for (const [x, y] of r) { lngs.push(x); lats.push(y); }
     }
   }
-  if (!pts.length) return null;
-  let lng = 0, lat = 0;
-  for (const [x, y] of pts) { lng += x; lat += y; }
-  return { lat: lat / pts.length, lng: lng / pts.length };
+  if (!lats.length) for (const [x, y] of main) { lngs.push(x); lats.push(y); }
+  if (!lats.length) return null;
+  let slng = 0, slat = 0;
+  for (let i = 0; i < lats.length; i++) { slng += lngs[i]; slat += lats[i]; }
+  const span = Math.max(Math.max(...lats) - Math.min(...lats), lngSpan(lngs));
+  return { lat: slat / lats.length, lng: slng / lngs.length, span };
+}
+
+// Centroid of the feature's main cluster (see featureCluster).
+export function featureCentroid(feat) {
+  const c = featureCluster(feat);
+  return c ? { lat: c.lat, lng: c.lng } : null;
+}
+
+// Span (degrees of the longer axis) of the feature's main cluster.
+export function featureSpan(feat) {
+  const c = featureCluster(feat);
+  return c ? c.span : 8;
+}
+
+// Span (degrees) → MapLibre zoom level, tiered by hand so microstates stay
+// visible and giant countries still fit. Mirror of index.html spanToZoom.
+export function spanToZoom(span) {
+  if (span < 0.4)  return 9.0;
+  if (span < 1.2)  return 7.8;
+  if (span < 2.5)  return 6.2;
+  if (span < 5)    return 5.0;
+  if (span < 9)    return 4.0;
+  if (span < 16)   return 3.4;
+  if (span < 28)   return 2.8;
+  if (span < 45)   return 2.3;
+  return 1.6;
 }
 
 // Antimeridian-aware longitude span. Naïve max-min returns ~352° for a
