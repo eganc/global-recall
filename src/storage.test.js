@@ -368,3 +368,47 @@ describe('leaderboard', () => {
     expect(s.getLeaderboard('strict')[0].initials).toBe('BBB');
   });
 });
+
+describe('my scores (private self-identification)', () => {
+  it('records and recognises a submission across the same fingerprint', () => {
+    const s = createStorage(makeStore());
+    s.recordMyScore('sprint', 'MIO', 42, 1700000000000);
+    expect(s.isMyScore('sprint', 'MIO', 42, 1700000000000)).toBe(true);
+  });
+
+  it('recognises your rows even under different initials', () => {
+    const s = createStorage(makeStore());
+    s.recordMyScore('sprint', 'MIO', 42, 1700000000000);
+    s.recordMyScore('sprint', 'ZZZ', 50, 1700000000001);
+    expect(s.isMyScore('sprint', 'MIO', 42, 1700000000000)).toBe(true);
+    expect(s.isMyScore('sprint', 'ZZZ', 50, 1700000000001)).toBe(true);
+  });
+
+  it('does not claim a stranger row with the same initials+score but a different ts', () => {
+    const s = createStorage(makeStore());
+    s.recordMyScore('sprint', 'AAA', 99, 1700000000000);
+    expect(s.isMyScore('sprint', 'AAA', 99, 1700000000999)).toBe(false);
+  });
+
+  it('is mode-scoped', () => {
+    const s = createStorage(makeStore());
+    s.recordMyScore('sprint', 'AAA', 10, 1700000000000);
+    expect(s.isMyScore('strict', 'AAA', 10, 1700000000000)).toBe(false);
+  });
+
+  it('normalises initials the same way the board does', () => {
+    const s = createStorage(makeStore());
+    s.recordMyScore('sprint', 'm!o', 7, 1700000000000);
+    expect(s.isMyScore('sprint', 'MOA', 7, 1700000000000)).toBe(true);
+  });
+
+  it('caps the list so it cannot grow without bound', () => {
+    const s = createStorage(makeStore());
+    for (let i = 0; i < 320; i++) s.recordMyScore('sprint', 'AAA', i, 1700000000000 + i);
+    const list = s.getMyScores();
+    expect(list.length).toBeLessThanOrEqual(300);
+    // Most recent survive; the very first ones were trimmed.
+    expect(s.isMyScore('sprint', 'AAA', 319, 1700000000319)).toBe(true);
+    expect(s.isMyScore('sprint', 'AAA', 0, 1700000000000)).toBe(false);
+  });
+});

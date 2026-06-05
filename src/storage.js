@@ -30,6 +30,7 @@ export const STORAGE_KEYS = Object.freeze({
   installDismissed: 'gr_install_dismissed',
   liteMode:         'gr_lite_mode',
   leaderboard:      'gr_leaderboard',
+  myScores:         'gr_my_scores',
 });
 
 // Per-mode leaderboard: { sprint: Entry[], strict: Entry[] }
@@ -258,6 +259,30 @@ export function createStorage(store) {
       lb[mode] = list;
       writeJSON(store, STORAGE_KEYS.leaderboard, lb);
       return list.findIndex(e => e.ts === nowMs && e.initials === clean && e.score === (Number(score) | 0)) + 1;
+    },
+
+    // ── "My scores" fingerprint (private self-identification) ────────────
+    // A flat list of submissions THIS device made: { mode, initials, score,
+    // ts }. Lets the board highlight your own rows — even across different
+    // 3-letter initials — by matching {mode, initials, score, ts}. The same
+    // ts is sent to the global API, so this works on the global board too.
+    // Zero PII, never leaves the device beyond the ts already shown publicly.
+    getMyScores() {
+      const list = readJSON(store, STORAGE_KEYS.myScores, []);
+      return Array.isArray(list) ? list : [];
+    },
+    recordMyScore(mode, initials, score, ts) {
+      const list = this.getMyScores();
+      const clean = String(initials || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'A');
+      list.push({ mode, initials: clean, score: Number(score) | 0, ts });
+      // Cap so it can't grow unbounded on a well-used device.
+      if (list.length > 300) list.splice(0, list.length - 300);
+      writeJSON(store, STORAGE_KEYS.myScores, list);
+    },
+    isMyScore(mode, initials, score, ts) {
+      const s = Number(score) | 0;
+      return this.getMyScores().some(m =>
+        m.mode === mode && m.initials === initials && m.score === s && m.ts === ts);
     },
 
     // ── Install-banner snooze ──────────────────────────────────────────
