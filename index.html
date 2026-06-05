@@ -452,38 +452,27 @@ body { font-family: var(--font-body); color: var(--text); }
 #leaderboard-inner {
   width: 100%; max-width: 460px;
   display: flex; flex-direction: column; gap: 12px;
-  position: relative;  /* anchor for the arcade chase overlay */
+  position: relative;  /* anchor for the conquest-ripple overlay */
 }
-/* ── ARCADE CHASE (Pac-Man-style loop around the board) ── */
-#lb-arcade { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-.lb-pac, .lb-ghost {
-  position: absolute; width: 16px; height: 16px;
-  left: 0; top: 0; margin: -8px;       /* center the sprite on the path point */
-  animation: lbLap 11s linear infinite;
+/* ── CONQUEST RIPPLE ── country-tiles light up green in a travelling wave
+   around the board, echoing the core "name it → it lights up" mechanic. Tiles
+   are positioned by JS (buildLbRipple) to evenly hug the board perimeter. */
+#lb-arcade { position: absolute; inset: -5px; pointer-events: none; z-index: 5; }
+.lb-tile {
+  position: absolute; width: 7px; height: 7px; margin: -3.5px;
+  background: rgba(255,255,255,0.07);
+  animation: lbPulse 4.5s linear infinite;
 }
-.lb-pac {
-  background: #ffe100; border-radius: 50%;
-  animation: lbLap 11s linear infinite, lbChomp 0.28s steps(1) infinite;
-  animation-delay: -2.4s, 0s;          /* head start so the ghosts trail it */
+@keyframes lbPulse {
+  0%, 22%, 100% { background: rgba(255,255,255,0.07); }   /* faint track */
+  4%            { background: var(--mint); }              /* bright head */
+  12%           { background: rgba(34,197,94,0.4); }      /* green tail */
 }
-@keyframes lbChomp {
-  0%   { clip-path: polygon(100% 35%, 45% 50%, 100% 65%, 100% 100%, 0 100%, 0 0, 100% 0); }
-  50%  { clip-path: polygon(100% 48%, 45% 50%, 100% 52%, 100% 100%, 0 100%, 0 0, 100% 0); }
-  100% { clip-path: polygon(100% 35%, 45% 50%, 100% 65%, 100% 100%, 0 100%, 0 0, 100% 0); }
+/* A 🔥 rides the same loop, blinking on now and then as the wave passes. */
+.lb-fire {
+  position: absolute; left: 0; top: 0; margin: -9px; font-size: 13px;
+  animation: lbLap 4.5s linear infinite, lbFireBlink 2.4s ease-in-out infinite;
 }
-.lb-ghost { border-radius: 8px 8px 3px 3px; }
-.lb-ghost::before {  /* eye whites */
-  content: ''; position: absolute; top: 5px; left: 3px;
-  width: 4px; height: 4px; border-radius: 50%; background: #fff; box-shadow: 6px 0 0 #fff;
-}
-.lb-ghost::after {   /* pupils */
-  content: ''; position: absolute; top: 6px; left: 4px;
-  width: 2px; height: 2px; border-radius: 50%; background: #1e1b4b; box-shadow: 6px 0 0 #1e1b4b;
-}
-.lb-ghost.g1 { background: #ff5540; animation-delay: -1.6s; }
-.lb-ghost.g2 { background: #22d3ee; animation-delay: -0.8s; }
-.lb-ghost.g3 { background: #f59e0b; animation-delay: 0s; }
-/* Run the rectangle perimeter: top edge → right → bottom → left → back. */
 @keyframes lbLap {
   0%   { left: 0;    top: 0; }
   25%  { left: 100%; top: 0; }
@@ -491,6 +480,7 @@ body { font-family: var(--font-body); color: var(--text); }
   75%  { left: 0;    top: 100%; }
   100% { left: 0;    top: 0; }
 }
+@keyframes lbFireBlink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { #lb-arcade { display: none; } }
 #leaderboard-title {
   font-family: var(--font-head); font-weight: 900; font-size: 22px;
@@ -806,13 +796,8 @@ body { font-family: var(--font-body); color: var(--text); }
     <div class="end-btns">
       <button class="end-btn primary" onclick="closeLeaderboard()">↩ BACK</button>
     </div>
-    <!-- Pac-Man-style chase looping the board perimeter (decorative, non-blocking) -->
-    <div id="lb-arcade" aria-hidden="true">
-      <div class="lb-pac"></div>
-      <div class="lb-ghost g1"></div>
-      <div class="lb-ghost g2"></div>
-      <div class="lb-ghost g3"></div>
-    </div>
+    <!-- Conquest ripple: country-tiles light up around the perimeter (JS-built, non-blocking) -->
+    <div id="lb-arcade" aria-hidden="true"><div class="lb-fire">🔥</div></div>
   </div>
 </div>
 
@@ -1449,7 +1434,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v50';
+const BUILD_VERSION = 'v51';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -2907,7 +2892,41 @@ function openLeaderboard(mode, range, scope) {
   if (mt) mt.classList.add('lb-tab-active');
   if (rt) rt.classList.add('lb-tab-active');
   if (st) st.classList.add('lb-tab-active');
+  buildLbRipple();
   renderLeaderboard();
+}
+
+// Lay out the conquest-ripple tiles evenly around the board perimeter. Rebuilt
+// on each open so it adapts to the board's current size / orientation. The
+// per-tile animation-delay is its position along the loop, so a bright head
+// with a green tail travels the border (4.5s lap).
+function buildLbRipple() {
+  const host = document.getElementById('lb-arcade');
+  const inner = document.getElementById('leaderboard-inner');
+  if (!host || !inner) return;
+  const r = inner.getBoundingClientRect();
+  const W = r.width, H = r.height;
+  if (W < 10 || H < 10) return;  // not laid out yet
+  host.querySelectorAll('.lb-tile').forEach(t => t.remove());
+  const perim = 2 * (W + H);
+  const n = Math.max(20, Math.round(perim / 14));  // ~one tile every 14px
+  const DUR = 4.5;
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < n; i++) {
+    const f = i / n, d = f * perim;  // distance clockwise from top-left
+    let x, y;
+    if (d < W)            { x = d;                 y = 0; }
+    else if (d < W + H)   { x = W;                 y = d - W; }
+    else if (d < 2*W + H) { x = W - (d - (W + H)); y = H; }
+    else                  { x = 0;                 y = H - (d - (2*W + H)); }
+    const tile = document.createElement('div');
+    tile.className = 'lb-tile';
+    tile.style.left = (x / W * 100) + '%';
+    tile.style.top = (y / H * 100) + '%';
+    tile.style.animationDelay = (-f * DUR) + 's';
+    frag.appendChild(tile);
+  }
+  host.appendChild(frag);
 }
 function leaderboardSetMode(m)  { openLeaderboard(m, leaderboardCurRange, leaderboardCurScope); }
 function leaderboardSetRange(r) { openLeaderboard(leaderboardCurMode, r, leaderboardCurScope); }
