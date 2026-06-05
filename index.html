@@ -218,6 +218,22 @@ body { font-family: var(--font-body); color: var(--text); }
   padding-bottom: 2px;
 }
 #chip-strip::-webkit-scrollbar { display: none; }
+/* Autocomplete suggestions — a horizontal scroll of tappable country chips
+   just above the input, so spelling never blocks a player who knows the place. */
+#autocomplete {
+  display: none; gap: 6px; flex-wrap: nowrap;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  margin-bottom: 8px; padding-bottom: 2px;
+}
+#autocomplete::-webkit-scrollbar { display: none; }
+.ac-chip {
+  flex-shrink: 0; cursor: pointer; white-space: nowrap;
+  font-family: var(--font-head); font-weight: 700; font-size: 13px;
+  background: #fff; color: #1b0c09;
+  border: 2px solid #000; box-shadow: 2px 2px 0 #000;
+  padding: 7px 12px;
+}
+.ac-chip:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 #000; }
 .chip {
   font-family: var(--font-head); font-weight: 700; font-size: 10px;
   letter-spacing: 1px;
@@ -277,7 +293,7 @@ body { font-family: var(--font-body); color: var(--text); }
   font-family: 'Inter', system-ui, sans-serif; font-size: 13px;
   color: var(--text-muted); margin-top: 1px;
 }
-#strict-hint.reveal { color: var(--red); }
+#strict-hint.reveal { color: var(--red); font-size: 16px; font-weight: 900; letter-spacing: 1.5px; }
 #strict-actions { display: flex; gap: 8px; margin-top: 6px; }
 .strict-action-btn {
   flex: 1;
@@ -698,10 +714,10 @@ body { font-family: var(--font-body); color: var(--text); }
       <div id="strict-hint"></div>
       <div id="strict-hint-local"></div>
       <div id="strict-actions">
-        <button id="strict-hint-btn" class="strict-action-btn" onclick="strictHintBtn()">💡 HINT</button>
-        <button id="strict-skip-btn" class="strict-action-btn skip" onclick="strictSkipBtn()">SKIP ▸</button>
+        <button id="strict-hint-btn" class="strict-action-btn" onclick="strictActionBtn()">💡 HINT</button>
       </div>
     </div>
+    <div id="autocomplete" style="display:none"></div>
     <div id="input-row">
       <input id="cinput" type="text" placeholder="Type a country name..."
         autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
@@ -1412,7 +1428,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v52';
+const BUILD_VERSION = 'v53';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -2043,6 +2059,21 @@ function flyToFeature(feat) {
   mapLibreMap.flyTo(opts);
 }
 
+// Intro: open on the whole planet, then (if there's a first target) glide down
+// to it so the player gets global context before the close-up. Used at the
+// start of every mode. The instant jumpTo is wrapped in a double rAF so it
+// lands even while the canvas is still settling its size on first paint.
+const INTRO_ZOOM = 0.5;  // ~whole globe in frame (globe + mercator)
+function flyIntro(feat) {
+  if (!mapLibreMap) return;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (!mapLibreMap) return;
+    if (typeof mapLibreMap.resize === 'function') mapLibreMap.resize();
+    mapLibreMap.jumpTo({ center: [10, 15], zoom: INTRO_ZOOM });
+    if (feat) setTimeout(() => { if (isRunning) flyToFeature(feat); }, 750);
+  }));
+}
+
 // FT-012: keep #app pinned to the *visible* viewport on both platforms.
 // Android Chrome honours `interactive-widget=resizes-content` (the meta tag)
 // and shrinks the layout when the keyboard opens — header stays put. iOS
@@ -2626,6 +2657,9 @@ function startGame() {
     kidsStartRound();
   } else if (isStrictLikeMode()) {
     strictAdvance();
+  } else {
+    // Name All has no first target — just open on the whole planet for context.
+    flyIntro(null);
   }
 
   updateHUD();
@@ -3271,13 +3305,13 @@ function kidsStartRound() {
   // Highlight on globe (camera move + amber target paint)
   if (kidsTarget.feat) {
     lastJumpTarget = kidsTarget;
-    // Round 1 needs the instant set (layout-race reason — same as Daily).
-    // Subsequent rounds animate so the user sees the globe pan/zoom.
-    const isFirstRound = kidsRounds === 0;
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (isFirstRound) jumpToFeature(kidsTarget.feat);
-      else flyToFeature(kidsTarget.feat);
-    }));
+    // Round 1: open on the whole planet, then glide in for context.
+    // Subsequent rounds animate directly so the user sees the globe pan/zoom.
+    if (kidsRounds === 0) {
+      flyIntro(kidsTarget.feat);
+    } else {
+      flyToFeature(kidsTarget.feat);
+    }
   }
   // Adapter clears the previous round's target and paints this one.
   const newKidsAdmin = kidsTarget.feat && kidsTarget.feat.properties && kidsTarget.feat.properties.ADMIN;
@@ -3329,9 +3363,12 @@ function kidsAnswer(idx) {
 // ═══════════════════════════════════════════════════════════════
 // STRICT MODE
 // ═══════════════════════════════════════════════════════════════
+// strictAttempt now tracks HINT level (0 = none, 1 = capital, 2 = +letters).
+// There are no strikes anymore — the only way to miss is to SKIP. The pips
+// show how many of the two hints have been spent on the current country.
 function strictUpdateStrikes() {
-  const dots = ['○ ○ ○', '● ○ ○', '● ● ○', '● ● ●'];
-  document.getElementById('strict-strikes').textContent = dots[strictAttempt] || dots[3];
+  const pips = ['💡 ○ ○', '💡 ● ○', '💡 ● ●'];
+  document.getElementById('strict-strikes').textContent = pips[Math.min(strictAttempt, 2)];
 }
 function strictUpdateProgress() {
   const done = strictPerfect + strictHinted + strictMissed;
@@ -3347,32 +3384,35 @@ function strictClearHint() {
   h.classList.remove('reveal');
   if (mapAdapter && mapAdapter.clearCapitalPin) mapAdapter.clearCapitalPin();
 }
+// Hints are CUMULATIVE: `level` means "show every hint up to this level", so
+// hint 1 stays on screen when hint 2 appears. Line 1 (#strict-hint) = capital
+// (+ local script); line 2 (#strict-hint-local) = first letter + length.
+// level >= 3 is the reveal.
 function strictShowHint(level, target) {
   const h = document.getElementById('strict-hint');
   const l = document.getElementById('strict-hint-local');
-  h.classList.remove('reveal');
   const cap = CAPITALS[target.canonical];
-  if (level === 1) {
-    if (cap) {
-      h.textContent = `CAPITAL: ${cap.name.toUpperCase()}`;
-      l.textContent = cap.local || '';
-      // Drop a pin on the capital so the player can SEE where it is —
-      // half the learning value of the hint is "oh, that's where Lima
-      // is on the country".
-      mapAdapter.showCapitalPin(cap.lat, cap.lng, cap.name);
-    } else {
-      // Shouldn't happen — every country has a capital entry — but if it
-      // does, fall back to the letter-length hint immediately so the
-      // user isn't stuck on a blank.
-      strictShowHint(2, target);
-    }
-  } else if (level === 2) {
-    const len = target.canonical.replace(/[^A-Za-z]/g, '').length;
-    h.textContent = `STARTS WITH ${target.canonical.charAt(0).toUpperCase()} · ${len} LETTERS`;
-    l.textContent = '';
-  } else {
+  if (level >= 3) {
     h.classList.add('reveal');
     h.textContent = `IT WAS ${target.canonical.toUpperCase()}`;
+    l.textContent = cap ? `capital · ${cap.name}` : '';
+    return;
+  }
+  h.classList.remove('reveal');
+  // Hint 1 — capital, with a pin dropped on the map so you SEE where it is.
+  if (level >= 1) {
+    h.textContent = cap
+      ? `CAPITAL: ${cap.name.toUpperCase()}${cap.local ? '  ' + cap.local : ''}`
+      : '';
+    if (cap) mapAdapter.showCapitalPin(cap.lat, cap.lng, cap.name);
+  } else {
+    h.textContent = '';
+  }
+  // Hint 2 — first letter + length, added below hint 1 (cumulative).
+  if (level >= 2) {
+    const len = target.canonical.replace(/[^A-Za-z]/g, '').length;
+    l.textContent = `STARTS WITH ${target.canonical.charAt(0).toUpperCase()} · ${len} LETTERS`;
+  } else {
     l.textContent = '';
   }
 }
@@ -3386,36 +3426,46 @@ function strictResetIdleTimer() {
   strictClearIdleTimer();
 }
 // Daily, Sprint and Strict all share the one-target-at-a-time identify
-// engine (strictAdvance/strictCorrect/strictWrong + HINT/SKIP). They differ
+// engine (strictAdvance/strictCorrect + HINT→HINT→SKIP). They differ
 // only in queue + win condition: Daily = the day's 10, Sprint = 60s clock,
 // Strict = the full 195.
 function isStrictLikeMode() { return currentMode === 'strict' || currentMode === 'sprint' || currentMode === 'daily'; }
 
-// Enable/disable the HINT and SKIP buttons. Disabled during the 2s reveal
-// pause so a stray tap can't double-count a miss or skip the next country.
+// Disable the action button during the reveal pause so a stray tap can't
+// skip the next country.
 function strictSetActionsEnabled(on) {
   const hb = document.getElementById('strict-hint-btn');
-  const sb = document.getElementById('strict-skip-btn');
   if (hb) hb.disabled = !on;
-  if (sb) sb.disabled = !on;
 }
 
-// HINT: spend a strike to surface the next clue (capital → first letter +
-// length → reveal). Tapping it three times reveals the answer, same as
-// running out of guesses.
-function strictHintBtn() {
-  if (!isStrictLikeMode() || !isRunning || !strictTarget || strictRevealing) return;
-  const inp = document.getElementById('cinput');
-  inp.value = '';
-  strictWrong();
-  if (!strictRevealing) inp.focus();  // keep the keyboard up unless we just revealed
+// The single action button morphs: HINT (capital) → HINT (+letters) → SKIP.
+// You can't reach the answer without walking the hints first, and the only
+// way to miss a country is to press SKIP.
+function strictUpdateActionLabel() {
+  const btn = document.getElementById('strict-hint-btn');
+  if (!btn) return;
+  const skip = strictAttempt >= 2;
+  btn.textContent = skip ? 'SKIP ▸' : '💡 HINT';
+  btn.classList.toggle('skip', skip);
 }
 
-// SKIP: give up on this country now — counts as a miss, reveals it, advances.
-function strictSkipBtn() {
+function strictActionBtn() {
   if (!isStrictLikeMode() || !isRunning || !strictTarget || strictRevealing) return;
-  strictClearIdleTimer();
-  document.getElementById('cinput').value = '';
+  if (strictAttempt < 2) {
+    // Reveal the next hint (cumulative).
+    strictAttempt++;
+    strictShowHint(strictAttempt, strictTarget);
+    strictUpdateStrikes();
+    strictUpdateActionLabel();
+    const inp = document.getElementById('cinput');
+    inp.value = ''; inp.focus();  // keep the keyboard up
+  } else {
+    strictSkip();
+  }
+}
+
+// SKIP: give up on this country — counts as a miss, reveals it, advances.
+function strictSkip() {
   strictAttempt = 3;
   strictMissed++;
   strictUpdateStrikes();
@@ -3431,6 +3481,7 @@ function strictAdvance() {
   strictRevealing = false;
   strictSetActionsEnabled(true);
   strictAttempt = 0;
+  strictUpdateActionLabel();   // reset the button back to HINT
   if (strictIdx >= strictQueue.length) { endGame(); return; }
   strictTarget = strictQueue[strictIdx];
   if (!strictTarget) { endGame(); return; }
@@ -3440,9 +3491,10 @@ function strictAdvance() {
   const admin = strictTarget.feat && strictTarget.feat.properties && strictTarget.feat.properties.ADMIN;
   mapAdapter.paintKidsTarget(admin || null);
   if (strictTarget.feat) {
-    // First country needs the layout-settled instant set; rest animate.
+    // First country: open on the whole planet, then glide in for context.
+    // Subsequent countries just fly directly.
     if (strictIdx === 0) {
-      requestAnimationFrame(() => requestAnimationFrame(() => jumpToFeature(strictTarget.feat)));
+      flyIntro(strictTarget.feat);
     } else {
       flyToFeature(strictTarget.feat);
     }
@@ -3450,15 +3502,16 @@ function strictAdvance() {
   strictUpdateStrikes();
   strictUpdateProgress();
   document.getElementById('cinput').value = '';
+  hideAutocomplete();
   document.getElementById('cinput').focus();
   strictResetIdleTimer();
 }
 function strictAdvanceAfterReveal() {
   strictRevealing = true;
   strictSetActionsEnabled(false);
-  // 2s pause after reveal so the user can read the country name.
-  // In sprint the clock may have already expired by the time we fire;
-  // the isRunning check prevents a post-game camera flight.
+  // Long pause after a reveal so the answer is an actual learning moment —
+  // the player needs time to read "IT WAS X" and look at the country before
+  // we move on. (isRunning guard prevents a post-game camera flight in Sprint.)
   setTimeout(() => {
     if (!isRunning) return;
     if (strictTarget && strictTarget.feat && strictTarget.feat.properties) {
@@ -3468,7 +3521,7 @@ function strictAdvanceAfterReveal() {
     }
     strictIdx++;
     strictAdvance();
-  }, 2000);
+  }, 3200);
 }
 function strictCorrect() {
   if (strictAttempt === 0) strictPerfect++;
@@ -3482,21 +3535,6 @@ function strictCorrect() {
   updateHUD();
   strictIdx++;
   strictAdvance();
-}
-function strictWrong() {
-  strictClearIdleTimer();
-  strictAttempt++;
-  strictUpdateStrikes();
-  if (strictAttempt >= 3) {
-    strictMissed++;
-    strictShowHint(3, strictTarget);
-    strictUpdateProgress();
-    updateHUD();
-    strictAdvanceAfterReveal();
-  } else {
-    strictShowHint(strictAttempt, strictTarget);
-    strictResetIdleTimer();
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3516,16 +3554,53 @@ function findAlreadyNamed(raw) {
   return null;
 }
 
+// ── Autocomplete ─────────────────────────────────────────────────────────
+// Spelling shouldn't be the barrier — players who know the place but not the
+// exact spelling get tappable suggestions. Shows ALL countries matching what's
+// typed (not just the target), so it never gives the answer away; it only
+// removes the keyboard fight. Excludes already-named countries.
+function hideAutocomplete() {
+  const box = document.getElementById('autocomplete');
+  if (box) { box.innerHTML = ''; box.style.display = 'none'; }
+}
+function renderAutocomplete(raw) {
+  const box = document.getElementById('autocomplete');
+  if (!box) return;
+  const inp = norm(raw);
+  box.innerHTML = '';
+  if (inp.length < 1) { box.style.display = 'none'; return; }
+  let count = 0;
+  for (const c of countries) {
+    if (c.named) continue;
+    const names = [c.canonical, ...c.aliases];
+    if (!names.some(nm => norm(nm).startsWith(inp))) continue;
+    const b = document.createElement('button');
+    b.className = 'ac-chip';
+    b.textContent = c.canonical;
+    b.addEventListener('mousedown', e => e.preventDefault());  // don't blur the input
+    b.addEventListener('click', () => pickAutocomplete(c.canonical));
+    box.appendChild(b);
+    if (++count >= 8) break;
+  }
+  box.style.display = count ? 'flex' : 'none';
+}
+function pickAutocomplete(name) {
+  const inp = document.getElementById('cinput');
+  inp.value = name;
+  hideAutocomplete();
+  inp.focus();
+  inp.dispatchEvent(new Event('input', { bubbles: true }));  // run the match logic
+}
+
 document.getElementById('cinput').addEventListener('input', function() {
   if (!isRunning) return;
+  renderAutocomplete(this.value);
 
-  // STRICT mode runs through its own one-target-at-a-time matcher so that
-  // (a) the target country must be named, and (b) any other typed
-  // country burns a strike. We DON'T fall through to findMatch — that
-  // would let a wrong guess fly the camera, defeating the mode. Daily now
-  // shares this path (identify, one target at a time).
+  // Identify modes (Daily/Sprint/Strict): you must name the highlighted target.
+  // A correct entry advances; anything else does NOTHING — there are no strikes
+  // for wrong/incomplete guesses. The only way to miss is the SKIP button.
+  // (Autocomplete handles spelling, so the player isn't fighting the keyboard.)
   if (isStrictLikeMode()) {
-    strictResetIdleTimer();
     if (!strictTarget) return;
     const inp = norm(this.value);
     if (inp.length < 3) return;
@@ -3539,34 +3614,8 @@ document.getElementById('cinput').addEventListener('input', function() {
     }
     if (isTarget) {
       this.value = '';
+      hideAutocomplete();
       strictCorrect();
-      return;
-    }
-    // Don't penalize a guess that's still a prefix of the target name — the
-    // player may just be mid-word (typing "Niger" en route to "Nigeria",
-    // "Guinea" en route to "Guinea-Bissau"). Wait for more input before we
-    // decide it's a wrong country. (Daily relied on this; Strict/Sprint were
-    // quietly burning a strike on these prefixes.)
-    if (tgtNames.some(n => n.length > inp.length && n.startsWith(inp))) return;
-    // Did they type some OTHER country (with fuzzy/typo tolerance)?
-    let other = null;
-    for (const c of countries) {
-      if (c === strictTarget) continue;
-      const names = [norm(c.canonical), ...c.aliases.map(norm)];
-      for (const n of names) {
-        if (n === inp) { other = c; break; }
-        if (n.length >= 7 && inp.length >= n.length && inp.length <= n.length + 1) {
-          const d = lev(inp, n);
-          if (n.length >= 8  && d === 1) { other = c; break; }
-          if (n.length >= 12 && d <= 2)  { other = c; break; }
-        }
-      }
-      if (other) break;
-    }
-    if (other) {
-      this.value = '';
-      toast(`✗ ${other.canonical.toUpperCase()}`);
-      strictWrong();
     }
     return;
   }
@@ -3588,6 +3637,7 @@ document.getElementById('cinput').addEventListener('input', function() {
   // identify matcher above and return before this point.
 
   c.named = true;
+  hideAutocomplete();
   namedList.push(c.canonical);
   namedTs.push((Date.now() - sessionStart) / 1000);
 
@@ -3621,8 +3671,11 @@ document.getElementById('cinput').addEventListener('input', function() {
   }
 });
 
-// Input focus/blur used to pause/resume auto-rotate. Auto-rotate is gone,
-// so these handlers are too.
+// Hide the autocomplete suggestions when the field loses focus (small delay so
+// a chip tap registers first).
+document.getElementById('cinput').addEventListener('blur', () => {
+  setTimeout(hideAutocomplete, 150);
+});
 
 // ═══════════════════════════════════════════════════════════════
 // BOOT SEQUENCE
