@@ -1066,6 +1066,7 @@ const RAW = [
   ["Ivory Coast",["Côte d'Ivoire","Cote d'Ivoire","Cote dIvoire","Cote Ivoire"]],
   ["Kosovo",["Republic of Kosovo"]],
   ["Western Sahara",["Sahrawi Republic","SADR"]],
+  ["Vatican City",["Vatican","Holy See","Vatican City State","Holy See (Vatican City)"]],
 ];
 
 // Capital cities — used by STRICT mode for the hint flow and for the
@@ -1277,6 +1278,7 @@ const CAPITALS = {
   "Ivory Coast":               { name: "Yamoussoukro",        local: "",                                  lat: 6.8276,  lng: -5.2893 },
   "Kosovo":                    { name: "Pristina",            local: "Prishtinë",                         lat: 42.6629, lng: 21.1655 },
   "Western Sahara":            { name: "El Aaiún",            local: "العيون",                             lat: 27.1536, lng: -13.2033 },
+  "Vatican City":              { name: "Vatican City",        local: "Città del Vaticano",                lat: 41.9029, lng: 12.4534 },
 };
 
 // Continent lookup — used to enrich toast on first 3 correct answers
@@ -1323,7 +1325,7 @@ const CONTINENT = {
   Norway:'Europe',Poland:'Europe',Portugal:'Europe',Romania:'Europe',
   Russia:'Europe','San Marino':'Europe',Serbia:'Europe',Slovakia:'Europe',
   Slovenia:'Europe',Spain:'Europe',Sweden:'Europe',Switzerland:'Europe',
-  Ukraine:'Europe','United Kingdom':'Europe',
+  Ukraine:'Europe','United Kingdom':'Europe','Vatican City':'Europe',
   // North America
   'Antigua and Barbuda':'North America',Bahamas:'North America',Barbados:'North America',
   Belize:'North America',Canada:'North America','Costa Rica':'North America',
@@ -1429,7 +1431,7 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v54';
+const BUILD_VERSION = 'v55';
 let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
 let sprintEnd = 0;
 let dailyTarget = [];
@@ -2376,6 +2378,25 @@ function addCountryLayers() {
       'text-halo-width': 2,
     },
   });
+
+  // Target marker: a hollow amber ring dropped on microstates (Vatican,
+  // Monaco, Singapore…) that are too small to see when highlighted — the ring
+  // is screen-fixed, so it points you to the country sitting inside it.
+  mapLibreMap.addSource('target-marker', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+  });
+  mapLibreMap.addLayer({
+    id: 'target-marker-ring',
+    type: 'circle',
+    source: 'target-marker',
+    paint: {
+      'circle-radius': 13,
+      'circle-color': 'rgba(245,158,11,0.12)',
+      'circle-stroke-color': '#f59e0b',
+      'circle-stroke-width': 3,
+    },
+  });
 }
 
 // Idempotent: only adds the source/layers if they're missing. style.load
@@ -2402,10 +2423,12 @@ function reapplyHighlights() {
   if (isStrictLikeMode() && strictTarget && strictTarget.feat && strictTarget.feat.properties) {
     const admin = strictTarget.feat.properties.ADMIN;
     if (admin) mapAdapter.paintKidsTarget(admin);
+    maybeMarkMicrostate(strictTarget.feat);
   }
   if (currentMode === 'kids' && kidsTarget && kidsTarget.feat && kidsTarget.feat.properties) {
     const admin = kidsTarget.feat.properties.ADMIN;
     if (admin) mapAdapter.paintKidsTarget(admin);
+    maybeMarkMicrostate(kidsTarget.feat);
   }
 }
 
@@ -2473,7 +2496,22 @@ function createMapAdapter(map) {
     if (!src) return;
     src.setData({ type: 'FeatureCollection', features: [] });
   }
-  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed, setBlink, showCapitalPin, clearCapitalPin };
+  function showTargetMarker(lat, lng) {
+    if (!map || typeof map.getSource !== 'function') return;
+    const src = map.getSource('target-marker');
+    if (!src) return;
+    src.setData({
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: {} }],
+    });
+  }
+  function clearTargetMarker() {
+    if (!map || typeof map.getSource !== 'function') return;
+    const src = map.getSource('target-marker');
+    if (!src) return;
+    src.setData({ type: 'FeatureCollection', features: [] });
+  }
+  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed, setBlink, showCapitalPin, clearCapitalPin, showTargetMarker, clearTargetMarker };
 }
 
 // Adapter instance — constructed against the live MapLibre map. Starts
@@ -2587,6 +2625,7 @@ function updateHUD() {
 function startGame() {
   countries.forEach(c => { c.named = false; });
   mapAdapter.clear();  // wipe any previous round's MapLibre feature-state
+  mapAdapter.clearTargetMarker();
   namedList = []; namedTs = [];
   lastJumpTarget = null;
   stopBlink();
@@ -3323,6 +3362,7 @@ function kidsStartRound() {
   // Adapter clears the previous round's target and paints this one.
   const newKidsAdmin = kidsTarget.feat && kidsTarget.feat.properties && kidsTarget.feat.properties.ADMIN;
   mapAdapter.paintKidsTarget(newKidsAdmin || null);
+  maybeMarkMicrostate(kidsTarget.feat);
   // Update UI
   const cont = CONTINENT[kidsTarget.canonical] || '';
   document.getElementById('kids-progress').textContent =
@@ -3482,6 +3522,19 @@ function strictSkip() {
   strictAdvanceAfterReveal();
 }
 
+// Microstates (Vatican, Monaco, San Marino, Singapore, Nauru…) are a few
+// pixels even at max zoom, so the highlight is invisible. Drop a screen-fixed
+// ring on them so the player can find the target; clear it for normal-sized
+// countries (the green fill is enough).
+const MICRO_SPAN = 1.5;
+function maybeMarkMicrostate(feat) {
+  if (feat && featureSpan(feat) < MICRO_SPAN) {
+    const c = featureCentroid(feat);
+    if (c) { mapAdapter.showTargetMarker(c.lat, c.lng); return; }
+  }
+  mapAdapter.clearTargetMarker();
+}
+
 function strictAdvance() {
   strictClearHint();
   strictClearIdleTimer();
@@ -3497,6 +3550,7 @@ function strictAdvance() {
   // the kids mode uses for its target country).
   const admin = strictTarget.feat && strictTarget.feat.properties && strictTarget.feat.properties.ADMIN;
   mapAdapter.paintKidsTarget(admin || null);
+  maybeMarkMicrostate(strictTarget.feat);
   if (strictTarget.feat) {
     // First country: open on the whole planet, then glide in for context.
     // Subsequent countries just fly directly.

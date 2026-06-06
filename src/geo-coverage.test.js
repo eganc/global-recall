@@ -37,9 +37,9 @@ function resolve(canonical, aliases) {
 
 describe('country → GeoJSON coverage', () => {
   it('RAW was extracted from index.html', () => {
-    // 195 UN states + Taiwan + Kosovo. Exact assertion guards against an
-    // accidental row deletion or against the regex losing rows.
-    expect(RAW.length).toBe(197);
+    // 195 UN states (incl. Holy See/Vatican) + Taiwan + Kosovo. Exact
+    // assertion guards against an accidental row deletion or a regex slip.
+    expect(RAW.length).toBe(198);
   });
 
   it('every RAW country resolves to a GeoJSON feature', () => {

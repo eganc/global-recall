@@ -97,5 +97,23 @@ export function createMapAdapter(map) {
     src.setData({ type: 'FeatureCollection', features: [] });
   }
 
-  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed, setBlink, showCapitalPin, clearCapitalPin };
+  // Hollow ring dropped on microstates that are too small to see highlighted.
+  function showTargetMarker(lat, lng) {
+    if (!map || typeof map.getSource !== 'function') return;
+    const src = map.getSource('target-marker');
+    if (!src) return;
+    src.setData({
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: {} }],
+    });
+  }
+
+  function clearTargetMarker() {
+    if (!map || typeof map.getSource !== 'function') return;
+    const src = map.getSource('target-marker');
+    if (!src) return;
+    src.setData({ type: 'FeatureCollection', features: [] });
+  }
+
+  return { highlight, clear, paintDailyTargets, paintKidsTarget, markNamed, setBlink, showCapitalPin, clearCapitalPin, showTargetMarker, clearTargetMarker };
 }

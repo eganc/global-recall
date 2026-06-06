@@ -24,7 +24,7 @@ import { Redis } from '@upstash/redis';
 
 const VALID_MODES = ['sprint', 'strict'];
 const MIN_SCORE = 1;
-const MAX_SCORE = 195;
+const MAX_SCORE = 198;  // full country count (Strict can name them all)
 const TOP_N = 100;
 
 // Lazily constructed so we can return a clean 503 when KV isn't
