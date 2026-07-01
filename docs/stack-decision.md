@@ -15,7 +15,7 @@ So the question this doc actually answers is: **what does the existing stack nee
 
 ## The stack
 
-- **Frontend:** Vanilla HTML/JS/CSS, single `index.html`, three-globe via CDN. **Unchanged.** Adding a framework now would burn weeks for negative product value.
+- **Frontend:** Vanilla HTML/JS/CSS, single `index.html`. **Unchanged** (no framework). Map rendering swapped from three-globe to **MapLibre GL JS** (CDN) in 2026-06 — see `docs/maplibre-migration-plan.md` — to fix FT-008 (globe unusable on weak GPUs) and add the Flat Mercator render mode. Adding a framework now would still burn weeks for negative product value.
 - **Backend:** None for v1. All game state is client-side. *(See "Architectural decisions" — the Storage abstraction is the migration path.)*
 - **Database:** `localStorage`, wrapped behind a single `Storage` module so the persistence surface is one swappable file when sync becomes a real need (post-traction).
 - **Auth:** None for v1. The brief explicitly defers account/sync until users ask. Auth is one-shot risk HIGH — don't add it speculatively.
@@ -24,7 +24,7 @@ So the question this doc actually answers is: **what does the existing stack nee
 - **Payments:** N/A for v1 — brief says "keep it free until traction is real."
 - **Analytics:** **UTM-tagged share URLs + App Store Connect / Google Play Console for v1.** Zero cost, zero ops, covers the two questions the brief actually needs answered ("what's the organic install baseline" and "does the share card cause click-throughs"). **Plausible (~$9/mo)** is lined up for the day we want event-level questions ("what % of new users finished their first Daily", "what % switched to Atlas") — add it only when there's something to learn from it.
 - **Share card image:** Already client-side `<canvas>` → PNG. Stays that way. No backend image rendering.
-- **Key dependencies:** three-globe (CDN, pinned via SW cache), vitest (dev), Capacitor core + iOS + Android plugins (when wrapping starts).
+- **Key dependencies:** MapLibre GL JS (CDN, pinned via SW cache), vitest (dev), Capacitor core + iOS + Android plugins (when wrapping starts).
 
 ---
 

@@ -1,6 +1,6 @@
 # MapLibre GL Migration Plan
 
-> **Status:** Decided. Implementation pending.
+> **Status:** Shipped. Live on `main` / production.
 > **Decision date:** 2026-05-26
 > **Driver:** FT-008 (globe near-unusable on Chromebook + weak Android devices)
 > **Reference:** [GitHub issue #1](https://github.com/eganc/global-recall/issues/1)

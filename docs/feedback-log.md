@@ -18,10 +18,10 @@
 ## Triage Batch — 2026-05-25 (Milo Cheung, son, verified on Chromebook)
 
 ### Do Now
-- [ ] **[Bug]** Globe near-unusable on modern Chromebook + weak Android tablets — profile FPS / draw calls, ship a Lite Mode (no atmosphere, no auto-rotate, simplified polygon rendering, auto-detect low-end devices) (FT-008)
+- [x] **[Bug]** Globe near-unusable on modern Chromebook + weak Android tablets — profile FPS / draw calls, ship a Lite Mode (no atmosphere, no auto-rotate, simplified polygon rendering, auto-detect low-end devices) (FT-008) — resolved by the MapLibre GL migration (vector-tile rendering replaces the per-country mesh cost); see `docs/maplibre-migration-plan.md`
 
 ### Monitor
-- [ ] **[Feature]** Flat 2D map fallback for devices that can't run the 3D globe — son's explicit ask; only revisit if FT-008 perf work can't reach acceptable on weak devices (FT-009)
+- [x] **[Feature]** Flat 2D map fallback for devices that can't run the 3D globe — son's explicit ask; only revisit if FT-008 perf work can't reach acceptable on weak devices (FT-009) — shipped as the Render Mode toggle (3D Globe / Flat Mercator), same `gr_lite_mode` key, `map.setProjection()` under the hood
 
 ## Triage Batch — 2026-05-26 (Egan, during Lite Mode Chromebook testing)
 
