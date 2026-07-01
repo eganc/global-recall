@@ -172,6 +172,20 @@ describe('mapAdapter', () => {
     });
   });
 
+  describe('target marker (microstate ring)', () => {
+    it('sets a single Point feature at lng,lat and clears to empty', () => {
+      const sources = { 'target-marker': { data: null, setData(d) { this.data = d; } } };
+      const m = { getSource: (id) => sources[id] };
+      const a = createMapAdapter(m);
+      a.showTargetMarker(41.9, 12.45);  // (lat, lng)
+      const f = sources['target-marker'].data.features;
+      expect(f).toHaveLength(1);
+      expect(f[0].geometry.coordinates).toEqual([12.45, 41.9]);  // [lng, lat]
+      a.clearTargetMarker();
+      expect(sources['target-marker'].data.features).toEqual([]);
+    });
+  });
+
   describe('null map', () => {
     it('every method is a no-op without throwing', () => {
       const a = createMapAdapter(null);
@@ -181,6 +195,8 @@ describe('mapAdapter', () => {
       expect(() => a.paintKidsTarget('Japan')).not.toThrow();
       expect(() => a.markNamed('France')).not.toThrow();
       expect(() => a.setBlink('France', 'cyan')).not.toThrow();
+      expect(() => a.showTargetMarker(1, 2)).not.toThrow();
+      expect(() => a.clearTargetMarker()).not.toThrow();
     });
   });
 });

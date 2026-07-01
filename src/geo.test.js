@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { featureCentroid, featureAltitude, altitudeToZoom } from './geo.js';
+import { featureCentroid, featureAltitude, altitudeToZoom, featureSpan, spanToZoom } from './geo.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GEOJSON = JSON.parse(readFileSync(
@@ -83,6 +83,42 @@ describe('featureAltitude', () => {
     expect(featureAltitude({})).toBe(1.5);
     expect(featureAltitude({ geometry: null })).toBe(1.5);
     expect(featureAltitude({ geometry: { type: 'Polygon', coordinates: [[]] } })).toBe(1.5);
+  });
+});
+
+describe('featureSpan + spanToZoom (cluster-aware zoom)', () => {
+  it('keeps an archipelago together instead of zooming to one island', () => {
+    // The Bahamas' largest island is ~1° — largest-only zoomed in to ~7.8 and
+    // showed open ocean. The cluster spans the islands (~6°) → a sane zoom.
+    const bahamas = findByAdmin('The Bahamas');
+    expect(bahamas).toBeDefined();
+    expect(featureSpan(bahamas)).toBeGreaterThan(3);
+    expect(spanToZoom(featureSpan(bahamas))).toBeLessThanOrEqual(4.5);
+  });
+
+  it('excludes far-flung territories for continental nations', () => {
+    // US cluster = contiguous mainland (~58°); Alaska/Hawaii are >30° away and
+    // must not balloon the span into a hemisphere zoom.
+    const us = findByAdmin('United States of America');
+    const span = featureSpan(us);
+    expect(span).toBeGreaterThan(40);
+    expect(span).toBeLessThan(75);
+    expect(spanToZoom(span)).toBeLessThanOrEqual(2.0);
+  });
+
+  it('zooms a small single country in close', () => {
+    expect(spanToZoom(featureSpan(findByAdmin('Andorra')))).toBeGreaterThanOrEqual(6);
+  });
+
+  it('falls back to a default span for malformed geometry', () => {
+    expect(featureSpan({})).toBe(8);
+    expect(featureSpan({ geometry: { type: 'Polygon', coordinates: [[]] } })).toBe(8);
+  });
+
+  it('spanToZoom is monotonically non-increasing', () => {
+    const samples = [0.2, 0.5, 1, 2, 4, 8, 15, 27, 44, 100];
+    let prev = Infinity;
+    for (const s of samples) { const z = spanToZoom(s); expect(z).toBeLessThanOrEqual(prev); prev = z; }
   });
 });
 
