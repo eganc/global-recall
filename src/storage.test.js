@@ -166,6 +166,14 @@ describe('daily', () => {
     expect(next.streak).toBe(1);
   });
 
+  it('localToday matches the day saveDailyResult stamps into lastDay', () => {
+    const s = createStorage(makeStore());
+    const now = noonOf(100);
+    const saved = s.saveDailyResult(8, 10, now);
+    expect(s.localToday(now)).toBe(saved.lastDay);
+    expect(s.localToday(now + DAY)).toBe(saved.lastDay + 1);
+  });
+
   it('second save on the same day is a no-op', () => {
     const s = createStorage(makeStore());
     s.saveDailyResult(8, 10, noonOf(100));

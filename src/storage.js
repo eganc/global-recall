@@ -181,6 +181,11 @@ export function createStorage(store) {
     getDaily() {
       return readJSON(store, STORAGE_KEYS.daily, {});
     },
+    // Today's local-calendar day number — lets the UI ask "was the daily
+    // already played today?" by comparing against getDaily().lastDay.
+    localToday(nowMs = Date.now()) {
+      return localDayNumber(nowMs);
+    },
     // Records today's result. Once-per-day idempotent (second call same UTC
     // day returns existing state without re-stamping isNewBest). Streak
     // increments when yesterday was the last day played, resets to 1
