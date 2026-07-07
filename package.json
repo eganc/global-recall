@@ -3,12 +3,19 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cap:copy": "rm -rf www && mkdir -p www/icons && cp index.html sw.js manifest.json www/ && cp icons/*.png icons/*.svg www/icons/",
+    "cap:sync": "npm run cap:copy && cap sync"
   },
   "dependencies": {
     "@upstash/redis": "^1.34.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
     "vitest": "^2.0.0"
   }
 }

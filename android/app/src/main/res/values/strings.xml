@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Global Recall</string>
+    <string name="title_activity_main">Global Recall</string>
+    <string name="package_name">com.millrace.globalrecall</string>
+    <string name="custom_url_scheme">com.millrace.globalrecall</string>
+</resources>

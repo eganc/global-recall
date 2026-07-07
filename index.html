@@ -423,7 +423,18 @@ body { font-family: var(--font-body); color: var(--text); }
 #tile-daily    { background: var(--mint);    color: #000; }
 #tile-kids     { background: #ff5540;        color: #fff; }
 #tile-strict   { background: #1c1917;        color: var(--amber); border-color: var(--amber); }
-.mode-tile-wide { grid-column: 1 / -1; }
+/* Daily is the hero — the product is the daily habit; everything else is
+   the gym. Full-width, bigger type, always first. */
+.mode-tile-hero { width: 100%; padding: 16px 16px 14px; }
+.mode-tile-hero .mode-tile-name { font-size: 21px; letter-spacing: 1px; }
+.mode-tile-hero .mode-tile-stat { font-size: 11px; opacity: 0.8; }
+/* Played today → tile chills out but stays tappable (replay). */
+#tile-daily.done { filter: saturate(0.5) brightness(0.92); }
+.mode-section-label {
+  font-family: var(--font-head); font-size: 9px; letter-spacing: 3px;
+  color: var(--text-muted); text-align: left;
+  margin: -6px 0 -10px 2px;
+}
 #menu-intel-card {
   margin-top: 4px;
   background: rgba(0,0,0,0.25); border: 1px solid rgba(245,158,11,0.25);
@@ -528,18 +539,6 @@ body { font-family: var(--font-body); color: var(--text); }
   border-radius: 2px; padding: 1px 3px; margin-left: 6px; vertical-align: middle;
 }
 
-#start-game-btn {
-  font-family: var(--font-head); font-weight: 900; font-size: 20px;
-  letter-spacing: 3px; cursor: pointer;
-  background: var(--mint); color: #000;
-  border: 4px solid #000; box-shadow: 8px 8px 0 #000;
-  padding: 15px; width: 100%;
-  transition: transform 0.1s, box-shadow 0.1s;
-}
-@media (hover: hover) {
-  #start-game-btn:hover { background: #1db954; }
-}
-#start-game-btn:active { transform: translate(4px,4px); box-shadow: 4px 4px 0 #000; }
 #start-hint {
   font-family: var(--font-head); font-size: 10px; letter-spacing: 2px;
   color: var(--text-muted); text-align: center; opacity: 0.55;
@@ -549,7 +548,8 @@ body { font-family: var(--font-body); color: var(--text); }
   #start-title-big { font-size: 26px; letter-spacing: 4px; }
   .mode-tile { padding: 10px 10px 8px; }
   .mode-tile-name { font-size: 13px; }
-  #start-game-btn { font-size: 17px; padding: 13px; }
+  .mode-tile-hero { padding: 14px 14px 12px; }
+  .mode-tile-hero .mode-tile-name { font-size: 18px; }
 }
 
 /* ── TOAST ── */
@@ -637,6 +637,41 @@ body { font-family: var(--font-body); color: var(--text); }
 .end-btn.primary { background: var(--mint); color: #000; }
 .end-btn.share   { background: var(--amber); color: #000; }
 .end-btn.secondary { background: var(--surface); color: var(--text); }
+
+/* ── DAILY RECAP ── the learning moment: which of the 10 you knew cold,
+   which needed hints, which you missed. */
+#daily-recap {
+  display: none; grid-template-columns: 1fr 1fr; gap: 5px 16px;
+  background: var(--surface); border: 3px solid #000; box-shadow: var(--shadow);
+  padding: 12px 16px; max-width: 340px; width: 100%;
+  max-height: 30vh; overflow-y: auto;
+  font-family: var(--font-head); font-size: 11px; letter-spacing: 1px;
+  text-align: left;
+}
+.recap-row { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recap-row.perfect { color: var(--mint); }
+.recap-row.hinted  { color: var(--amber); }
+.recap-row.missed  { color: var(--red); font-weight: 700; }
+
+/* ── MISS REVIEW ── walks the globe through each missed country. Sits where
+   the input bar normally lives; end screen is hidden while it's up. */
+#review-bar {
+  position: fixed; left: 12px; right: 12px; bottom: 16px; z-index: 85;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--surface); border: 4px solid var(--amber); box-shadow: var(--shadow);
+  padding: 12px 14px;
+}
+#review-name {
+  font-family: var(--font-head); font-weight: 900; font-size: 18px;
+  letter-spacing: 1px; color: var(--amber);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#review-sub {
+  font-family: var(--font-head); font-size: 10px; letter-spacing: 1.5px;
+  color: var(--text-muted); margin-top: 3px;
+}
+#review-info { min-width: 0; text-align: left; }
+#review-next-btn { flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -755,6 +790,7 @@ body { font-family: var(--font-body); color: var(--text); }
     </div>
   </div>
   <div id="pb-banner" style="display:none">NEW PERSONAL BEST!</div>
+  <div id="daily-recap"></div>
   <div id="initials-prompt" style="display:none">
     <div class="initials-label" id="initials-rank">RANK #—</div>
     <div class="initials-sub">ENTER YOUR INITIALS</div>
@@ -762,6 +798,7 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="end-btn primary" onclick="submitInitials()">SAVE</button>
   </div>
   <div class="end-btns">
+    <button class="end-btn share" id="review-misses-btn" style="display:none" onclick="startMissReview()">◎ REVIEW MISSES</button>
     <button class="end-btn primary" onclick="resetGame()">PLAY AGAIN</button>
     <button class="end-btn share" onclick="shareResultCard()">📸 SHARE CARD</button>
     <button class="end-btn secondary" onclick="goToMenu()">↩ MENU</button>
@@ -769,6 +806,15 @@ body { font-family: var(--font-body); color: var(--text); }
     <button class="end-btn secondary" id="share-ghost-btn" onclick="shareGhost()">SHARE GHOST</button>
     <button class="end-btn secondary" id="share-daily-btn" style="display:none">SHARE RESULT</button>
   </div>
+</div>
+
+<!-- MISS REVIEW BAR — shown while flying the globe through missed countries -->
+<div id="review-bar" style="display:none">
+  <div id="review-info">
+    <div id="review-name">—</div>
+    <div id="review-sub"></div>
+  </div>
+  <button id="review-next-btn" class="end-btn primary" onclick="reviewNext()">NEXT ▸</button>
 </div>
 
 <!-- Leaderboard Screen -->
@@ -808,51 +854,51 @@ body { font-family: var(--font-body); color: var(--text); }
       </div>
     </div>
     <div id="start-streak-row"></div>
+    <button class="mode-tile mode-tile-hero" id="tile-daily" onclick="launchMode('daily')">
+      <div class="mode-tile-header">
+        <span class="mode-tile-icon">📅</span>
+        <span class="mode-tile-num" id="daily-hero-num">DAILY</span>
+      </div>
+      <div class="mode-tile-name" id="daily-hero-name">TODAY'S CHALLENGE</div>
+      <div class="mode-tile-stat" id="stat-daily">10 COUNTRIES · PLAY NOW ▸</div>
+    </button>
+    <div class="mode-section-label">PRACTICE MODES</div>
     <div id="mode-grid">
-      <button class="mode-tile selected" id="tile-name-all" onclick="launchMode('name-all')">
-        <div class="mode-tile-header">
-          <span class="mode-tile-icon">◎</span>
-          <span class="mode-tile-num">MODE 01</span>
-        </div>
-        <div class="mode-tile-name">NAME ALL</div>
-        <div class="mode-tile-stat" id="stat-name-all">— / 195 COUNTRIES</div>
-      </button>
       <button class="mode-tile" id="tile-sprint" onclick="launchMode('sprint')">
         <div class="mode-tile-header">
           <span class="mode-tile-icon">⚡</span>
-          <span class="mode-tile-num">MODE 02</span>
+          <span class="mode-tile-num">SPEED RUN</span>
         </div>
         <div class="mode-tile-name">SPRINT · 1 MIN</div>
         <div class="mode-tile-stat" id="stat-sprint">BEST: — COUNTRIES</div>
       </button>
-      <button class="mode-tile" id="tile-daily" onclick="launchMode('daily')">
+      <button class="mode-tile" id="tile-strict" onclick="launchMode('strict')">
         <div class="mode-tile-header">
-          <span class="mode-tile-icon">📅</span>
-          <span class="mode-tile-num">MODE 03</span>
+          <span class="mode-tile-icon">🎯</span>
+          <span class="mode-tile-num">THE TEST</span>
         </div>
-        <div class="mode-tile-name">DAILY</div>
-        <div class="mode-tile-stat" id="stat-daily">TODAY'S 10 COUNTRIES</div>
+        <div class="mode-tile-name">STRICT</div>
+        <div class="mode-tile-stat" id="stat-strict">ALL 195 · NAME ON SIGHT</div>
+      </button>
+      <button class="mode-tile" id="tile-name-all" onclick="launchMode('name-all')">
+        <div class="mode-tile-header">
+          <span class="mode-tile-icon">◎</span>
+          <span class="mode-tile-num">THE FLEX</span>
+        </div>
+        <div class="mode-tile-name">NAME ALL</div>
+        <div class="mode-tile-stat" id="stat-name-all">— / 195 COUNTRIES</div>
       </button>
       <button class="mode-tile" id="tile-kids" onclick="launchMode('kids')">
         <div class="mode-tile-header">
           <span class="mode-tile-icon">🎮</span>
-          <span class="mode-tile-num">MODE 04</span>
+          <span class="mode-tile-num">START HERE</span>
         </div>
         <div class="mode-tile-name">EASY MODE</div>
         <div class="mode-tile-stat" id="stat-kids">10 ROUNDS · MULTIPLE CHOICE</div>
       </button>
-      <button class="mode-tile mode-tile-wide" id="tile-strict" onclick="launchMode('strict')">
-        <div class="mode-tile-header">
-          <span class="mode-tile-icon">🎯</span>
-          <span class="mode-tile-num">MODE 05</span>
-        </div>
-        <div class="mode-tile-name">STRICT</div>
-        <div class="mode-tile-stat" id="stat-strict">195 COUNTRIES · NAME ON SIGHT · 3 STRIKES</div>
-      </button>
     </div>
-    <button id="start-game-btn" onclick="launchFromMenu()">START GAME</button>
     <button id="start-leaderboard-btn" class="end-btn secondary" onclick="openLeaderboardFromStart()">🏆 HIGH SCORES</button>
-    <div id="start-hint">SELECT A MODE TO BEGIN YOUR EXPEDITION</div>
+    <div id="start-hint">TAP A MODE TO BEGIN YOUR EXPEDITION</div>
     <div id="menu-intel-card">
       <div class="intel-label">// INTEL</div>
       <div id="menu-intel-text"></div>
@@ -1431,10 +1477,12 @@ let ghostData = null;
 let ghostNamedCount = 0;
 let autoNext = false;
 let autoNextTimer = null;
-const BUILD_VERSION = 'v55';
-let currentMode = 'name-all'; // 'name-all' | 'sprint' | 'daily' | 'kids'
+const BUILD_VERSION = 'v56';
+let currentMode = 'daily'; // 'name-all' | 'sprint' | 'daily' | 'kids' | 'strict'
 let sprintEnd = 0;
 let dailyTarget = [];
+// Per-country results for the Daily recap: [{ c, result: 'perfect'|'hinted'|'missed' }]
+let dailyOutcomes = [];
 let modeTotal = TOTAL;
 const KIDS_ROUNDS = 10;
 let kidsTarget = null;
@@ -1555,6 +1603,9 @@ const Storage = (function() {
       return { isNewPB, prev };
     },
     getDaily: () => readJSON(K.daily, {}),
+    // Today's local-calendar day number — lets the UI ask "was the daily
+    // already played today?" by comparing against getDaily().lastDay.
+    localToday: (nowMs = Date.now()) => localDayNumber(nowMs),
     saveDailyResult(count, total, nowMs = Date.now()) {
       const today = localDayNumber(nowMs);
       const d = readJSON(K.daily, {});
@@ -2652,6 +2703,7 @@ function startGame() {
     // instead of the full shuffled pool. "Name 10 a day to build up" vs the
     // open-ended "name as many as you can" of the other identify modes.
     dailyTarget = getDailyCountries();
+    dailyOutcomes = [];
     strictQueue = dailyTarget.filter(c => c.feat);
     modeTotal = strictQueue.length;
     strictIdx = 0;
@@ -2758,8 +2810,10 @@ function endGame() {
   const pb = document.getElementById('pb-banner');
   const shareGhostBtn = document.getElementById('share-ghost-btn');
   const shareDailyBtn = document.getElementById('share-daily-btn');
-  // Reset banner styles
+  // Reset banner styles + daily-only recap UI
   pb.style.background = ''; pb.style.color = '';
+  document.getElementById('daily-recap').style.display = 'none';
+  document.getElementById('review-misses-btn').style.display = 'none';
 
   let headline, countText, timeText;
 
@@ -2796,6 +2850,7 @@ function endGame() {
     shareGhostBtn.style.display = 'none';
     shareDailyBtn.style.display = '';
     shareDailyBtn.onclick = () => shareDaily(count, modeTotal, num, timeText, dailyData);
+    renderDailyRecap();
 
   } else if (currentMode === 'kids') {
     const elapsed = (Date.now() - sessionStart) / 1000;
@@ -2870,6 +2925,82 @@ function endGame() {
   document.getElementById('end-screen').style.display = 'flex';
 }
 
+// ═══════════════════════════════════════════════════════════════
+// DAILY RECAP + MISS REVIEW
+// ═══════════════════════════════════════════════════════════════
+// The recap is the learning moment: after the 10th country, show which you
+// knew cold (★), which needed hints (◐), which you missed (✗) — then let the
+// player fly the globe to each miss so the answer lands as a PLACE, not text.
+function renderDailyRecap() {
+  const box = document.getElementById('daily-recap');
+  box.innerHTML = '';
+  const icon = { perfect: '★', hinted: '◐', missed: '✗' };
+  dailyOutcomes.forEach(o => {
+    const row = document.createElement('div');
+    row.className = `recap-row ${o.result}`;
+    row.textContent = `${icon[o.result]} ${o.c.canonical.toUpperCase()}`;
+    box.appendChild(row);
+  });
+  box.style.display = dailyOutcomes.length ? 'grid' : 'none';
+  const missed = dailyOutcomes.filter(o => o.result === 'missed');
+  const btn = document.getElementById('review-misses-btn');
+  btn.style.display = missed.length ? '' : 'none';
+  btn.textContent = `◎ REVIEW MISSES (${missed.length})`;
+}
+
+let reviewQueue = [];
+let reviewIdx = -1;
+
+function startMissReview() {
+  reviewQueue = dailyOutcomes.filter(o => o.result === 'missed' && o.c.feat);
+  if (!reviewQueue.length) return;
+  reviewIdx = -1;
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('review-bar').style.display = 'flex';
+  reviewNext();
+}
+
+function reviewNext() {
+  const prev = reviewQueue[reviewIdx];
+  reviewIdx++;
+  if (reviewIdx >= reviewQueue.length) { endMissReview(); return; }
+  const c = reviewQueue[reviewIdx].c;
+  const cap = CAPITALS[c.canonical];
+  // Bar text first — it must be right even if a map call below hiccups.
+  document.getElementById('review-name').textContent = c.canonical.toUpperCase();
+  document.getElementById('review-sub').textContent =
+    `${reviewIdx + 1} / ${reviewQueue.length}` + (cap ? ` · CAPITAL: ${cap.name.toUpperCase()}` : '');
+  document.getElementById('review-next-btn').textContent =
+    reviewIdx === reviewQueue.length - 1 ? '✓ DONE' : 'NEXT ▸';
+  const admin = c.feat.properties && c.feat.properties.ADMIN;
+  // Amber target paint steals the previous country's feature-state, so
+  // repaint the one we just left back to green AFTER switching.
+  mapAdapter.paintKidsTarget(admin || null);
+  if (prev) {
+    const pa = prev.c.feat.properties && prev.c.feat.properties.ADMIN;
+    if (pa) mapAdapter.markNamed(pa);
+  }
+  maybeMarkMicrostate(c.feat);
+  if (cap) mapAdapter.showCapitalPin(cap.lat, cap.lng, cap.name);
+  else mapAdapter.clearCapitalPin();
+  flyToFeature(c.feat);
+}
+
+function endMissReview(reopenEnd = true) {
+  mapAdapter.paintKidsTarget(null);
+  // Everything reviewed goes back to the green "named" paint the reveal gave it.
+  reviewQueue.forEach(o => {
+    const a = o.c.feat && o.c.feat.properties && o.c.feat.properties.ADMIN;
+    if (a) mapAdapter.markNamed(a);
+  });
+  mapAdapter.clearCapitalPin();
+  mapAdapter.clearTargetMarker();
+  document.getElementById('review-bar').style.display = 'none';
+  reviewQueue = [];
+  reviewIdx = -1;
+  if (reopenEnd) document.getElementById('end-screen').style.display = 'flex';
+}
+
 // Captured at endGame time, consumed by submitInitials. Cleared on
 // resetGame / goToMenu / submit so the prompt never lingers across runs.
 let pendingLeaderboardEntry = null;
@@ -2911,9 +3042,17 @@ let leaderboardReturnTo = 'menu';   // where the BACK button should land
 let globalCache = {};                // { mode: { entries, fetchedAt } | null }
 const GLOBAL_CACHE_MS = 30 * 1000;   // 30s — enough to flip tabs cheaply
 
+// Native shells (Capacitor) load index.html from a local scheme
+// (capacitor://localhost, https://localhost), not the real origin, so a
+// relative /api/leaderboard path resolves to nowhere. Always hit the
+// live Vercel deployment; the endpoint already sends permissive CORS.
+const API_ORIGIN = location.protocol.startsWith('http') && !location.hostname.match(/^localhost$/i)
+  ? ''
+  : 'https://globalrecall.themillrace.ca';
+
 async function syncToGlobalLeaderboard(mode, initials, score, ts) {
   try {
-    const res = await fetch('/api/leaderboard', {
+    const res = await fetch(`${API_ORIGIN}/api/leaderboard`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode, initials, score, ts }),
@@ -2925,7 +3064,7 @@ async function syncToGlobalLeaderboard(mode, initials, score, ts) {
 
 async function fetchGlobalLeaderboard(mode) {
   try {
-    const res = await fetch(`/api/leaderboard?mode=${encodeURIComponent(mode)}`);
+    const res = await fetch(`${API_ORIGIN}/api/leaderboard?mode=${encodeURIComponent(mode)}`);
     if (!res.ok) return { ok: false, status: res.status, entries: [] };
     const data = await res.json();
     return { ok: true, entries: Array.isArray(data.entries) ? data.entries : [] };
@@ -3146,6 +3285,7 @@ function goHome() {
   cancelAnimationFrame(animRaf);
   clearTimeout(autoNextTimer);
   strictClearIdleTimer();
+  if (reviewQueue.length) endMissReview(false);  // logo tap mid-review
   document.getElementById('menu-panel').style.display = 'none';
   document.getElementById('end-screen').style.display = 'none';
   document.getElementById('initials-prompt').style.display = 'none';
@@ -3515,6 +3655,7 @@ function strictActionBtn() {
 function strictSkip() {
   strictAttempt = 3;
   strictMissed++;
+  if (currentMode === 'daily' && strictTarget) dailyOutcomes.push({ c: strictTarget, result: 'missed' });
   strictUpdateStrikes();
   strictShowHint(3, strictTarget);
   strictUpdateProgress();
@@ -3587,6 +3728,9 @@ function strictAdvanceAfterReveal() {
 function strictCorrect() {
   if (strictAttempt === 0) strictPerfect++;
   else                     strictHinted++;
+  if (currentMode === 'daily') {
+    dailyOutcomes.push({ c: strictTarget, result: strictAttempt === 0 ? 'perfect' : 'hinted' });
+  }
   strictTarget.named = true;
   namedList.push(strictTarget.canonical);
   if (strictTarget.feat && strictTarget.feat.properties) {
@@ -3908,10 +4052,14 @@ if ('serviceWorker' in navigator) {
 // ═══════════════════════════════════════════════════════════════
 // START MENU
 // ═══════════════════════════════════════════════════════════════
-let selectedMenuMode = 'name-all';
+let selectedMenuMode = 'daily';
 
+let menuTicker = null;
 function showStartMenu() {
   updateStartMenuStats();
+  // Keep the "NEXT DAILY IN…" countdown honest while the menu sits open.
+  clearInterval(menuTicker);
+  menuTicker = setInterval(updateStartMenuStats, 30000);
   selectMenuMode(currentMode);
   // Rotating intel fact — fresh pick each time the menu is shown, which
   // is way more reading time than the boot screen used to give it.
@@ -3924,6 +4072,8 @@ function showStartMenu() {
 }
 
 function hideStartMenu() {
+  clearInterval(menuTicker);
+  menuTicker = null;
   document.getElementById('start-menu').style.display = 'none';
 }
 
@@ -3933,6 +4083,16 @@ function selectMenuMode(mode) {
   document.querySelectorAll('.mode-tile').forEach(t => t.classList.remove('selected'));
   const tile = document.getElementById(tileId[mode]);
   if (tile) tile.classList.add('selected');
+}
+
+// "6H 12M" until the local-midnight rollover — the moment the daily becomes
+// playable for streak purposes again (same local-day math as the streak).
+function nextDailyCountdown() {
+  const now = new Date();
+  const next = new Date(now); next.setHours(24, 0, 0, 0);
+  const mins = Math.max(1, Math.ceil((next - now) / 60000));
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return h > 0 ? `${h}H ${m}M` : `${m}M`;
 }
 
 function updateStartMenuStats() {
@@ -3945,10 +4105,24 @@ function updateStartMenuStats() {
   document.getElementById('stat-sprint').textContent = sb
     ? `PB: ${sb} COUNTRIES`
     : 'BEST: — COUNTRIES';
+
+  // Daily hero tile — the state machine the whole home screen hangs off:
+  // not played yet → the CTA; played → done + countdown to the next one.
   const dd = Storage.getDaily();
-  document.getElementById('stat-daily').textContent = dd.streak
-    ? `🔥 ${dd.streak} DAY STREAK`
-    : "TODAY'S 10 COUNTRIES";
+  const doneToday = dd.lastDay === Storage.localToday();
+  document.getElementById('daily-hero-num').textContent = `DAILY #${getDailyNumber()}`;
+  document.getElementById('tile-daily').classList.toggle('done', doneToday);
+  if (doneToday) {
+    document.getElementById('daily-hero-name').textContent =
+      `✓ DONE · ${dd.lastScore}/${dd.lastTotal}`;
+    document.getElementById('stat-daily').textContent =
+      `NEXT DAILY IN ${nextDailyCountdown()} · TAP TO REPLAY`;
+  } else {
+    document.getElementById('daily-hero-name').textContent = "TODAY'S CHALLENGE";
+    document.getElementById('stat-daily').textContent = dd.streak
+      ? `10 COUNTRIES · KEEP THE 🔥 ${dd.streak} DAY STREAK`
+      : '10 COUNTRIES · PLAY NOW ▸';
+  }
 
   // Identity stat — always visible above the mode grid so the streak feels
   // like the user's primary number, not a per-tile detail.
