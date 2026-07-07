@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy Policy — Global Recall</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; max-width: 720px; margin: 0 auto; padding: 2rem 1.25rem 4rem; line-height: 1.6; color: #1a1a1a; background: #fff; }
+  h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; }
+  .updated { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+  code { background: #f2f2f2; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.9em; }
+  a { color: #0038ca; }
+  ul { padding-left: 1.25rem; }
+</style>
+</head>
+<body>
+<h1>Privacy Policy — Global Recall</h1>
+<p class="updated">Last updated: 2026-07-07</p>
+
+<p>Global Recall is a geography practice game published by Millrace Inc. This policy covers the web app at <code>globalrecall.themillrace.ca</code> and the same app distributed via the Apple App Store and Google Play.</p>
+
+<h2>The short version</h2>
+<p>Global Recall has no user accounts, no sign-in, and no ad or analytics SDKs. Your game progress lives on your device. The only thing that ever leaves your device is an optional, anonymous leaderboard entry if you choose to submit one.</p>
+
+<h2>What we store on your device</h2>
+<p>All game state — your streaks, personal bests, replay data, and settings — is stored locally on your device using standard browser/app storage (<code>localStorage</code>). It is never transmitted anywhere and is not accessible to us. Uninstalling the app or clearing site data deletes it permanently; we have no way to recover it.</p>
+
+<h2>What we collect if you submit a leaderboard score</h2>
+<p>Sprint and Strict modes have an optional global leaderboard. If you choose to submit a score, we store exactly this and nothing else:</p>
+<ul>
+  <li>a 3-letter initials string you choose,</li>
+  <li>your score,</li>
+  <li>the game mode,</li>
+  <li>a timestamp.</li>
+</ul>
+<p>No account, device identifier, IP address, email, or any other personal information is stored alongside your entry. There is no way for us or anyone else to trace a leaderboard entry back to a specific person or device. This data is stored in a Redis database (Upstash, via Vercel) and is used solely to display the public leaderboard inside the app.</p>
+
+<h2>What we don't do</h2>
+<ul>
+  <li>No accounts, no login, no passwords.</li>
+  <li>No advertising SDKs or ad identifiers.</li>
+  <li>No analytics or tracking libraries inside the app itself.</li>
+  <li>No sale or sharing of data to third parties — there's no personal data to sell.</li>
+  <li>No cross-device sync of your personal records; they're per-device by design.</li>
+</ul>
+
+<h2>Third-party services the app loads</h2>
+<p>The app loads a few third-party resources to render — a map rendering library (MapLibre GL), web fonts (Google Fonts), and public geographic boundary data (Natural Earth, via jsDelivr). These are static assets, not tracking scripts; loading them may expose your IP address to those CDNs in the ordinary course of fetching a file, the same as any website that uses a CDN.</p>
+
+<h2>App Store / Play Store platform data</h2>
+<p>Apple and Google independently collect standard install, crash, and aggregate usage data through App Store Connect and Google Play Console. That data collection is governed by Apple's and Google's own privacy policies, not this one, and we only see aggregate figures (e.g. "N installs this week") — never anything tied to an individual user.</p>
+
+<h2>Children's privacy</h2>
+<p>Global Recall includes a Kids Mode intended for a general, mixed-age audience. We do not knowingly collect personal information from anyone, including children, because the app doesn't collect personal information from anyone in the first place — see above.</p>
+
+<h2>Changes to this policy</h2>
+<p>If our data practices change, we'll update this page and the "Last updated" date above.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy: <a href="mailto:egancheung@gmail.com">egancheung@gmail.com</a></p>
+
+</body>
+</html>
