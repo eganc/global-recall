@@ -11,3 +11,6 @@ capacitor-cordova-ios-plugins
 # Generated Config files
 App/App/capacitor.config.json
 App/App/config.xml
+
+# Real export options contain a Team ID tied to a specific Apple account
+exportOptions.plist

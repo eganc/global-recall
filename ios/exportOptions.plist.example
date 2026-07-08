@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Copy to ios/exportOptions.plist (gitignored) once Apple Developer Program
+  enrollment is active and you have a Team ID (Membership tab at
+  developer.apple.com/account). Used for `xcodebuild -exportArchive` after
+  `xcodebuild archive` to produce a .ipa for App Store Connect upload.
+
+  Fill in teamID below. method=app-store-connect targets TestFlight/App
+  Store distribution. signingStyle=automatic lets Xcode manage the
+  provisioning profile — simplest path for a single-app, single-developer
+  account.
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>teamID</key>
+	<string>REPLACE_WITH_APPLE_TEAM_ID</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>uploadSymbols</key>
+	<true/>
+</dict>
+</plist>
