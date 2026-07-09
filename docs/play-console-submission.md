@@ -28,7 +28,7 @@ after bumping the version in `android/app/build.gradle` for any future release.)
 - **Phone screenshots:** min 2, up to 8 — capture on device/emulator against the live build. Sequence in `docs/aso-brief.md`.
 - **Category:** Education (primary). See the ASO brief for the Education-vs-Games rationale.
 - **Tags:** pick from Play's list — "Education", "Educational games", "Trivia" if offered.
-- **Contact email:** egancheung@gmail.com
+- **Contact email:** support@themillrace.ca (public on the listing — business address, not personal)
 - **Privacy policy URL:** https://globalrecall.themillrace.ca/privacy.html
 
 ## Data Safety form (the important one — answers below match the actual app)
