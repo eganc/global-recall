@@ -3,18 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Global Recall — type country names, watch them light up</title>
-<meta name="description" content="195 countries, one text box, a spinning globe. No hints, no multiple choice. Most of us stall out around 60.">
+<title>Global Recall — Name All 195 Countries on a 3D Globe</title>
+<meta name="description" content="A free geography game for learning every country on Earth. Type names, watch them light up on a 3D globe. Daily challenge, sprint mode, no sign-up.">
 <meta name="theme-color" content="#1e1b4b">
 <link rel="canonical" href="https://globalrecall.app/">
 <link rel="icon" href="/icons/icon-192.svg">
 <link rel="apple-touch-icon" href="/icons/icon-192.svg">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://globalrecall.app/">
-<meta property="og:title" content="Global Recall — type country names, watch them light up">
-<meta property="og:description" content="195 countries, one text box, a spinning globe. Most of us stall out around 60.">
+<meta property="og:title" content="Global Recall — Name All 195 Countries on a 3D Globe">
+<meta property="og:description" content="A free geography game for learning every country on Earth. Daily challenge, sprint mode, no sign-up.">
 <meta property="og:image" content="https://globalrecall.app/icons/icon-512.png">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":"Global Recall",
+"url":"https://globalrecall.app/","applicationCategory":"GameApplication",
+"operatingSystem":"Any (web browser)","browserRequirements":"Requires JavaScript",
+"description":"A free geography game for learning every country on Earth. Type country names and watch them light up on a 3D globe.",
+"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},
+"author":{"@type":"Organization","name":"Millrace Inc.","url":"https://themillrace.ca"}}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -242,9 +250,9 @@ footer a:hover { color: var(--amber); }
   <div class="wrap">
     <div>
       <div class="eyebrow">// 195 COUNTRIES · ONE TEXT BOX</div>
-      <h1>Type country names.<br>Watch them <span class="yet">light up.</span></h1>
-      <p class="lede">That's the whole game. A spinning globe, a text box, and 195 countries you half-remember. No hints, no multiple choice, no clues.</p>
-      <p class="sub">Most of us stall out somewhere around 60 and then get quietly competitive about it. Five minutes a day is the idea, and the ones you keep missing keep coming back until you stop missing them.</p>
+      <h1>Name every<br>country <span class="yet">on Earth.</span></h1>
+      <p class="lede">Type country names and watch them light up on a spinning globe. Most of us run dry somewhere around 60, which is a worse number than it sounds and a more fixable one.</p>
+      <p class="sub">There's a daily challenge that takes five minutes, a one-minute sprint, and a full 195 run for when you think you're ready. It's free, it runs in your browser, and there's nothing to sign up for.</p>
       <div class="cta-row">
         <a href="/play" class="btn-play">PLAY FREE ▸</a>
         <span class="no-signup"><b>No account.</b> No ads.<br>Works offline.</span>
@@ -270,8 +278,8 @@ footer a:hover { color: var(--amber); }
   <div class="wrap">
     <h2>Why I built this</h2>
     <div class="story">
-      <p>When I was a kid I used to take the blank maps of Canada my teachers handed out, bring home a stack of photocopies, and spend hours filling in every city and town and lake I could think of. I just loved maps.</p>
-      <p>In Cégep I took a world geography course where the entire grade was one exam - name every country on a map. It felt hard at the time. But years later it still pays off in small ways. You meet someone, you know where they're from. You hear something in the news, you can actually picture it. It's one of those things that sounds like useless trivia until it isn't.</p>
+      <p>When I was a kid I used to take the blank maps of Canada my teachers handed out, bring home a stack of photocopies, and spend hours filling in every city and town and lake I could think of. I just loved maps. Later, in Cégep, I took a world geography course where the entire grade was one exam - name every country on a map.</p>
+      <p>It still pays off in small ways. You meet someone, you know where they're from. You hear something in the news, you can actually picture it. It's one of those things that sounds like useless trivia until it isn't.</p>
       <p>My son started learning world geography a couple years ago. I looked at the apps out there and honestly, I thought I could do better. So here we are.</p>
     </div>
   </div>
@@ -290,12 +298,12 @@ footer a:hover { color: var(--amber); }
       <div class="tile">
         <div class="tile-head"><span class="tile-icon">⚡</span><span class="tile-kicker">SPEED RUN</span></div>
         <div class="tile-name">SPRINT · 1 MIN</div>
-        <p>One minute. How many can you get? Scores go on the board.</p>
+        <p>One minute. How many can you get? Scores go on the high score board.</p>
       </div>
       <div class="tile">
         <div class="tile-head"><span class="tile-icon">🎯</span><span class="tile-kicker">THE TEST</span></div>
         <div class="tile-name">STRICT</div>
-        <p>All 195, named on sight, three strikes.</p>
+        <p>All 195, named on sight, three strikes. There's a hint button when you're genuinely stuck, and the recap tells you which ones you needed it for.</p>
       </div>
       <div class="tile">
         <div class="tile-head"><span class="tile-icon">◎</span><span class="tile-kicker">THE FLEX</span></div>
@@ -313,13 +321,14 @@ footer a:hover { color: var(--amber); }
 
 <section id="how">
   <div class="wrap">
-    <h2>A few things that make it nicer</h2>
-    <p class="sec-sub">Knowing <em>where</em> a place is turns out to matter more than being able to rattle off a list, so most modes point at one country and ask you to name it.</p>
+    <h2>What it's actually like</h2>
+    <p class="sec-sub">Knowing <em>where</em> a place is turns out to matter more than being able to rattle off a list, so most modes point at one country and ask you to name it. Name All is the exception, and it's the trophy.</p>
     <ul id="nice">
-      <li>Typos are forgiven. "Brazl" works, "Nicragua" works.</li>
-      <li>Alternate names work too - Burma, Czechia, UK, Ivory Coast.</li>
-      <li>The globe flies to each country after you name it.</li>
-      <li>Installs to your phone like an app, and works with no signal.</li>
+      <li>Spelling is forgiven within reason. "Liechtenstien" and "Madagasgar" both count. Drop a letter entirely and it won't save you.</li>
+      <li>Old and common names work - Burma, Holland, Swaziland, Czechia, England.</li>
+      <li>The globe flies to each country as you name it, so you see where it actually sits.</li>
+      <li>The daily recap splits your 10 into the ones you knew cold, the ones that needed a hint, and the ones you missed.</li>
+      <li>Installs to your home screen like an app and works with no signal.</li>
     </ul>
   </div>
 </section>
