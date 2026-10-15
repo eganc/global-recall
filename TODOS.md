@@ -1,45 +1,55 @@
 # Global Recall — TODOs
 
-Last updated: 2026-05-12
+Last updated: 2026-08-19
+
+Where things stand and what's next. Anything durable — locked decisions, conventions,
+architecture — lives in `CLAUDE.md` instead. Bugs and user feedback get triaged as FT-NNN
+in [`docs/feedback-log.md`](docs/feedback-log.md).
 
 ---
 
-## Done
+## Status
 
-### Onboarding & UX
-- [x] Portrait layout support (manifest `orientation: any`, CSS media query)
-- [x] First-load start menu with 2×2 bento grid mode selector (replaces old onboarding overlay)
-- [x] Install banner snoozes 7 days instead of permanent dismiss; menu has "📲 INSTALL APP" entry
+The MapLibre rewrite shipped and took FT-008, FT-009, FT-010 and FT-011 with it. Lite Mode
+became the Render Mode toggle (3D Globe / Flat Mercator), still keyed off `gr_lite_mode`
+via `map.setProjection()`.
 
-### Game modes
-- [x] **Name All** — original 195-country mode
-- [x] **Sprint** — 5-minute countdown, PB tracked, auto-next on by default
-- [x] **Daily Challenge** — 10 date-seeded countries, amber globe highlights, streak tracking, share-result button
-- [x] **Kids Mode** — multiple choice, continent hint, globe highlights target
+The app is code-complete for v1 and parked waiting on store accounts, not on engineering.
+Last commit was 2026-07-09.
 
-### Performance
-- [x] HUD loop throttled to 1fps (eliminates 60fps DOM writes)
-- [x] Globe auto-rotate pauses on input focus
-- [x] SW precache trimmed (night/dark textures lazy-cached on first style switch)
+## Next
 
-### Code quality
-- [x] `src/core.js` + Vitest harness — 29 tests for norm/lev/fmt/findMatch/seededShuffle
-- [x] `applyMode()` helper extracted; removes ~14 lines of duplication between `setMode` and `launchFromMenu`
-- [x] `node_modules/` added to `.gitignore`
-- [x] Both inline matching and seededShuffle in index.html flagged as mirrors of `src/core.js`
+1. **Apple Developer Program enrollment and Google Play Console account.** DUNS went in
+   back in May; both need a status check. Nothing ships until they clear.
+2. **Verify FT-012 and FT-013 on a real iPhone.** The keyboard-viewport fix and the Daily
+   target framing are both marked fixed-but-unverified. Do this before submitting — a
+   keyboard bug on iOS is a 1-star first review.
+3. **Feature graphic (1024×500) and phone screenshots.** The only real work left before
+   submission. Sequence and copy are in `docs/aso-brief.md`.
+4. **Submit.** Play internal track first — no review wait, and it proves the signed-bundle
+   pipeline works. Then TestFlight, then production. Every console field is pre-answered
+   in `docs/play-console-submission.md`.
 
----
+After launch, the backlog is FT-005 (PWA install is missing the map style switcher — the
+only unfixed bug), spaced repetition on missed countries, a visible fluency level on the
+home screen, and FT-016 (async shared-seed race, the growth loop, gated on retention).
 
-## Open
+## Open — no FT number
 
-### Content
-- [ ] **Alias expansion** — currently ~30–50 aliases per country. Phase 3 polish target is ~100 per country (historical names, native scripts, common misspellings). Edit `RAW` in `index.html`.
+- **Alias expansion.** Roughly 30–50 aliases per country today; the polish target is ~100
+  (historical names, native scripts, common misspellings). Edit `RAW` in `play.html`.
+  The 35 matching tests in `src/core.test.js` cover the engine — adding aliases is safe,
+  restructuring the matcher is not.
 
-### Features worth considering
-- [x] **Share card image** — 1080×1080 PNG rendered on-canvas at end of run. Native share sheet on mobile, clipboard fallback, download as last resort. End screen has new 📸 SHARE CARD button.
-- [x] **Ghost replay** — `👻 N` HUD chip shows the previous run's progress in real time during Name All. Goes red ("ahead") when the ghost is beating you. Updates on tick and immediately on each player answer.
-- [ ] **Stats page** — `gr_recs`, `gr_sprint_best`, `gr_daily` all sit in localStorage. A "view stats" overlay could surface them.
+- **A real stats screen.** `gr_recs`, `gr_sprint_best` and `gr_daily` all sit in
+  localStorage and only surface as one-line stats on the mode tiles. An overlay that
+  showed streak history, per-mode bests and which countries you keep missing would make
+  progress visible — which is half the retention thesis.
 
-### Tech debt (low priority)
-- [ ] The matching engine and `seededShuffle` are duplicated between `index.html` (runtime) and `src/core.js` (tests). Keeping them in sync is manual — a build step could fix this, but adding one defeats the "single HTML file" simplicity. Acceptable for now.
-- [ ] `getDailyNumber()` uses a hardcoded launch date (`Date.UTC(2026, 4, 12)`). If launch shifts, update this.
+## Tech debt
+
+- **The `src/*.js` ↔ `play.html` mirrors.** Five blocks are duplicated between the
+  testable ES modules and the inline runtime copy (search "Mirror of src/"). Keeping them
+  in sync is manual and entirely on the author to remember. A build step would fix it at
+  the cost of the no-build-step simplicity. Acceptable for now, but it's the thing most
+  likely to cause a subtle "tests pass, prod is wrong" bug.
