@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Global Recall — name all 195 countries</title>
-<meta name="description" content="A daily five-minute drill on a 3D globe. Most people can name about 60 countries. Global Recall gets you to 195.">
+<title>Global Recall — type country names, watch them light up</title>
+<meta name="description" content="195 countries, one text box, a spinning globe. No hints, no multiple choice. Most of us stall out around 60.">
 <meta name="theme-color" content="#1e1b4b">
 <link rel="canonical" href="https://globalrecall.app/">
 <link rel="icon" href="/icons/icon-192.svg">
 <link rel="apple-touch-icon" href="/icons/icon-192.svg">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://globalrecall.app/">
-<meta property="og:title" content="Global Recall — name all 195 countries">
-<meta property="og:description" content="A daily five-minute drill on a 3D globe. Most people stall around 60. This gets you to 195.">
+<meta property="og:title" content="Global Recall — type country names, watch them light up">
+<meta property="og:description" content="195 countries, one text box, a spinning globe. Most of us stall out around 60.">
 <meta property="og:image" content="https://globalrecall.app/icons/icon-512.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -88,7 +88,7 @@ body::after {
 }
 h1 {
   font-family: var(--font-head); font-weight: 900;
-  font-size: clamp(38px, 7vw, 66px); line-height: 0.98;
+  font-size: clamp(34px, 5.4vw, 58px); line-height: 1.02;
   letter-spacing: -1px; color: #fff; margin-bottom: 20px;
 }
 h1 .yet { color: var(--amber); }
@@ -161,6 +161,19 @@ h2 {
 }
 .tile p { font-size: 14px; color: var(--text-muted); }
 
+/* ── STORY ── */
+.story { max-width: 44em; }
+.story p { font-size: 16px; color: var(--text-muted); margin-bottom: 16px; }
+.story p:last-child { margin-bottom: 0; }
+.story em { color: var(--text); font-style: italic; }
+
+/* ── NICE LIST ── */
+#nice { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; }
+#nice li {
+  font-size: 15px; color: var(--text-muted);
+  border-left: 4px solid var(--mint); padding-left: 14px;
+}
+
 /* ── HOW ── */
 #how-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 22px; }
 .beat { border-left: 4px solid var(--mint); padding-left: 16px; }
@@ -228,10 +241,10 @@ footer a:hover { color: var(--amber); }
 <header id="hero">
   <div class="wrap">
     <div>
-      <div class="eyebrow">// 195 COUNTRIES · 0 EXCUSES</div>
-      <h1>You can't name<br>every country.<br><span class="yet">Yet.</span></h1>
-      <p class="lede">Most adults get stuck somewhere around 60 and quietly change the subject. The gap isn't intelligence, it's that nobody ever drilled you on it.</p>
-      <p class="sub">Global Recall is a five-minute daily habit built on a 3D globe. Countries light up, you name them, and the ones you keep missing come back until they stop being the ones you keep missing.</p>
+      <div class="eyebrow">// 195 COUNTRIES · ONE TEXT BOX</div>
+      <h1>Type country names.<br>Watch them <span class="yet">light up.</span></h1>
+      <p class="lede">That's the whole game. A spinning globe, a text box, and 195 countries you half-remember. No hints, no multiple choice, no clues.</p>
+      <p class="sub">Most of us stall out somewhere around 60 and then get quietly competitive about it. Five minutes a day is the idea, and the ones you keep missing keep coming back until you stop missing them.</p>
       <div class="cta-row">
         <a href="/play" class="btn-play">PLAY FREE ▸</a>
         <span class="no-signup"><b>No account.</b> No ads.<br>Works offline.</span>
@@ -247,41 +260,52 @@ footer a:hover { color: var(--amber); }
 <div id="strip">
   <div class="wrap">
     <div class="stat"><b>195</b> COUNTRIES</div>
-    <div class="stat"><b>5</b> GAME MODES</div>
+    <div class="stat"><b>5</b> MODES</div>
     <div class="stat"><b>10</b> A DAY</div>
     <div class="stat"><b>0</b> SIGN-UP</div>
   </div>
 </div>
 
+<section id="story-sec">
+  <div class="wrap">
+    <h2>Why I built this</h2>
+    <div class="story">
+      <p>When I was a kid I used to take the blank maps of Canada my teachers handed out, bring home a stack of photocopies, and spend hours filling in every city and town and lake I could think of. I just loved maps.</p>
+      <p>In Cégep I took a world geography course where the entire grade was one exam - name every country on a map. It felt hard at the time. But years later it still pays off in small ways. You meet someone, you know where they're from. You hear something in the news, you can actually picture it. It's one of those things that sounds like useless trivia until it isn't.</p>
+      <p>My son started learning world geography a couple years ago. I looked at the apps out there and honestly, I thought I could do better. So here we are.</p>
+    </div>
+  </div>
+</section>
+
 <section id="modes">
   <div class="wrap">
-    <h2>Five ways to practise</h2>
-    <p class="sec-sub">One globe, five drills. Start with the daily — it's the one that actually builds the habit.</p>
+    <h2>Five ways to play</h2>
+    <p class="sec-sub">Start with the Daily. It's the one that actually builds the habit.</p>
     <div id="modes-grid">
       <div class="tile hero-tile">
         <div class="tile-head"><span class="tile-icon">📅</span><span class="tile-kicker">THE HABIT</span></div>
         <div class="tile-name">DAILY CHALLENGE</div>
-        <p>Ten countries, same ten for everyone, new set every day. Keep a streak going and you'll find you suddenly care a great deal about not breaking it.</p>
+        <p>10 countries, the same 10 for everyone, changes each day. Keep the streak alive. You will find you care about this more than you expect to.</p>
       </div>
       <div class="tile">
         <div class="tile-head"><span class="tile-icon">⚡</span><span class="tile-kicker">SPEED RUN</span></div>
         <div class="tile-name">SPRINT · 1 MIN</div>
-        <p>Sixty seconds. How many can you call on sight? Scores go on the board.</p>
+        <p>One minute. How many can you get? Scores go on the board.</p>
       </div>
       <div class="tile">
         <div class="tile-head"><span class="tile-icon">🎯</span><span class="tile-kicker">THE TEST</span></div>
         <div class="tile-name">STRICT</div>
-        <p>All 195, one at a time, three strikes. No hints until you're genuinely stuck.</p>
+        <p>All 195, named on sight, three strikes.</p>
       </div>
       <div class="tile">
         <div class="tile-head"><span class="tile-icon">◎</span><span class="tile-kicker">THE FLEX</span></div>
         <div class="tile-name">NAME ALL</div>
-        <p>Blank globe, no prompts, any order. Race a replay of your own best run.</p>
+        <p>No timer, no highlights, no order. Just you and 195 blanks. You can race a replay of your own best run.</p>
       </div>
       <div class="tile">
         <div class="tile-head"><span class="tile-icon">🎮</span><span class="tile-kicker">START HERE</span></div>
         <div class="tile-name">EASY MODE</div>
-        <p>Multiple choice with a continent hint. For kids, or for the first week.</p>
+        <p>Multiple choice with continent hints, for when naming from memory is too hard. Which is most of us, honestly.</p>
       </div>
     </div>
   </div>
@@ -289,32 +313,21 @@ footer a:hover { color: var(--amber); }
 
 <section id="how">
   <div class="wrap">
-    <h2>Why it sticks</h2>
-    <p class="sec-sub">Flashcards teach you a list. A globe teaches you a place — and places are what your memory is actually good at holding onto.</p>
-    <div id="how-list">
-      <div class="beat">
-        <span class="beat-num">01</span>
-        <h3>THE GLOBE IS THE TRICK</h3>
-        <p>Every country gets a position, neighbours and a shape. You stop memorising names and start remembering a map you can walk around in.</p>
-      </div>
-      <div class="beat">
-        <span class="beat-num">02</span>
-        <h3>SMALL AND DAILY BEATS BIG AND ONCE</h3>
-        <p>Ten countries takes about five minutes. That's the whole design. Cramming 195 in one sitting is how you forget 195 by Thursday.</p>
-      </div>
-      <div class="beat">
-        <span class="beat-num">03</span>
-        <h3>YOUR MISSES COME BACK</h3>
-        <p>Guinea-Bissau, Eswatini, Kyrgyzstan — whichever ones are yours. They resurface until they're boring, then they leave you alone.</p>
-      </div>
-    </div>
+    <h2>A few things that make it nicer</h2>
+    <p class="sec-sub">Knowing <em>where</em> a place is turns out to matter more than being able to rattle off a list, so most modes point at one country and ask you to name it.</p>
+    <ul id="nice">
+      <li>Typos are forgiven. "Brazl" works, "Nicragua" works.</li>
+      <li>Alternate names work too - Burma, Czechia, UK, Ivory Coast.</li>
+      <li>The globe flies to each country after you name it.</li>
+      <li>Installs to your phone like an app, and works with no signal.</li>
+    </ul>
   </div>
 </section>
 
 <section id="apps">
   <div class="wrap">
     <h2>Coming to your phone</h2>
-    <p class="sec-sub">iOS and Android builds are in the pipeline. Until they land, the web app installs straight to your home screen and plays offline — same game, no store required.</p>
+    <p class="sec-sub">iOS and Android builds are in the works. Until they land, the web version installs straight to your home screen and plays offline, which is most of what an app gives you anyway.</p>
     <div class="store-row">
       <div class="store-badge">
         <span class="glyph">📱</span>
@@ -330,8 +343,8 @@ footer a:hover { color: var(--amber); }
 
 <section id="closer">
   <div class="wrap">
-    <h2>So. How many can you actually name?</h2>
-    <p>Find out in about a minute. Nothing to install, nothing to sign up for, and the answer is almost certainly lower than you think.</p>
+    <h2>So, how many can you name?</h2>
+    <p>Takes about a minute to find out. Nothing to install and nothing to sign up for, though I should warn you the number is usually lower than people expect :)</p>
     <a href="/play" class="btn-play">START PLAYING ▸</a>
   </div>
 </section>
@@ -466,16 +479,16 @@ function isLandLL(latRad, lonRad) {
   function stop() { running = false; }
 
   // Don't burn a rAF loop on a backgrounded tab or a scrolled-past hero.
-  document.addEventListener('visibilitychange', () => document.hidden ? stop() : start());
+  // Both conditions have to hold, otherwise tabbing away and back restarts
+  // the loop for a hero that isn't even on screen.
+  let inView = true;
+  const sync = () => (inView && !document.hidden) ? start() : stop();
+  document.addEventListener('visibilitychange', sync);
   if ('IntersectionObserver' in window) {
-    new IntersectionObserver(
-      ([e]) => (e.isIntersecting && !document.hidden) ? start() : stop(),
-      { threshold: 0 }
-    ).observe(box);
-  } else {
-    start();
+    new IntersectionObserver(([e]) => { inView = e.isIntersecting; sync(); },
+      { threshold: 0 }).observe(box);
   }
-  start();
+  sync();
 })();
 </script>
 </body>
