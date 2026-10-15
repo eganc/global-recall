@@ -37,9 +37,12 @@ function resolve(canonical, aliases) {
 
 describe('country → GeoJSON coverage', () => {
   it('RAW was extracted from play.html', () => {
-    // 195 UN states (incl. Holy See/Vatican) + Taiwan + Kosovo. Exact
-    // assertion guards against an accidental row deletion or a regex slip.
-    expect(RAW.length).toBe(198);
+    // 195 UN states (incl. Holy See/Vatican) + Taiwan, Kosovo, Western
+    // Sahara, Somaliland and Northern Cyprus — every place Natural Earth
+    // draws as its own feature with itself as SOVEREIGNT. See
+    // docs/country-list.md. Exact assertion guards against an accidental
+    // row deletion or a regex slip.
+    expect(RAW.length).toBe(200);
   });
 
   it('every RAW country resolves to a GeoJSON feature', () => {

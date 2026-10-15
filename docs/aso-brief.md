@@ -89,7 +89,7 @@ Name every country on Earth
 195,countries,world,map,globe,atlas,nation,capital,flag,trivia,study,streak,quiz,daily,learn
 ```
 
-"195" lives here rather than in the subtitle: it is the term with real search volume, but the app actually asks for 198, so it belongs in the index and not in a user-facing promise.
+"195" lives here rather than in the subtitle: it is the term with real search volume, but the app actually asks for 200, so it belongs in the index and not in a user-facing promise.
 
 **Promotional text** (updatable without a release — use it for the store launch)
 ```
@@ -112,11 +112,11 @@ SPRINT
 One minute on the clock. How many can you get? Scores go on the high score board.
 
 STRICT
-All 198, named on sight, three strikes. There's a hint when you're genuinely stuck,
+All 200, named on sight, three strikes. There's a hint when you're genuinely stuck,
 and the recap afterwards tells you which ones needed it.
 
 NAME ALL
-No timer, no highlights, no order. Just you and 198 blanks. Race a replay of your
+No timer, no highlights, no order. Just you and 200 blanks. Race a replay of your
 own best run.
 
 EASY MODE
@@ -210,7 +210,7 @@ A content gate on 195 countries would be transparently artificial.
 3. **The global leaderboard is currently returning HTTP 500 in production.** Sprint and
    Strict both promise "scores go on the board." If that ships broken it's a visible
    defect in two of five modes and a predictable one-star theme. **Fix before submission.**
-4. ~~**195 vs 198.**~~ **Resolved.** The list is 198 on purpose and the reasoning is
+4. ~~**195 vs 198.**~~ **Resolved.** The list is 200 on purpose and the reasoning is
    public in `docs/country-list.md`. Stale `195` labels in the UI have been corrected.
    Residual risk is now small but real: a reviewer may still object to Taiwan or Western
    Sahara being listed at all. The policy page is the answer, and it's linked from the

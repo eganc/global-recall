@@ -1,12 +1,7 @@
 # What counts as a country
 
-Global Recall currently asks you to name **198 places**: the 195 conventionally called
-countries, plus Taiwan, Kosovo and Western Sahara.
-
-Two more — Somaliland and Northern Cyprus — qualify under the rule below and are queued
-to be added, which will take the list to 200. They aren't in yet for a boring mechanical
-reason explained at the bottom: the daily challenge is seeded from the list's order, so
-growing it reshuffles every day's puzzle and isn't a change to make casually.
+Global Recall asks you to name **200 places**: the 195 conventionally called countries,
+plus Taiwan, Kosovo, Western Sahara, Somaliland and Northern Cyprus.
 
 This page exists because "how many countries are there" has no neutral answer, and any
 list is a position. Here's ours.
@@ -90,13 +85,14 @@ as its own sovereign — gives 200 of them. Drop Antarctica, which has no perman
 population and no government, and add Palestine, which the 195 carries but which Natural
 Earth files under Israeli sovereignty, and the rule lands on **200 places**.
 
-### Qualifying, not yet added
+### The other two
 
 - **Somaliland** — Natural Earth marks it `TYPE: Sovereign country` with itself as
-  sovereign. De facto independent since 1991, with its own currency, elections and
-  borders.
-- **Northern Cyprus** — same marking. Controls territory, has its own government,
-  recognised by Türkiye.
+  sovereign. De facto independent from Somalia since 1991, with its own currency,
+  elections and borders, and recognised by no UN member state.
+- **Northern Cyprus** — same marking. Controls the northern third of the island, has its
+  own government, and is recognised by Türkiye alone. Nicosia is a divided city; the
+  capital used here is North Nicosia (Lefkoşa).
 
 Transnistria, Abkhazia and South Ossetia are **not** separate features in the layer, so
 under the rule they're out. That is the rule doing its job: somebody who thinks about
@@ -141,9 +137,8 @@ quietly resolved in one direction.
 
 ## Scoring
 
-The list is 198 today, so a perfect Strict or Name All run is 198 and the leaderboard
-accepts scores up to 198. Any "195" still visible in the app is a stale label and a bug —
-please report it.
+A perfect Strict or Name All run is 200, and the leaderboard accepts scores up to 200.
+Any "195" or "198" still visible in the app is a stale label and a bug — please report it.
 
 ---
 

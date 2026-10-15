@@ -743,7 +743,7 @@ body { font-family: var(--font-body); color: var(--text); }
   <div id="bottom">
     <div id="strict-panel" style="display:none">
       <div id="strict-progress-row">
-        <span id="strict-progress">— / 198</span>
+        <span id="strict-progress">— / 200</span>
         <span id="strict-strikes">○ ○ ○</span>
       </div>
       <div id="strict-hint"></div>
@@ -781,7 +781,7 @@ body { font-family: var(--font-body); color: var(--text); }
   <div id="end-headline">WORLD CONQUERED!</div>
   <div class="stat-grid">
     <div class="stat-tile">
-      <div id="end-count" class="stat-value">0/198</div>
+      <div id="end-count" class="stat-value">0/200</div>
       <div class="stat-label">COUNTRIES NAMED</div>
     </div>
     <div class="stat-tile">
@@ -878,7 +878,7 @@ body { font-family: var(--font-body); color: var(--text); }
           <span class="mode-tile-num">THE TEST</span>
         </div>
         <div class="mode-tile-name">STRICT</div>
-        <div class="mode-tile-stat" id="stat-strict">ALL 198 · NAME ON SIGHT</div>
+        <div class="mode-tile-stat" id="stat-strict">ALL 200 · NAME ON SIGHT</div>
       </button>
       <button class="mode-tile" id="tile-name-all" onclick="launchMode('name-all')">
         <div class="mode-tile-header">
@@ -886,7 +886,7 @@ body { font-family: var(--font-body); color: var(--text); }
           <span class="mode-tile-num">THE FLEX</span>
         </div>
         <div class="mode-tile-name">NAME ALL</div>
-        <div class="mode-tile-stat" id="stat-name-all">— / 198 COUNTRIES</div>
+        <div class="mode-tile-stat" id="stat-name-all">— / 200 COUNTRIES</div>
       </button>
       <button class="mode-tile" id="tile-kids" onclick="launchMode('kids')">
         <div class="mode-tile-header">
@@ -1113,6 +1113,8 @@ const RAW = [
   ["Kosovo",["Republic of Kosovo"]],
   ["Western Sahara",["Sahrawi Republic","SADR"]],
   ["Vatican City",["Vatican","Holy See","Vatican City State","Holy See (Vatican City)"]],
+  ["Somaliland",["Republic of Somaliland"]],
+  ["Northern Cyprus",["TRNC","KKTC","Turkish Republic of Northern Cyprus","North Cyprus","N. Cyprus"]],
 ];
 
 // Capital cities — used by STRICT mode for the hint flow and for the
@@ -1287,6 +1289,8 @@ const CAPITALS = {
   "Slovenia":                  { name: "Ljubljana",           local: "",                                  lat: 46.0569, lng: 14.5058 },
   "Solomon Islands":           { name: "Honiara",             local: "",                                  lat: -9.4456, lng: 159.9729 },
   "Somalia":                   { name: "Mogadishu",           local: "Muqdisho",                          lat: 2.0469,  lng: 45.3182 },
+  "Somaliland":                { name: "Hargeisa",            local: "Hargeysa",                          lat: 9.5600,  lng: 44.0650 },
+  "Northern Cyprus":           { name: "North Nicosia",       local: "Lefkoşa",                           lat: 35.1950, lng: 33.3600 },
   "South Africa":              { name: "Pretoria",            local: "",                                  lat: -25.7479, lng: 28.2293 },
   "South Sudan":               { name: "Juba",                local: "",                                  lat: 4.8517,  lng: 31.5825 },
   "Spain":                     { name: "Madrid",              local: "",                                  lat: 40.4168, lng: -3.7038 },
@@ -1341,14 +1345,14 @@ const CONTINENT = {
   Malawi:'Africa',Mali:'Africa',Mauritania:'Africa',Mauritius:'Africa',
   Morocco:'Africa',Mozambique:'Africa',Namibia:'Africa',Niger:'Africa',
   Nigeria:'Africa',Rwanda:'Africa','São Tomé and Príncipe':'Africa',
-  Senegal:'Africa',Seychelles:'Africa','Sierra Leone':'Africa',Somalia:'Africa',
+  Senegal:'Africa',Seychelles:'Africa','Sierra Leone':'Africa',Somalia:'Africa','Somaliland':'Africa',
   'South Africa':'Africa','South Sudan':'Africa',Sudan:'Africa',Tanzania:'Africa',
   Togo:'Africa',Tunisia:'Africa',Uganda:'Africa',Zambia:'Africa',
   Zimbabwe:'Africa','Western Sahara':'Africa',
   // Asia
   Afghanistan:'Asia',Armenia:'Asia',Azerbaijan:'Asia',Bahrain:'Asia',
   Bangladesh:'Asia',Bhutan:'Asia',Brunei:'Asia',Cambodia:'Asia',
-  China:'Asia',Cyprus:'Asia',Georgia:'Asia',India:'Asia',
+  China:'Asia',Cyprus:'Asia','Northern Cyprus':'Asia',Georgia:'Asia',India:'Asia',
   Indonesia:'Asia',Iran:'Asia',Iraq:'Asia',Israel:'Asia',
   Japan:'Asia',Jordan:'Asia',Kazakhstan:'Asia',Kuwait:'Asia',
   Kyrgyzstan:'Asia',Laos:'Asia',Lebanon:'Asia',Malaysia:'Asia',
@@ -3559,7 +3563,7 @@ function strictUpdateStrikes() {
 }
 function strictUpdateProgress() {
   const done = strictPerfect + strictHinted + strictMissed;
-  // modeTotal is the full list (198) for Strict/Sprint and the day's set size (10) for Daily.
+  // modeTotal is the full list (200) for Strict/Sprint and the day's set size (10) for Daily.
   document.getElementById('strict-progress').textContent =
     `${done} / ${modeTotal}  ·  ★${strictPerfect}  ◐${strictHinted}  ✗${strictMissed}`;
 }
@@ -3615,7 +3619,7 @@ function strictResetIdleTimer() {
 // Daily, Sprint and Strict all share the one-target-at-a-time identify
 // engine (strictAdvance/strictCorrect + HINT→HINT→SKIP). They differ
 // only in queue + win condition: Daily = the day's 10, Sprint = 60s clock,
-// Strict = the full list (198). See docs/country-list.md.
+// Strict = the full list (200). See docs/country-list.md.
 function isStrictLikeMode() { return currentMode === 'strict' || currentMode === 'sprint' || currentMode === 'daily'; }
 
 // Disable the action button during the reveal pause so a stray tap can't
