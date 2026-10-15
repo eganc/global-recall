@@ -1,131 +1,235 @@
 # ASO Brief: Global Recall
 
-**Target store(s):** Apple App Store, Google Play
+**Target stores:** Apple App Store, Google Play
+**Publisher:** Millrace Inc. · **Bundle:** `com.millrace.globalrecall`
+**Status:** Pre-submission. Capacitor wrap of the live PWA at globalrecall.app.
+**Written:** 2026-10-15
+
+---
+
+## The core ASO problem
+
+"Global Recall" contains no keyword anyone searches for, and it reads like a memory
+app or a Total Recall reference. Nobody will ever type it into a store search before
+they've heard of us. That's a fine brand name and a bad search asset, and it means
+**100% of organic discovery has to come from the subtitle and keyword field.** Every
+decision below follows from that.
+
+The name is locked (one-shot at first submission, per CLAUDE.md), so this is a
+constraint to work around, not a question to reopen.
+
+---
 
 ## Keyword strategy
 
-**Primary (1–2):**
-- `geography quiz`
-- `country quiz`
+**Primary** (highest intent, must appear in indexed fields)
+- geography quiz
+- countries of the world
+- name all countries
 
-**Secondary (3–5):**
-- `learn countries`
-- `world map game`
-- `countries of the world`
-- `geography game`
-- `world geography`
+**Secondary** (strong intent, work into subtitle / short description / keyword field)
+- world map quiz · learn geography · 195 countries · daily geography game · country quiz
 
-**Supporting (5+):**
-- `name the country`
-- `map trivia`
-- `interactive globe`
-- `3d globe game`
-- `geography trainer`
-- `flags and countries` — *do not use.* The app doesn't teach flags (out of scope per CLAUDE.md); including it would rank for search intent the app can't satisfy and tank conversion/retention signals.
-- `worldle` — *do not use as a literal keyword.* It's a specific competitor's brand name; using it risks a takedown request and doesn't help ranking (Apple/Google both down-weight or reject competitor-trademark stuffing). The positioning angle ("more than a daily guessing game") can live in the description without naming it.
+**Supporting** (keyword field and long description only)
+- globe · atlas · nations · capitals · flags · continents · trivia · memorize · study ·
+  streak · world geography game · geography for kids
 
-**Why these and not broader trivia terms:** generic `trivia app` / `quiz game` keywords are saturated with aged, ugly apps across every category (per the product brief's own competitive read) and have poor intent match — someone searching "trivia" isn't necessarily looking to learn geography specifically. `geography quiz` and `country quiz` are the two terms where search intent, category norms, and what this app actually does line up exactly.
+**Deliberately not targeting:** "flags" and "capitals" as primary. Every competitor
+leads with them, we don't do either, and ranking for a term the app doesn't satisfy
+buys uninstalls. Capitals appear only as Strict-mode hints.
+
+### Competitive read
+
+The iOS geography-quiz niche is **fragmented and shallow**. Rating counts across the
+visible competitor set are low — Geognosis 4.8/119, Map-Quiz 4.7/375, Name the Nations
+4.7/18, World Quiz! 4.3/15, Country Quiz 0. That's not a category anyone owns, which is
+good news for a new entrant with a better product, and bad news as a demand signal.
+
+Nobody in the mobile set combines **a 3D globe with a daily streak**. Globle has the
+globe without the teaching loop; Worldle has the daily without spatial context; Seterra
+and Sporcle have the content on flat maps with no habit mechanic. That intersection is
+the positioning, and it should be visible in the first screenshot and the subtitle.
+
+**Verify before relying on any of this:** these are listing-copy inferences from web
+search, not tool data. Pull real volume and difficulty from AppTweak, Sensor Tower or
+AppFollow before locking the keyword field.
+
+---
 
 ## Category
 
-**Apple App Store:** Primary — Education. Secondary consideration — Games → Trivia.
-**Google Play:** Primary — Education. Secondary consideration — Games → Trivia.
+| Store | Recommendation | Why |
+|---|---|---|
+| Apple | **Primary: Education** · Secondary: Games → Trivia | Games → Trivia is dominated by general-knowledge apps with huge review counts. Education matches the actual product (a practice habit, not a party game) and the people searching "learn geography" convert better than people browsing trivia. |
+| Google Play | **Apps → Education** (not Games) | Play forces an Apps/Games split at the top level. Listing as a Game puts us against Educational/Trivia charts we can't touch at zero reviews. Education also unlocks Teacher Approved consideration later. |
 
-**Recommendation: Education, not Games.** The product brief's target user doesn't think of themselves as a "gamer" — they're a Wordle/Connections/Worldle player who wants to close a knowledge gap, and they'd be embarrassed to be positioned next to arcade trivia apps. Education also has a materially less crowded top-20 than Games → Trivia, and Apple/Google both weight completion/retention signals (which a daily-habit app should score well on) more heavily than session-count signals in Education than in Games.
+**Content rating:** Everyone / PEGI 3. No user-generated content, no ads, no data
+collection, no external links in-app except the privacy page.
 
-## Competitive density
+**Competitive density:** Medium. Crowded with low-quality entries, empty at the top.
+Top-20 in a geography-specific search is realistically reachable; top-20 in Education
+overall is not.
 
-**Low–Medium.** The named competitors (Sporcle, Worldle, Seterra) are web-first products without a polished native app store presence, or are single-mechanic apps with dated UI (per the product brief's own assessment: "mostly aged, ugly quiz apps"). A studio-quality native app with a real 3D globe as the visual hook is a legitimate top-20 shot in "geography quiz" on Apple App Store within a normal ASO ramp — the ceiling is capped by category size, not by having to out-rank a dominant incumbent.
+---
 
-## Listing copy
+## Apple App Store listing
 
-### Apple App Store
+**App Name** (24/30)
+```
+Global Recall: Geography
+```
 
-**App Name (30 chars):** `Global Recall: Geography Quiz`
+**Subtitle** (28/30)
+```
+Name all 195 countries daily
+```
 
-**Subtitle (30 chars):** `Learn Every Country on Earth`
+**Keyword field** (97/100 — comma-separated, no spaces, no words repeated from Name or Subtitle)
+```
+world,map,globe,atlas,nation,capital,flag,trivia,memorize,study,streak,earth,quiz,continent,daily
+```
 
-**Keyword field (100 chars, comma-separated, no spaces):**
-`countryquiz,learncountries,worldmap,geographygame,worldgeography,globe,mapgame,countries,flashcard,trainer`
-*(Do not repeat "geography" or "quiz" here — both already appear in Name/Subtitle; Apple explicitly penalizes duplication across the three fields as wasted characters.)*
+**Promotional text** (updatable without a release — use it for the store launch)
+```
+New: a daily challenge that takes five minutes. Ten countries, the same ten for everyone, a new set every day.
+```
 
-**Promotional Text (170 chars, update anytime without a new build):**
-`New: daily 10-country challenge with streaks. Miss one? It comes back until you've got it cold. Free to play, no account needed.`
+**Description** (not indexed by Apple — written purely for conversion)
 
-**Description:**
+```
+You probably can't name every country on Earth. Most of us run dry somewhere around 60.
 
-> Most people can name maybe 60 countries. Global Recall gets you to all 195 — for real, from memory, on a real globe.
->
-> Type a country's name and watch it light up in its true position, at its true scale, on a living 3D globe. You don't memorize a shape on a flat map — you build a spatial memory of where Azerbaijan actually sits next to its neighbors, the way you'd remember a place you'd actually flown over.
->
-> **Daily Challenge** — 10 countries a day, seeded fresh every day. Build a streak. Miss a day and it resets, so there's something real to defend.
->
-> **Name All** — the full 195-country run, from memory, timed. Race your own ghost replay from your last attempt.
->
-> **Sprint** — 5 minutes, as many countries as you can name. Pure fluency drilling.
->
-> **Easy Mode** — multiple choice with a continent hint, for total beginners or for playing with your kids.
->
-> Typo-tolerant matching means you don't get penalized for "Ivory Coast" vs "Côte d'Ivoire" or a dropped accent. No account, no login, no ads. Your streaks and personal bests live on your device. Works fully offline once installed.
->
-> If you've ever felt a little embarrassed handing someone a blank map, this is the app that fixes it — permanently, not just for a Wednesday afternoon.
+Global Recall is a geography game built on a 3D globe you can spin. A country lights
+up, you type its name, and the camera flies to it so you see where it actually sits.
+Do that for five minutes a day and the map stops being a blur.
 
-### Google Play
+DAILY CHALLENGE
+Ten countries, the same ten for everyone, a new set every day. Keep a streak going.
 
-**App title (30 chars):** `Global Recall: Country Quiz`
+SPRINT
+One minute on the clock. How many can you get? Scores go on the high score board.
 
-**Short description (80 chars):**
-`Name all 195 countries from memory on a real 3D globe. Daily streaks, no ads.`
+STRICT
+All 195, named on sight, three strikes. There's a hint when you're genuinely stuck,
+and the recap afterwards tells you which ones needed it.
 
-**Full description (4000 chars, structure below — expand each section when pasting in):**
+NAME ALL
+No timer, no highlights, no order. Just you and 195 blanks. Race a replay of your
+own best run.
 
-> **Learn every country on Earth — for real, from memory.**
-> Global Recall is a geography quiz built around a real 3D globe. Type a country's name and watch it light up in its true position, at its true scale — so you're not memorizing a shape on a flat map, you're building a real spatial memory of where the world actually fits together.
->
-> **Daily Challenge**
-> A fresh 10-country challenge every day. Build a streak and keep it alive — miss a day and it resets.
->
-> **Name All**
-> The complete 195-country run, from memory, timed, with a ghost replay of your own best attempt to race against.
->
-> **Sprint**
-> Five minutes. As many countries as you can name. Built for fluency drilling once you've got the basics down.
->
-> **Easy Mode**
-> Multiple choice with a continent hint — a gentle on-ramp for beginners or for playing with your kids.
->
-> Typo-tolerant matching handles alternate spellings and accents so you're not fighting the input box. No account required, no ads, no data collection beyond an optional anonymous leaderboard entry. Installs as a real app and works offline once loaded.
->
-> Perfect for: Wordle/Connections players who want something with actual staying power, anyone who's ever frozen up naming countries during a conversation, and parents looking for a genuinely educational screen-time option.
+EASY MODE
+Multiple choice with continent hints, for kids or for your first week.
+
+Spelling is forgiven within reason, and old names work - Burma, Holland, Swaziland,
+Czechia, England.
+
+No account. No ads. Nothing to sign up for. Works offline.
+```
+
+---
+
+## Google Play listing
+
+**Title** (29/30)
+```
+Global Recall: Geography Quiz
+```
+
+**Short description** (76/80)
+```
+Name all 195 countries on a 3D globe. Free daily geography game, no sign-up.
+```
+
+**Full description** — reuse the Apple description above with one change: open the
+first paragraph with the phrase "geography quiz" so Play's indexer sees it early, since
+unlike Apple, Play *does* index the long description.
+
+```
+Global Recall is a geography quiz built on a 3D globe. You probably can't name every
+country on Earth - most of us run dry somewhere around 60.
+```
+...then continue with the Apple body unchanged.
+
+---
 
 ## Screenshot sequence
 
-Apple allows 10, Google Play allows 8 — use the same first 8 for both, in this order:
+The first three are what appear in search results on both stores. They carry the whole
+click-through rate, so they get outcome headlines, not feature labels.
 
-1. **Hero:** Full 3D globe mid-game with 5–6 countries lit up in the signature highlight color, bold headline overlay: "Name all 195 countries. For real." No UI chrome visible — this is the differentiator, it has to read instantly.
-2. **Daily Challenge + streak:** Screenshot of the streak counter mid-run, headline: "One challenge a day. Build a streak worth defending."
-3. **Country lighting up on input:** Mid-type screenshot showing the input box and a country actively highlighting, headline: "Type it. Watch it light up where it actually is."
-4. **Name All end screen:** Completion screen showing all 195 lit up + finish time, headline: "The full 195. From memory."
-5. **Ghost replay:** Split framing showing your run vs. your ghost, headline: "Race your own best run."
-6. **Easy Mode:** Multiple-choice screen with continent hint, headline: "New to geography? Start here."
-7. **Sprint mode:** Countdown timer + running score, headline: "5 minutes. How many can you name?"
-8. **Share card:** The polished Daily share card, headline: "Share your streak."
+1. **"How many countries can you name?"** — the globe mid-spin with several countries lit
+   green. The hook, and the only screenshot most people will ever see.
+2. **"Ten a day. Keep the streak."** — the Daily tile showing an active streak counter.
+   This is the differentiator no competitor shows.
+3. **"The globe flies to each one."** — a country highlighted with the camera settled on
+   it, neighbours visible. Sells the spatial-learning claim in one image.
+4. **"One minute. Go."** — Sprint mid-run with the clock visible.
+5. **"All 195, three strikes."** — Strict with the progress counter.
+6. **"Typos forgiven."** — the input showing a misspelling being accepted.
+7. **"Works with no signal."** — offline/home-screen install.
+8. *(Play only)* Feature graphic already exists at `store-assets/play/feature-graphic.png`
+   (1024×500, correct spec).
 
-Sizes: Apple wants 1290×2796 (6.7") as the primary set; Google Play accepts 320×568 up to 3840×2160, 16:9 or 9:16. Portrait only is fine for both stores at launch — the app's phone-first.
+Existing raw captures are in `store-assets/screenshots-raw/` and need headline overlays
+before submission. Dark mode throughout — the brutalist dark palette is the product's
+identity, not a preference.
 
-## Pricing recommendation
+---
 
-**Free, no monetization plumbing, on both stores.** This matches the locked decision in CLAUDE.md ("no paid tier / monetization plumbing" is explicitly out of scope for MVP) and the product brief's own sequencing — the thesis needs to be validated (30-day retention, share-through rate) before any pricing conversation is worth having. Adding IAP or subscription tiers now would also add App Store / Play Console review surface (subscription terms, restore-purchase flows) that has nothing to do with what's being tested.
+## Pricing
 
-Revisit pricing only after the retention thesis holds — CLAUDE.md already notes the monetization line is "intentionally open" once that happens.
+**Free. No in-app purchases, no ads, no subscription.**
+
+This is not a default, it's the decision already recorded in CLAUDE.md: monetization is
+open but deferred, anything paid must be opt-in and off by default, and nothing gets
+built until daily retention is proven. Shipping a paywall into a product with no
+retention data would be guessing.
+
+Two things follow for ASO:
+- **Ads are off the table regardless.** They'd wreck retention on a five-minute daily
+  habit, and retention is the exact thing v1 exists to measure.
+- **There's no revenue to fund user acquisition**, so organic is the whole channel.
+  That raises the stakes on the subtitle, the keyword field and screenshot 1.
+
+When monetization does arrive, the brief's stated wedge is features that genuinely cost
+to scale — live realtime races, cloud save, private friend boards — not a content gate.
+A content gate on 195 countries would be transparently artificial.
+
+---
 
 ## ASO risks
 
-1. **The differentiator doesn't survive a static screenshot as well as it survives actually playing.** The 3D globe is the moat, but a still image of a rotating globe with highlighted countries has to communicate "this is different from every flat-map quiz app" in under a second of scroll time. If screenshot 1 doesn't land that in isolation, the app reads as "yet another geography quiz" and loses the ASO battle before anyone reads the description.
-2. **Education category ranking algorithms weight retention/completion more than Games does — which cuts both ways.** It's an advantage once the streak/spaced-repetition mechanics are live and retention is real, but if the listing goes live before those MVP features ship (per CLAUDE.md, they're still in progress), early cohorts may churn fast and depress exactly the signal Education-category ranking rewards. Sequencing matters: don't file for review before the streak mechanic is live in production.
+1. **The name carries no search weight.** Already covered above. If the subtitle and
+   keyword field underperform, there is no fallback — brand search will be zero for
+   months.
+2. **Zero reviews at launch.** Both stores weight review velocity heavily, and a new app
+   at 4.8/20 outranks an old one at 3.9/200. Without seeded reviewers the listing starts
+   invisible.
+3. **The global leaderboard is currently returning HTTP 500 in production.** Sprint and
+   Strict both promise "scores go on the board." If that ships broken it's a visible
+   defect in two of five modes and a predictable one-star theme. **Fix before submission.**
+4. **195 vs 198.** The app's UI says 195 everywhere, but `RAW` in `play.html` holds 198
+   entries — the 195 convention plus Taiwan, Kosovo and Western Sahara, and the coverage
+   test asserts 198 deliberately. Strict and Name All therefore ask for more than the
+   number advertised. This is exactly the kind of thing that draws a pedantic one-star
+   review, and the store listing repeats the 195 claim. Decide which number is the real
+   one before submitting.
+5. **"Geography" in the app name invites Education-category comparison** against
+   curriculum apps with institutional backing. The screenshots have to make it obvious
+   within one frame that this is a game, not courseware.
 
-## What to do before launch
+---
 
-1. **Don't submit the listing until the streak + Daily-mode share card are live in production** — ASO risk #2 above. The product brief and CLAUDE.md both flag these as the retention engine; a pre-streak submission burns the first-week ranking signal that's hardest to earn back.
-2. **Seed 5–10 real outside-family testers before or immediately at launch** (per the product brief's "first external test" step) so the first wave of ratings isn't zero — a handful of honest 4–5 star reviews in week one meaningfully changes early ranking versus launching into silence.
-3. **Take the actual screenshot set on a real device against the final build**, not mockups — the globe's visual quality (lighting, color, legibility of highlighted countries against ocean/terrain) is the entire pitch of screenshot 1, and it needs to be verified to look as good in a static PNG as it does live before locking the listing.
+## Before launch
+
+1. **Fix the leaderboard 500.** It's the only functional defect blocking a clean
+   submission, and it makes two mode descriptions false.
+2. **Resolve 195 vs 198** and make the app, the store listing and the splash page agree.
+3. **Line up 15–20 TestFlight / Play internal testers who will actually post a review in
+   the first 72 hours.** Review velocity in the launch window is the single biggest
+   ranking lever available at zero budget. Ask them directly; don't hope.
+4. **Add an in-app review prompt at the right moment** — after a seven-day streak or a
+   completed Name All run, never on first launch. Both stores throttle the native prompt,
+   so spending it at the high-water mark of someone's experience matters.
+5. **Pull real keyword data** from AppTweak or Sensor Tower and re-validate the keyword
+   field before it's locked into a release.
