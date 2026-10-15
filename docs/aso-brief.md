@@ -79,15 +79,17 @@ overall is not.
 Global Recall: Geography
 ```
 
-**Subtitle** (28/30)
+**Subtitle** (27/30)
 ```
-Name all 195 countries daily
+Name every country on Earth
 ```
 
-**Keyword field** (97/100 — comma-separated, no spaces, no words repeated from Name or Subtitle)
+**Keyword field** (92/100 — comma-separated, no spaces, no words repeated from Name or Subtitle)
 ```
-world,map,globe,atlas,nation,capital,flag,trivia,memorize,study,streak,earth,quiz,continent,daily
+195,countries,world,map,globe,atlas,nation,capital,flag,trivia,study,streak,quiz,daily,learn
 ```
+
+"195" lives here rather than in the subtitle: it is the term with real search volume, but the app actually asks for 198, so it belongs in the index and not in a user-facing promise.
 
 **Promotional text** (updatable without a release — use it for the store launch)
 ```
@@ -110,11 +112,11 @@ SPRINT
 One minute on the clock. How many can you get? Scores go on the high score board.
 
 STRICT
-All 195, named on sight, three strikes. There's a hint when you're genuinely stuck,
+All 198, named on sight, three strikes. There's a hint when you're genuinely stuck,
 and the recap afterwards tells you which ones needed it.
 
 NAME ALL
-No timer, no highlights, no order. Just you and 195 blanks. Race a replay of your
+No timer, no highlights, no order. Just you and 198 blanks. Race a replay of your
 own best run.
 
 EASY MODE
@@ -137,7 +139,7 @@ Global Recall: Geography Quiz
 
 **Short description** (76/80)
 ```
-Name all 195 countries on a 3D globe. Free daily geography game, no sign-up.
+Name every country on Earth on a 3D globe. Free daily geography game.
 ```
 
 **Full description** — reuse the Apple description above with one change: open the
@@ -208,12 +210,11 @@ A content gate on 195 countries would be transparently artificial.
 3. **The global leaderboard is currently returning HTTP 500 in production.** Sprint and
    Strict both promise "scores go on the board." If that ships broken it's a visible
    defect in two of five modes and a predictable one-star theme. **Fix before submission.**
-4. **195 vs 198.** The app's UI says 195 everywhere, but `RAW` in `play.html` holds 198
-   entries — the 195 convention plus Taiwan, Kosovo and Western Sahara, and the coverage
-   test asserts 198 deliberately. Strict and Name All therefore ask for more than the
-   number advertised. This is exactly the kind of thing that draws a pedantic one-star
-   review, and the store listing repeats the 195 claim. Decide which number is the real
-   one before submitting.
+4. ~~**195 vs 198.**~~ **Resolved.** The list is 198 on purpose and the reasoning is
+   public in `docs/country-list.md`. Stale `195` labels in the UI have been corrected.
+   Residual risk is now small but real: a reviewer may still object to Taiwan or Western
+   Sahara being listed at all. The policy page is the answer, and it's linked from the
+   splash footer. Expect it to come up in at least one review.
 5. **"Geography" in the app name invites Education-category comparison** against
    curriculum apps with institutional backing. The screenshots have to make it obvious
    within one frame that this is a game, not courseware.
@@ -224,7 +225,8 @@ A content gate on 195 countries would be transparently artificial.
 
 1. **Fix the leaderboard 500.** It's the only functional defect blocking a clean
    submission, and it makes two mode descriptions false.
-2. **Resolve 195 vs 198** and make the app, the store listing and the splash page agree.
+2. ~~Resolve 195 vs 198~~ — done. Keep `docs/country-list.md` linked from the listing so
+   the policy is one tap away if a reviewer challenges it.
 3. **Line up 15–20 TestFlight / Play internal testers who will actually post a review in
    the first 72 hours.** Review velocity in the launch window is the single biggest
    ranking lever available at zero budget. Ask them directly; don't hope.

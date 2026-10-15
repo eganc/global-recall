@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
 <title>Global Recall</title>
-<meta name="description" content="Name all 195 countries from memory. Watch them light up on the globe.">
+<meta name="description" content="Name every country on Earth from memory. Watch them light up on the globe.">
 <meta name="theme-color" content="#1e1b4b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -743,7 +743,7 @@ body { font-family: var(--font-body); color: var(--text); }
   <div id="bottom">
     <div id="strict-panel" style="display:none">
       <div id="strict-progress-row">
-        <span id="strict-progress">— / 195</span>
+        <span id="strict-progress">— / 198</span>
         <span id="strict-strikes">○ ○ ○</span>
       </div>
       <div id="strict-hint"></div>
@@ -781,7 +781,7 @@ body { font-family: var(--font-body); color: var(--text); }
   <div id="end-headline">WORLD CONQUERED!</div>
   <div class="stat-grid">
     <div class="stat-tile">
-      <div id="end-count" class="stat-value">0/195</div>
+      <div id="end-count" class="stat-value">0/198</div>
       <div class="stat-label">COUNTRIES NAMED</div>
     </div>
     <div class="stat-tile">
@@ -878,7 +878,7 @@ body { font-family: var(--font-body); color: var(--text); }
           <span class="mode-tile-num">THE TEST</span>
         </div>
         <div class="mode-tile-name">STRICT</div>
-        <div class="mode-tile-stat" id="stat-strict">ALL 195 · NAME ON SIGHT</div>
+        <div class="mode-tile-stat" id="stat-strict">ALL 198 · NAME ON SIGHT</div>
       </button>
       <button class="mode-tile" id="tile-name-all" onclick="launchMode('name-all')">
         <div class="mode-tile-header">
@@ -886,7 +886,7 @@ body { font-family: var(--font-body); color: var(--text); }
           <span class="mode-tile-num">THE FLEX</span>
         </div>
         <div class="mode-tile-name">NAME ALL</div>
-        <div class="mode-tile-stat" id="stat-name-all">— / 195 COUNTRIES</div>
+        <div class="mode-tile-stat" id="stat-name-all">— / 198 COUNTRIES</div>
       </button>
       <button class="mode-tile" id="tile-kids" onclick="launchMode('kids')">
         <div class="mode-tile-header">
@@ -1460,7 +1460,7 @@ const FACTS = [
   "Mongolia has the lowest population density of any country.",
   "Kazakhstan is the world's largest landlocked country.",
   "The Philippines comprises over 7,000 islands.",
-  "There are 195 countries recognised by the United Nations today.",
+  "The UN has 193 member states, plus the Vatican and Palestine as observers. That is where the familiar 195 comes from.",
   "Nauru, an island nation in the Pacific, has no official capital city.",
   "South Sudan is the world's newest country, gaining independence in 2011.",
   "Liechtenstein is one of only two doubly-landlocked countries in the world.",
@@ -2318,8 +2318,8 @@ function initGlobe(el) {
 // ─── Country layers (MapLibre Phase 2) ────────────────────────────
 // Adds a single geojson source with a fill layer + line layer. Each
 // country's highlight state lives in MapLibre feature-state, not in
-// per-country meshes — that's the FT-008 win. Painting 195 countries
-// is one draw call, not 195.
+// per-country meshes — that's the FT-008 win. Painting every country
+// is one draw call, not one per country.
 //
 // promoteId: 'ADMIN' lifts the Natural Earth ADMIN string into the
 // feature id so setFeatureState({source, id: 'France'}, ...) works
@@ -3414,7 +3414,7 @@ function generateShareCard({ headline, count, total, timeText, modeLabel, accent
 async function shareResultCard() {
   // Pull stats from the visible end-screen
   const count = parseInt(document.getElementById('end-count').textContent) || 0;
-  const total = parseInt(document.getElementById('end-count').textContent.split('/')[1]) || 195;
+  const total = parseInt(document.getElementById('end-count').textContent.split('/')[1]) || TOTAL;
   const timeText = document.getElementById('end-time').textContent;
   const headline = document.getElementById('end-headline').textContent;
   const modeLabel = MODE_LABELS[currentMode] || 'NAME ALL';
@@ -3559,7 +3559,7 @@ function strictUpdateStrikes() {
 }
 function strictUpdateProgress() {
   const done = strictPerfect + strictHinted + strictMissed;
-  // modeTotal is 195 for Strict/Sprint and the day's set size (10) for Daily.
+  // modeTotal is the full list (198) for Strict/Sprint and the day's set size (10) for Daily.
   document.getElementById('strict-progress').textContent =
     `${done} / ${modeTotal}  ·  ★${strictPerfect}  ◐${strictHinted}  ✗${strictMissed}`;
 }
@@ -3615,7 +3615,7 @@ function strictResetIdleTimer() {
 // Daily, Sprint and Strict all share the one-target-at-a-time identify
 // engine (strictAdvance/strictCorrect + HINT→HINT→SKIP). They differ
 // only in queue + win condition: Daily = the day's 10, Sprint = 60s clock,
-// Strict = the full 195.
+// Strict = the full list (198). See docs/country-list.md.
 function isStrictLikeMode() { return currentMode === 'strict' || currentMode === 'sprint' || currentMode === 'daily'; }
 
 // Disable the action button during the reveal pause so a stray tap can't
