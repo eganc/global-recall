@@ -1,14 +1,14 @@
 {
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/(.*)",
       "has": [
         {
           "type": "host",
           "value": "www.globalrecall.app"
         }
       ],
-      "destination": "https://globalrecall.app/:path*",
+      "destination": "https://globalrecall.app/$1",
       "permanent": true
     }
   ],
