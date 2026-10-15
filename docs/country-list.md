@@ -3,6 +3,11 @@
 Global Recall currently asks you to name **198 places**: the 195 conventionally called
 countries, plus Taiwan, Kosovo and Western Sahara.
 
+Two more — Somaliland and Northern Cyprus — qualify under the rule below and are queued
+to be added, which will take the list to 200. They aren't in yet for a boring mechanical
+reason explained at the bottom: the daily challenge is seeded from the list's order, so
+growing it reshuffles every day's puzzle and isn't a change to make casually.
+
 This page exists because "how many countries are there" has no neutral answer, and any
 list is a position. Here's ours.
 
@@ -19,6 +24,20 @@ where Western Sahara is has been failed by the game.
 
 So the bias is toward **more granular, not less**. When a place has a border on the map, a
 government, and people living under it, the educational answer is to ask you to name it.
+
+**We don't adjudicate sovereignty. The map does.** The globe renders Natural Earth's
+`admin_0_countries` layer, and we defer to it: if Natural Earth draws a place as its own
+feature and records it as its own sovereign, you'll be asked to name it. If it doesn't,
+you won't.
+
+That is a deliberate delegation rather than a dodge. Natural Earth's editors have already
+done this work in public, with a documented rationale and a revision history, and they
+have thought about it harder than we have. Borrowing their boundary means the list is
+answerable to something outside our own opinion, and it means the list changes when the
+cartography does rather than when we feel differently.
+
+It also gives us a practical floor: a place the globe can't paint can't be taught by the
+globe, so it would be a vocabulary question wearing a geography costume.
 
 **Inclusion is a geographic statement, not a political one.** Putting a place on the list
 says it exists and you should know where it is. It says nothing about whose claim is
@@ -40,7 +59,7 @@ That's 195. It's the number most quizzes use and the number most people have in 
 head, which makes it a useful starting point. It is not a complete list of places that
 function as countries, and it was never meant to be one.
 
-## The three beyond 195
+## The contested three
 
 ### Taiwan
 Self-governing, with its own elected government, currency, passport and armed forces. Not
@@ -64,36 +83,44 @@ to name it teaches them less than naming it does.
 
 ---
 
-## What's not in the list yet
+## What the rule includes, and what it leaves out
 
-These are **omissions, not exclusions** — the principle above argues for most of them,
-and they aren't in yet for practical reasons rather than political ones.
+The dataset has 242 features. Applying the rule — drawn as its own feature, and recorded
+as its own sovereign — gives 200 of them. Drop Antarctica, which has no permanent
+population and no government, and add Palestine, which the 195 carries but which Natural
+Earth files under Israeli sovereignty, and the rule lands on **200 places**.
 
-| Place | Why it's a candidate | What's blocking it |
-|---|---|---|
-| Somaliland | De facto independent since 1991, own currency, elections, borders | Natural Earth doesn't draw it as a separate feature, so the globe can't highlight it |
-| Northern Cyprus | Controls territory, own government, recognised by Türkiye | Feature availability |
-| Transnistria | Own currency, government, controls a defined strip | Feature availability |
-| Abkhazia / South Ossetia | Both administered separately from Georgia | Feature availability |
+### Qualifying, not yet added
 
-The honest blocker across all of these is the same: **if MapLibre can't paint it, the
-globe can't teach it**, and a country you can't see highlighted is a vocabulary question
-rather than a geography one. Adding them means sourcing geometry, not settling an
-argument.
+- **Somaliland** — Natural Earth marks it `TYPE: Sovereign country` with itself as
+  sovereign. De facto independent since 1991, with its own currency, elections and
+  borders.
+- **Northern Cyprus** — same marking. Controls territory, has its own government,
+  recognised by Türkiye.
+
+Transnistria, Abkhazia and South Ossetia are **not** separate features in the layer, so
+under the rule they're out. That is the rule doing its job: somebody who thinks about
+boundaries for a living looked at these and did not draw them, and we take that as the
+answer rather than overriding it.
 
 ### Dependencies and territories
 
-Greenland, Puerto Rico, Hong Kong, Bermuda, French Guiana and similar are currently out.
-Under a strict reading of "more granular in the interest of education" there's a real case
-for them — plenty of people can't place Greenland either. This is an open question rather
-than a settled one. It would roughly double the list and change what the game is, so it
-needs a deliberate decision.
+Greenland, Hong Kong, Puerto Rico, the Faroes, Aruba, Guernsey, Bermuda and 30-odd others
+*are* drawn separately — but Natural Earth records each one's sovereign as a state already
+on the list. Denmark's Greenland is Denmark's. They render on the globe and you can see
+them; you're just not asked to name them, because the thing you'd be naming is already an
+answer.
+
+### Antarctica and Siachen Glacier
+
+Both are drawn and neither is a country. Antarctica has no permanent population or
+government; Siachen Glacier is a disputed stretch of ice. Out.
 
 ### Constituent countries
 
 England, Scotland and Wales are aliases for the United Kingdom rather than separate
-answers. Typing "England" is accepted and scores you the UK. This one is settled: they
-have no separate border on the world map.
+answers. Typing "England" is accepted and scores you the UK. They have no separate feature
+on the world map.
 
 ---
 
@@ -114,8 +141,9 @@ quietly resolved in one direction.
 
 ## Scoring
 
-The list is 198, so a perfect Strict or Name All run is 198 and the leaderboard accepts
-scores up to 198. Any "195" still visible in the app is a stale label and a bug.
+The list is 198 today, so a perfect Strict or Name All run is 198 and the leaderboard
+accepts scores up to 198. Any "195" still visible in the app is a stale label and a bug —
+please report it.
 
 ---
 
