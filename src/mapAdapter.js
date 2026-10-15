@@ -3,7 +3,7 @@
 // JS, no MapLibre import: works with any object that exposes the two
 // methods, which makes it unit-testable against a recorder fake.
 //
-// Mirrored inline in index.html (search for "Mirror of src/mapAdapter.js").
+// Mirrored inline in play.html (search for "Mirror of src/mapAdapter.js").
 // When you edit one, edit both.
 
 export function createMapAdapter(map) {

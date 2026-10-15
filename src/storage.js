@@ -2,9 +2,9 @@
 //
 // Every piece of user state — records, ghost runs, daily streak, globe style,
 // install-banner snooze — flows through this module. The runtime in
-// index.html mirrors this exact shape so the game works without a build step,
+// play.html mirrors this exact shape so the game works without a build step,
 // the same pattern src/core.js uses (see the "Mirror of src/core.js" comments
-// in index.html).
+// in play.html).
 //
 // Why this exists: the product brief commits to building state "in a shape
 // that could migrate to a backend later without a rewrite." Direct
@@ -77,7 +77,7 @@ const MIGRATIONS = {
 // local day, not UTC — otherwise someone in EST playing Monday 11pm
 // (= Tuesday 4am UTC) and Tuesday 11pm (= Wednesday 4am UTC) looks
 // "consecutive" to UTC, even though locally they skipped Tuesday entirely.
-// Exported so the inline mirror in index.html stays a literal copy.
+// Exported so the inline mirror in play.html stays a literal copy.
 export function localDayNumber(nowMs) {
   const d = new Date(nowMs);
   d.setHours(0, 0, 0, 0);

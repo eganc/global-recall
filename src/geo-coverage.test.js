@@ -7,12 +7,12 @@ import { norm } from './core.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, '..');
 
-// Extract RAW from index.html instead of duplicating it. RAW is the source
+// Extract RAW from play.html instead of duplicating it. RAW is the source
 // of truth for the runtime; pulling it out by regex keeps the test honest
 // without forcing another inline-mirror file.
-const HTML = readFileSync(join(REPO, 'index.html'), 'utf8');
+const HTML = readFileSync(join(REPO, 'play.html'), 'utf8');
 const m = HTML.match(/const RAW = (\[[\s\S]*?\n\]);/);
-if (!m) throw new Error('Could not extract RAW array from index.html');
+if (!m) throw new Error('Could not extract RAW array from play.html');
 // eslint-disable-next-line no-eval
 const RAW = eval(m[1]);
 
@@ -36,7 +36,7 @@ function resolve(canonical, aliases) {
 }
 
 describe('country → GeoJSON coverage', () => {
-  it('RAW was extracted from index.html', () => {
+  it('RAW was extracted from play.html', () => {
     // 195 UN states (incl. Holy See/Vatican) + Taiwan + Kosovo. Exact
     // assertion guards against an accidental row deletion or a regex slip.
     expect(RAW.length).toBe(198);

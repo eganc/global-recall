@@ -1,4 +1,4 @@
-// Core matching functions extracted from index.html for unit testing.
+// Core matching functions extracted from play.html for unit testing.
 // The game itself still uses inline versions — keep these in sync.
 
 export function norm(s) {

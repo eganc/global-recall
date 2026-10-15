@@ -4,7 +4,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "cap:copy": "rm -rf www && mkdir -p www/icons && cp index.html sw.js manifest.json www/ && cp icons/*.png icons/*.svg www/icons/",
+    "cap:copy": "rm -rf www && mkdir -p www/icons && cp play.html www/index.html && cp sw.js manifest.json www/ && cp icons/*.png icons/*.svg www/icons/",
     "cap:sync": "npm run cap:copy && cap sync"
   },
   "dependencies": {

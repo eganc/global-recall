@@ -1,12 +1,14 @@
-const CACHE = 'global-recall-v58';
+const CACHE = 'global-recall-v59';
 
 // CACHE CHECKLIST: when adding new JS module files, add their paths here AND
 // bump the CACHE version string above. Silent stale-cache failures on deploy
 // are the #1 debugging trap in this project. Night/dark textures are lazy-cached
 // on first style switch — do NOT add them back here (saves ~4MB on first install).
 const PRECACHE = [
-  '/',
-  '/index.html',
+  '/',            // splash (web only)
+  '/play',        // the game, as the manifest's start_url requests it
+  '/play.html',   // the game, by filename
+  '/index.html',  // native shells copy play.html here — see cap:copy
   '/manifest.json',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
@@ -51,7 +53,11 @@ self.addEventListener('fetch', e => {
         const clone = res.clone();
         caches.open(CACHE).then(cache => cache.put(e.request, clone));
         return res;
-      }).catch(() => caches.match('/index.html'));
+      }).catch(() =>
+        // Offline navigation falls back to the game, never the splash.
+        // Native shells have it at /index.html, the web at /play.html.
+        caches.match('/play.html').then(r => r || caches.match('/index.html'))
+      );
     })
   );
 });

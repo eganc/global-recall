@@ -1,5 +1,5 @@
-// Pure geometry helpers extracted from index.html for unit testing.
-// Mirrored inline in index.html — when you edit one, edit both.
+// Pure geometry helpers extracted from play.html for unit testing.
+// Mirrored inline in play.html — when you edit one, edit both.
 //
 // The `altitude` concept is a legacy globe.gl term: 0.25 ≈ tiny island,
 // 2.5 ≈ Russia-sized. We keep it as an intermediate so the camera-zoom
@@ -58,7 +58,7 @@ export function featureSpan(feat) {
 }
 
 // Span (degrees) → MapLibre zoom level, tiered by hand so microstates stay
-// visible and giant countries still fit. Mirror of index.html spanToZoom.
+// visible and giant countries still fit. Mirror of play.html spanToZoom.
 export function spanToZoom(span) {
   if (span < 0.4)  return 9.0;
   if (span < 1.2)  return 7.8;
